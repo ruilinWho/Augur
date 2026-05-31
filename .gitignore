@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────
+# Augur .gitignore
+# Principle: source + version-controlled assets (resources/) are tracked;
+# all runtime state (data/) and secrets are NOT.
+# ─────────────────────────────────────────────────────────────
+
+# ── Secrets & local config (NEVER commit) ──────────────────────
+.env
+.env.*
+!.env.example
+*.local.toml
+config.local.*
+secrets/
+*.key
+*.pem
+
+# ── Runtime data: cache, db, logs (single source of truth = ./data) ──
+# Keep the dir + its doc; ignore everything else runtime-generated.
+# (Note: .gitignore does NOT support inline comments — keep them on their own line.)
+data/*
+!data/README.md
+
+# Belt-and-suspenders: ignore these artifacts anywhere they appear
+*.sqlite
+*.sqlite3
+*.db
+*.parquet
+*.feather
+*.log
+
+# ── Python (backend) ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.uv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# ── Node / Vite (frontend) ─────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# ── Tauri / Rust (Phase 2 desktop shell) ───────────────────────
+src-tauri/target/
+src-tauri/gen/
+
+# ── PyInstaller sidecar build artifacts (Phase 2 packaging) ────
+*.spec
+backend/build/
+backend/dist/
+
+# ── macOS ──────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# ── Editors / IDE ──────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.idea/
+*.swp
+*.swo

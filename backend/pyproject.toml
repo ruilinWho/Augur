@@ -1,0 +1,29 @@
+[project]
+name = "augur"
+version = "0.0.0"
+description = "Local-first, LLM-powered personal investment research workbench"
+requires-python = ">=3.13"
+# NOTE: dependencies are intentionally unpinned here and will be added/locked at
+# M1 via `uv add ...` (see backend/README.md). This manifest exists so the
+# project structure is real; `uv sync` becomes meaningful once deps are added.
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pytest",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["augur"]

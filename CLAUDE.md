@@ -1,0 +1,223 @@
+# CLAUDE.md — Augur
+
+> **Augur** 是一个本地优先、LLM 驱动的个人多市场投资**研究**工作台（macOS）。
+> 本文件是**项目宪法**。**每次会话开始请完整读一遍。**
+> 它会被自动载入上下文——请保持精炼、最新、高信噪比。
+> **更新 `CLAUDE.md` + `docs/` 是每次改动的一部分**，不是事后补的（见 §10）。
+
+---
+
+## 1. Augur 是什么 —— 以及不是什么
+
+三根支柱 / three pillars：
+
+1. **看 · View** —— 美股 / 港股 / A股 / 韩股的 K 线，以**极致美观**的方式渲染。
+2. **研 · Research** —— 用 LLM + Deep Research 对单支股票做详尽分析。
+3. **知 · Know** —— 每天聚合全球顶级信源，由 LLM 蒸馏成**趋势日报**，让主人在天级别与世界信息流同步。
+
+贯穿三者的基础设施：
+
+- **自选分区（两级板块）** —— 自定义 List / 板块来组织你跟踪的标的（见 §8）。
+- **统一 LLM 网关** —— 任意厂商、可自配 `base_url`（见 §6）。
+
+表层：贴合 **Anthropic 设计哲学**、字体/行距可调、**设计师级美观**的 UI（见 §9——**美观是硬指标，不是装饰**）。
+
+**非目标 —— 硬边界（无明确指令不得跨越）：**
+
+- ❌ **不是交易终端。** Augur 永不下单、不动钱、不执行任何交易。（见 §11）
+- ❌ **不是投资建议。** 输出是研究辅助——永远暴露不确定性、标注来源。
+- ❌ **不是多用户 / 云 SaaS。** 单用户，本地运行在主人的 Mac 上。
+
+---
+
+## 2. 架构总览
+
+```
+┌──────────────────────────────────────────────────────┐
+│  前端  React 19 + TypeScript + Vite 8                   │
+│  · 图表  Lightweight Charts v5 (+ KLineChart A股指标)    │
+│  · 路由/状态  TanStack Router/Query + Zustand + Zod      │
+│  · 样式  Tailwind v4 + Anthropic 设计 token              │
+│  · 动效  Motion   · 字体/行距 = CSS 变量（用户可调）       │
+└───────────────────────┬──────────────────────────────┘
+                        │  HTTP + SSE（流式）
+┌───────────────────────┴──────────────────────────────┐
+│  后端  Python 3.13 + FastAPI                            │
+│  market/    → 四市场数据适配器 (FDR+akshare+yf+pykrx)    │
+│  watchlist/ → 自选分区（两级板块）                        │
+│  llm/       → litellm 网关（任意厂商、自配 base_url）      │
+│  research/  → deep-research 编排                         │
+│  news/      → RSS/API 摄取 + APScheduler + 趋势日报       │
+│  storage/   → SQLite（元数据）+ Parquet（行情缓存）        │
+└───────────────────────┬──────────────────────────────┘
+                        │  （Phase 2）
+                  Tauri 2 外壳 → 原生 .app（<10MB）
+```
+
+完整细节：[docs/architecture.md](docs/architecture.md)。选型理由：[docs/decisions/](docs/decisions/)。
+
+---
+
+## 3. 仓库结构
+
+```
+Augur/
+├── CLAUDE.md              ← 你在这（项目宪法）
+├── README.md              ← 面向人的简介
+├── docs/                  ← 架构 · 路线图 · 设计系统 · ADR · 记忆
+│   ├── architecture.md
+│   ├── roadmap.md
+│   ├── design-system.md   ← 设计系统（美学准则在此）
+│   ├── decisions/         ← ADR 架构决策记录（只增不改）
+│   └── memory/            ← 跨会话项目记忆（见 §10）
+├── backend/               ← Python（uv 管理）FastAPI 服务
+│   ├── pyproject.toml
+│   └── augur/  market/ · watchlist/ · llm/ · research/ · news/ · storage/ · config.py · main.py
+├── frontend/              ← React + Vite + TS（M1 搭建）
+├── resources/             ← 入库的静态资产（版本控制）
+│   ├── fonts/             ← 自带字体
+│   ├── prompts/           ← LLM 提示词模板（要版本化！）
+│   └── sources/           ← 新闻信源清单（YAML）
+├── data/                  ← 仅运行时 · 被 git 忽略 · 在 git 里永不作为真相来源
+│   ├── cache/（parquet）   ├── db/（sqlite）  └── logs/
+└── src-tauri/             ← Phase 2 桌面外壳
+```
+
+**最重要的一条结构规则：** `resources/`（入库）vs `data/`（忽略）。
+你**亲手编写的输入** → `resources/`；**运行时生成/抓取的** → `data/`。
+
+---
+
+## 4. 技术栈与关键依赖（**用前沿版本**）
+
+| 层 | 选择 | 一句话理由 |
+|---|---|---|
+| 后端 | **Python 3.13 / FastAPI** | 唯一有免费四市场数据库的生态 |
+| 包管理 | **uv** | 快、可复现；`uv sync` / `uv run` |
+| LLM 网关 | **litellm** | 一个接口、100+ 厂商、原生自配 `base_url` |
+| 行情数据 | **FinanceDataReader**（基座）+ **akshare**（A股）+ **yfinance**（美/全球）+ **pykrx**（韩） | FDR 一库覆盖四市场，其余加深度 |
+| 调度 | **APScheduler** | 每日新闻 / 日报任务 |
+| 存储 | **SQLite** + **Parquet**（pyarrow） | 元数据 + 列式行情缓存 |
+| 前端 | **React 19 + TypeScript + Vite 8** | 最强图表生态；CSS 易做到美 + 字体可调 |
+| 路由/状态 | **TanStack Router** + **TanStack Query** + **Zustand** + **Zod** | 类型安全路由 / 服务端状态 / 客户端状态 / 运行时校验 |
+| 图表 | **Lightweight Charts v5**（主）+ **KLineChart**（A股指标） | 35KB、丝滑、多窗格；KLineChart 画 MA/BOLL/MACD |
+| 样式 | **Tailwind CSS v4** + 自定义设计 token | Anthropic 主题；CSS-first 配置（见 design-system.md） |
+| 拖拽 | **dnd-kit** | 自选分区拖拽组织（无障碍友好） |
+| 动效 | **Motion**（motion.dev，原 Framer Motion） | 克制、顺滑的过渡 |
+| 桌面（P2） | **Tauri 2** + PyInstaller sidecar | 原生 .app，<10MB（Electron 动辄 100MB+） |
+| 前端包管理 | **pnpm** | 快、现代、磁盘友好 |
+
+> 本文件**不钉死精确版本**——`pyproject.toml` / `package.json` 才是版本真相。新增依赖要在提交里说明理由，并优先用上表里的库再考虑替代品。**"前沿"指主流稳定的最新大版本，不是不稳定的实验版。**
+
+---
+
+## 5. 约定
+
+### 后端（Python）
+- 一切走 **uv**：`uv add <pkg>`、`uv run <cmd>`、`uv sync`。
+- **ruff** 做 lint+format；**mypy/pyright** 做类型。所有公共函数加类型标注。
+- FastAPI：路由放 `augur/<domain>/router.py`；纯逻辑放 `service.py`；Pydantic 模型放 `schemas.py`。把 I/O（网络、磁盘）挡在纯逻辑之外，便于测试。
+- 所有出站网络请求都走一个小的 **重试/缓存** 包装层——别狂打免费数据源（限流是真的）。
+- I/O 密集端点默认 async；数据库（同步）调用丢进 threadpool。
+
+### 前端（TypeScript / React）
+- 函数组件 + hooks。Feature-first 目录：`src/features/{kline,watchlist,analysis,news}/`。
+- 共享原子组件放 `src/components/`；设计 token 放 `src/theme/`。
+- **组件里禁止硬编码颜色 / 字号 / 间距**——一律消费 CSS 变量 / Tailwind token，让字体排版保持用户可调（字体、行距是一等公民）。
+- LLM 输出用 SSE 流式，增量渲染。
+- **美观是硬指标**：每一屏都按资深产品设计师水准打磨（见 §9）。
+
+### 提交与分支
+- Conventional Commits：`feat:`、`fix:`、`docs:`、`refactor:`、`chore:`。
+- **功能开发**在 `main` 的分支上做；初始脚手架/文档可直接提交 `main`（主人已授权 Claude 自行 commit & push）。
+- 提交带 co-author trailer（遵循 harness 规则）。
+
+### 本地运行（随脚手架落地更新）
+```bash
+# 后端（在 backend/ 里 `uv sync` 之后）
+cd backend && uv run uvicorn augur.main:app --reload --port 8788
+
+# 前端（M1 搭建后）
+cd frontend && pnpm dev
+```
+> ⚠️ M1 落地前，以上是*预期*命令；实际进度看 docs/roadmap.md。
+
+---
+
+## 6. LLM 网关约定（`backend/augur/llm/`）
+
+- **一切走 litellm。** 不在各 feature 里散落直连 `openai`/`anthropic` SDK。
+- 厂商是**配置出来的，不是写死的**。一份 `providers` 配置（gitignore 的 `.env` / `config.local.toml`）把友好名 → `{ model, api_base, api_key_env }`。支持 OpenAI、Anthropic、DeepSeek，以及任意 OpenAI 兼容中转站（自配 `base_url`）。
+- 区分**角色**：`chat`、`deep_research`、`summarize`、`cheap`。每个角色解析到一个配置的厂商/模型——主人可把摘要路由到便宜模型、深度分析路由到前沿模型。
+- 面向用户时**总是流式**。**总是把 token 用量记到 `data/db`** 以便看成本。
+- 提示词模板放 `resources/prompts/`（版本化），按名加载——别在代码里内联大段提示词。
+
+---
+
+## 7. 行情数据约定（`backend/augur/market/`）
+
+- **内部归一化符号：** `MARKET:CODE` → `US:AAPL`、`HK:00700`、`CN:600519`、`KR:005930`。每个适配器负责与各库原生格式互转。
+- **适配器模式：** 每个源一个模块（`fdr.py`、`akshare.py`、`yfinance.py`、`pykrx.py`），统一在 `MarketAdapter` 接口后（`get_ohlcv`、`search`、`quote`）。一个 resolver 按市场选最佳适配器并带回退。
+- **缓存优先：** OHLCV 缓存为 Parquet 到 `data/cache/`，键为 `MARKET:CODE/interval`。只抓缺失的尾巴。尊重限流。
+- 各市场的交易日历、币种、代码格式都不同——存进适配器元数据，**别假设美股惯例**。
+
+---
+
+## 8. 自选分区（两级板块）约定（`backend/augur/watchlist/`）
+
+主人用**自定义"分区/板块/List"**来组织跟踪的标的。这是贯穿三大支柱的导航基础设施（看哪些、研哪些、新闻按分区聚合）。
+
+- **硬约束：最多两级（invariant）。**
+  - 一级板块：如 `半导体`、`航天`、`新能源`。
+  - 二级板块：挂在某一级下，如 `半导体/GPU`、`半导体/光通信模块`。
+  - **二级板块不能再有子级。** 后端 service 层强制 `depth ≤ 2`；前端不暴露第三级入口。
+- **数据模型（SQLite）：**
+  - `sections(id, name, parent_id /* NULL=一级 */, sort_order, created_at)`
+  - `watchlist_items(id, section_id, symbol /* MARKET:CODE */, note, sort_order, added_at)`
+  - 一只标的**可同时属于多个分区**；可直接挂在一级下，也可挂在二级下。
+- **前端** `features/watchlist/` 作为**主导航**：左侧可折叠的两级树，**dnd-kit 拖拽**组织；点击标的 → 切到看/研/相关新闻。
+- 删除一级板块时如何处理其下二级与标的，要有明确策略（级联或迁移），在实现时定并写进 docs。
+
+---
+
+## 9. 设计系统（**美学是硬指标**）
+
+完整 token 与排版见 [docs/design-system.md](docs/design-system.md)。**这里是不可妥协的纲领：**
+
+- **美观对 Augur 是功能性的，不是装饰。** 主人明确要求：前端美观度对齐 **Anthropic / 资深产品设计师** 水准，而且**这会直接影响投资的理智性**——平静、克制、低噪音的界面支持更清醒、更少情绪化的决策；杂乱刺眼的界面会侵蚀判断。
+- **完成标准 = "资深产品设计师会让它上线吗？"** 绝不留默认样式、未对齐、粗糙的 UI。宁可少做一个功能，也要把已做的做到精致。
+- **暖纸感**，非惨白。米白/象牙底、柔和描边、慷慨留白、温和圆角、克制动效。
+- **标志性强调色** ≈ 陶土/珊瑚 `#D97757`，少量点睛。其余低饱和、安静的配色。
+- **排版：** 标题用衬线（Tiempos 感 → 免费 **Newsreader / Source Serif 4**），正文用人文无衬线（Styrene 感 → **Inter**）。Anthropic 真字体是商业授权，我们在 `resources/fonts/` 放免费近似替代。
+- **波动数据要冷静呈现**：别狂闪红绿、别把盈亏游戏化。涨跌色按市场习惯可配（美股绿涨红跌；A/港/韩红涨绿跌）。
+- **字体/字号/行距/行宽是用户可调的一等公民**，全部走 CSS 变量；组件只读 token。
+
+---
+
+## 10. 文档与记忆纪律（重要）
+
+本项目**全程由 LLM 协助开发**，所以写下来的持久上下文就是产品的记忆。规则：
+
+- **每次改动同一口气更新文档。** 新能力 → 更新 `CLAUDE.md` 相关 § + `docs/`。带权衡的新决策 → 在 `docs/decisions/` 加一篇 ADR（只增不改、编号）。
+- **`docs/roadmap.md`** 是实时状态板——已完成、当前焦点、下一步。里程碑移动就更新它。
+- **`docs/memory/`** 存放放不进代码或 ADR 的跨会话上下文：坑、数据源怪癖、主人偏好、"为什么放弃了 X"。一文件一主题。（这是**项目级记忆**，区别于 Claude 的个人 `~/.claude` 记忆。）
+- 当你（LLM）学到某个非显然、未来会话会重复踩坑的东西——**在结束这一轮前把它写下来**，放对地方。
+- 保持 `CLAUDE.md` 精瘦：深度内容链接到 `docs/`；本文件是索引 + 不变量，不是百科。
+
+---
+
+## 11. 护栏 —— 不可妥协
+
+1. **永不交易、永不动钱。** 只做研究。
+2. **git 里不放密钥。** API key 放 gitignore 的 `.env` / 系统 Keychain。绝不把 key 打进日志或提交。`data/` 被忽略——保持如此。
+3. **暴露不确定性。** 免费数据源可能延迟/出错；LLM 分析会幻觉。标注新鲜度、引用来源、适当对冲措辞。
+4. **尊重限流。** 激进缓存、失败退避。别把主人的 IP 打到被封。
+5. **本地优先且私密。** 无遥测、不把主人数据发往任何地方，除非主人明确配置的 LLM 厂商。
+
+---
+
+## 12. 当前状态与下一步
+
+- **现在：** M0 —— 仓库脚手架完成（结构、文档、CLAUDE.md、中文化、前沿技术栈定稿）。尚无运行时代码。
+- **下一步（M1）：** 基础设施 + 自选分区 + K线 —— LLM 网关骨架、四市场数据适配器、两级板块、图表外壳。
+- 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。
