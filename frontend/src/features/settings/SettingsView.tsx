@@ -18,13 +18,15 @@ export default function SettingsView() {
 
   return (
     <div>
-      <div className="eyebrow">设置 · 排版</div>
-      <h2 style={{ marginTop: 8, marginBottom: 14 }}>排版（字号 / 行距 / 字体）</h2>
-      <div className="set-group">
+      <div className="eyebrow">设置</div>
+      <h1 className="set-page-title" style={{ marginTop: 8 }}>偏好</h1>
+
+      <div className="set-card-h">排版 · 字号 / 行距 / 字体（整页实时生效）</div>
+      <div className="set-card">
         <div className="set-row">
           <div>
             <div className="k">正文字号</div>
-            <div className="d">全局基准字号，整页实时生效</div>
+            <div className="d">全局基准字号</div>
           </div>
           <div className="ctl">
             <input type="range" min={14} max={19} step={1} value={textBase} onChange={(e) => setTextBase(+e.target.value)} />
@@ -55,8 +57,8 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <div className="eyebrow">设置 · 主题与色彩</div>
-      <div className="set-group" style={{ marginTop: 12 }}>
+      <div className="set-card-h">主题与色彩</div>
+      <div className="set-card">
         <div className="set-row">
           <div>
             <div className="k">主题</div>
@@ -83,8 +85,8 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <div className="eyebrow">设置 · LLM 厂商</div>
-      <div className="set-group" style={{ marginTop: 12 }}>
+      <div className="set-card-h">LLM 厂商 · 角色路由</div>
+      <div className="set-card">
         {roles.data?.map((r) => (
           <div className="set-row" key={r.role}>
             <div>
@@ -98,9 +100,9 @@ export default function SettingsView() {
             </div>
           </div>
         ))}
-        <div className="hedge">
-          在 <span className="mono">backend/.env</span> 配置厂商 key / base_url 与 <span className="mono">AUGUR_ROLE_*</span> 角色路由（见 .env.example），重启后端生效。
-        </div>
+      </div>
+      <div className="hedge" style={{ maxWidth: 680 }}>
+        在 <span className="mono">backend/.env</span> 配置厂商 key / base_url 与 <span className="mono">AUGUR_ROLE_*</span> 角色路由（见 .env.example），重启后端生效。
       </div>
     </div>
   )
