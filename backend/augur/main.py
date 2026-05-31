@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .llm import router as llm_router
 from .market import router as market_router
 from .storage import init_db
 from .watchlist import router as watchlist_router
@@ -34,6 +35,7 @@ app.add_middleware(
 
 app.include_router(market_router)
 app.include_router(watchlist_router)
+app.include_router(llm_router)
 
 
 @app.get("/health")
