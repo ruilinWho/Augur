@@ -78,3 +78,6 @@ Icon?
 .idea/
 *.swp
 *.swo
+
+# ── Claude Code 本地工具配置（preview launch.json 等）──
+.claude/

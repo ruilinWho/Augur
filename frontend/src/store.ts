@@ -1,0 +1,64 @@
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+export type View = 'kan' | 'yan' | 'zhi' | 'set'
+export type Market = 'ALL' | 'US' | 'HK' | 'CN' | 'KR'
+export type Theme = 'light' | 'dark'
+export type DisplayFont = 'serif' | 'sans'
+export type Convention = 'us' | 'cn' // us: 绿涨红跌；cn: 红涨绿跌
+
+interface UIState {
+  view: View
+  selectedSymbol: string | null
+  market: Market
+  // ── Meta 设置（持久化）──
+  theme: Theme
+  textBase: number
+  leading: number
+  displayFont: DisplayFont
+  convention: Convention
+
+  setView: (v: View) => void
+  select: (s: string) => void
+  setMarket: (m: Market) => void
+  setTheme: (t: Theme) => void
+  setTextBase: (n: number) => void
+  setLeading: (n: number) => void
+  setDisplayFont: (f: DisplayFont) => void
+  setConvention: (c: Convention) => void
+}
+
+export const useUI = create<UIState>()(
+  persist(
+    (set) => ({
+      view: 'kan',
+      selectedSymbol: null,
+      market: 'ALL',
+      theme: 'light',
+      textBase: 16,
+      leading: 1.62,
+      displayFont: 'serif',
+      convention: 'us',
+
+      setView: (view) => set({ view }),
+      select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
+      setMarket: (market) => set({ market }),
+      setTheme: (theme) => set({ theme }),
+      setTextBase: (textBase) => set({ textBase }),
+      setLeading: (leading) => set({ leading }),
+      setDisplayFont: (displayFont) => set({ displayFont }),
+      setConvention: (convention) => set({ convention }),
+    }),
+    {
+      name: 'augur-ui',
+      partialize: (s) => ({
+        theme: s.theme,
+        textBase: s.textBase,
+        leading: s.leading,
+        displayFont: s.displayFont,
+        convention: s.convention,
+        market: s.market,
+      }),
+    },
+  ),
+)
