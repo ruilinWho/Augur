@@ -31,42 +31,45 @@ Augur 处理的是高波动、极易激发情绪的金融数据。**界面若嘈
 
 ## 2. 颜色 token
 
-以 CSS 变量定义；Tailwind 映射到它们。下列为参考值（实现时再微调）：
+以 CSS 变量定义；Tailwind 映射到它们。下列为参考值（与 `design-preview.html` v2 一致，实现时再微调）：
 
 | Token | 亮色 | 暗色 | 用途 |
 |---|---|---|---|
-| `--bg` | `#F5F4EE` 象牙 | `#1F1E1B` 暖炭 | 应用背景 |
-| `--surface` | `#FBFAF6` | `#2A2825` | 卡片、面板 |
-| `--border` | `#E6E3D8` | `#3A3733` | 发丝描边 |
-| `--text` | `#1A1915` | `#ECEAE1` | 主文本 |
-| `--text-muted` | `#6B675C` | `#A8A395` | 次文本 |
-| `--accent` | `#D97757` 陶土/珊瑚 | `#E08A6A` | 唯一标志强调色 |
-| `--accent-weak` | `#F0DDD2` | `#4A382F` | 强调背景 |
-| `--up` | `#3F8F5B`（美股绿） | — | 涨（见下注） |
-| `--down` | `#C24A3E`（美股红） | — | 跌 |
+| `--bg` | `#F4F2EA` 象牙纸 | `#1E1C19` 暖炭 | 应用背景 |
+| `--surface` | `#FBFAF5` | `#282622` | 卡片、面板 |
+| `--surface-2` | `#EFEDE2` | `#332F29` | 次级表面 / 凹陷 |
+| `--border` | `#E4E0D3` | `#39352F` | 发丝描边 |
+| `--text` | `#211F1A` | `#ECEAE1` | 主文本 |
+| `--text-muted` | `#6B6557` | `#A8A395` | 次文本 |
+| `--text-faint` | `#9A9483` | `#766F63` | 弱文本 / 占位 |
+| `--accent` | `#D97757` 陶土 | `#E08A6A` | 唯一标志强调色 |
+| `--accent-weak` | `#F1DDD1` | `#48372E` | 强调背景 / 激活态 |
+| `--crayon-green` | `#7FA189` 哑光沙绿 | `#8FB096` | 蜡笔涨/跌基色（轻） |
+| `--crayon-red` | `#C68C7C` 哑光陶红 | `#D49B8B` | 蜡笔涨/跌基色（轻） |
+| `--up` / `--down` | 由市场习惯映射到上面两个蜡笔基色 | — | 涨 / 跌 |
 
-> **涨跌色市场习惯：** 美股/全球 绿涨红跌；A股/港股/韩股文化上**红涨绿跌**。把涨跌色做成**按市场（或用户）可配**，不是常量。
+> **蜡笔纸感涨跌色（重要）：** 红绿要**极度克制**——哑光、低饱和、轻，像**彩铅画在纸上**，而非鲜艳的交易终端红绿。注意：是**规整矩形蜡烛**（不歪扭），只是颜色轻、半透明（让纸透出）。`--up`/`--down` 不是固定色，而是把 `--crayon-green` / `--crayon-red` 按「涨跌色习惯」映射：美股/全球 绿涨红跌；A股/港股/韩股 红涨绿跌。该习惯在**「设置」** 里切换。
 
 ## 3. 排版
 
-- **标题——衬线**（Tiempos/Copernicus 感）。免费近似：**Newsreader** 或 **Source Serif 4**。
-- **正文 / UI——人文无衬线**（Styrene 感）。免费近似：**Inter**。
-- **数字/数据——等宽数字**（`font-variant-numeric: tabular-nums`），价格列对齐。代码/JSON 用 **Geist Mono / JetBrains Mono**。
-- Anthropic 真品牌字体（Styrene A/B、Tiempos）是**商业授权**——我们在 `resources/fonts/` 放免费替代，可换。
+- **英文衬线 + 中文苹方**（Anthropic 的路子：英文 Tiempos 衬线，中文无品牌衬线、落到系统苹方）。英文/标题走 **Source Serif 4** 衬线，**所有中文走苹方**（`PingFang SC`）——**不用中文宋体**，避免「苹方 + 宋体」混排的别扭。
+- **正文**：中文苹方、英文系统无衬线；**英文标题/展示**用 Source Serif 4 衬线。中文无论标题正文都是苹方。
+- **数字/数据——等宽数字**（`font-variant-numeric: tabular-nums`），价格列对齐。代码/JSON 用 **JetBrains Mono**。
+- 字体策略：**优先系统字体**（苹方，零加载、原生质感）；只有 Source Serif 4、JetBrains Mono 需随包自托管到 `resources/fonts/`。
 
 **可调排版——CSS 变量契约：**
 ```css
 :root {
-  --font-serif: "Newsreader", Georgia, serif;
-  --font-sans:  "Inter", -apple-system, system-ui, sans-serif;
-  --font-mono:  "Geist Mono", ui-monospace, monospace;
-  --text-base:  16px;   /* 用户可调 */
-  --leading:    1.6;    /* 行距，用户可调 */
-  --measure:    68ch;   /* 阅读最大行宽 */
-  --tracking:   0;      /* 字距 */
+  --font-serif:   "Source Serif 4","PingFang SC",Georgia,serif;   /* 英文衬线 + 中文苹方 */
+  --font-sans:    "PingFang SC",-apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif;  /* 正文 */
+  --font-mono:    "JetBrains Mono",ui-monospace,monospace;
+  --font-display: var(--font-serif);  /* 标题字体；默认衬线，可在设置切无衬线 */
+  --text-base: 16px;    /* 用户可调 */
+  --leading:   1.62;    /* 行距，用户可调 */
+  --measure:   64ch;    /* 阅读最大行宽 */
 }
 ```
-字号梯度（相对 `--text-base`）：`0.8 / 0.9 / 1 / 1.25 / 1.6 / 2.1 / 2.6`。设置面板暴露：基准字号、行距、字体族、行宽 → 写这些变量。
+字号梯度（相对 `--text-base`）：`0.8 / 0.9 / 1 / 1.25 / 1.42 / 1.8 / 2.3`。**这些可调项收纳在「设置」Tab**（不散落在顶栏）——写这些 CSS 变量即整页实时生效。
 
 ## 4. 间距、圆角、层级
 
@@ -82,10 +85,18 @@ Augur 处理的是高波动、极易激发情绪的金融数据。**界面若嘈
 
 ## 6. 图表
 
-- Lightweight Charts v5 按 token 主题化：象牙背景、发丝网格、低调坐标文字、强调色十字光标。涨跌色遵循各市场习惯（§2）。多窗格放主图 + 指标。
+- Lightweight Charts v5 按 token 主题化：象牙纸背景、发丝网格、低调坐标文字、强调色十字光标。多窗格放主图 + 指标。
+- **蜡笔纸感是 K 线的硬要求：** 蜡烛是**规整矩形、直角（不加圆角——圆角在小尺寸下显歪扭）**，用 `--crayon-green/red`，哑光低饱和、**半透明（让纸透出来）**、轻；叠一层极淡纸纹。绝不用鲜艳实心红绿，也不要手绘式扭曲。参考实现见 `design-preview.html`。
 - 图表 chrome 极简——**数据是主角**。
 
-## 7. 组件准则
+## 7. 导航外壳（信息架构）
+
+- **功能切换在顶栏**（App 顶部一行）：品牌 `Augur` + 横向 Tab **看 · 研 · 知**，「设置」用右上角齿轮。激活态 `--accent-weak` + `--accent`。功能不多，顶栏切换最省空间、让正文区用满宽度（不用竖排侧栏）。
+- 顶栏下方两栏：**上下文面板**（左，~260px）+ **主舞台**（右，占满剩余宽度）。面板随 Tab 变：看/研 显示「**市场过滤器**（分段控件 全部/美/港/A/韩）+ **两级板块树**」；知 显示日报日期；设置显示分类（排版 / 主题与色彩 / 数据与市场 / LLM 厂商）。**市场是正交过滤器，不是板块第三层**。
+- **自选分区面板层级要分明**：L1 板块组用顶部分隔线隔开；L2 子板块用左侧导引线把其下个股「圈」住（清楚显示归属）；**个股行左右各两行、上下对齐**——左列 `代码 / 名称`，右列 `价格 / 涨跌`，个股之间用细分隔线。
+- **所有 Meta 设置集中在「设置」**（字号、行距、字体、主题、涨跌色习惯、厂商配置）——顶栏不放零散设置控件。
+
+## 8. 组件准则
 
 - 卡片/面板：`--surface` + `--border` + `--radius`，充足内边距。
 - 按钮：主操作用 `--accent`；多数动作要安静（ghost/outline）。**每屏最多一个"响亮"按钮。**
@@ -93,7 +104,7 @@ Augur 处理的是高波动、极易激发情绪的金融数据。**界面若嘈
 - 用 **Radix UI** 无头原子件保证无障碍与交互正确，再用我们的 token 上妆（不直接套用别人现成的视觉）。
 - 永远对着 token 写——**组件里不出现字面颜色/尺寸**（CLAUDE.md §5）。
 
-## 8. 参考坐标（touchstones）
+## 9. 参考坐标（touchstones）
 
 平静、克制、高完成度的产品，研究它们怎么处理留白、层级、动效与数据密度：
 **Claude.ai · Linear · Things 3 · Stripe 文档 · Arc**。

@@ -51,7 +51,7 @@ Augur 是一个**本地双进程应用**：一个 Python 后端（数据 + LLM +
 ## 3. 三条特性管线 + 自选分区
 
 ### 自选分区 · Watchlist（贯穿全局的导航）
-两级板块树（一级如 `半导体`、二级如 `半导体/GPU`），是"看/研/知"的入口。详见 [CLAUDE.md §8](../CLAUDE.md)。
+两级板块树（一级如 `半导体`、二级如 `半导体/GPU`），是"看/研/知"的入口。**市场（美/港/A/韩/全部）是正交的过滤器，不是第三层**（面板顶部分段控件）。详见 [CLAUDE.md §8](../CLAUDE.md)。
 - `GET /watchlist/sections` 返回带标的的分区树
 - `POST /watchlist/sections {name, parent_id?}` 建板块（校验 `depth ≤ 2`）
 - `POST /watchlist/sections/{id}/items {symbol, note?}` 加标的
@@ -96,19 +96,22 @@ APScheduler 定时任务（每天，按主人时区）：
 
 ## 7. 前端结构
 
+**导航外壳（信息架构）：** **功能切换在顶栏**（`Augur` 一行横向 Tab 看/研/知 + 右上齿轮设置），下方两栏 `上下文面板(~260px) | 主舞台`。面板随 Tab 变（自选分区树含市场切换 / 日报列表 / 设置分类）；主舞台占满剩余宽度。详见 [design-system.md §7](design-system.md)。
+
 ```
 frontend/src/
+├── app/            外壳：顶栏 Tab 导航(看/研/知/设置) + 上下文面板 + 主舞台、路由(TanStack Router)、布局
 ├── features/
-│   ├── watchlist/  两级分区树、拖拽组织(dnd-kit)、标的管理 —— 主导航
-│   ├── kline/      图表、标的搜索、市场切换、指标
+│   ├── watchlist/  两级分区树、拖拽组织(dnd-kit)、标的管理（看/研 的上下文面板）
+│   ├── kline/      图表（蜡笔纸感）、标的搜索、市场切换、指标
 │   ├── analysis/   深度研究视图、流式报告、引用
-│   └── news/       每日日报、信源管理、主题聚类
+│   ├── news/       每日日报、信源管理、主题聚类
+│   └── settings/   排版 / 主题与色彩 / 数据与市场 / LLM 厂商（所有 Meta 设置集中于此）
 ├── components/     共享 UI 原子件（Button, Card, Panel, …）
 ├── theme/          设计 token、CSS 变量、排版控制
-├── lib/            api 客户端（REST + SSE）、格式化、hooks
-└── app/            路由(TanStack Router)、布局、设置
+└── lib/            api 客户端（REST + SSE）、格式化、hooks
 ```
-- **排版是数据，不是写死的。** 一个设置 store 驱动 CSS 变量（`--font-serif`、`--font-sans`、`--text-base`、`--leading`、`--measure`）。组件只读 token。
+- **排版是数据，不是写死的。** 一个设置 store（`settings/`）驱动 CSS 变量（`--font-serif` Source Serif 4、`--font-sans` 苹方、`--text-base`、`--leading`、`--measure`）。组件只读 token。
 - 服务端状态用 **TanStack Query**，客户端 UI 状态用 **Zustand**，校验用 **Zod**。
 - LLM/研究输出走 SSE 流式、增量渲染。
 - **每一屏按资深设计师水准打磨**（见 [design-system.md](design-system.md)）。

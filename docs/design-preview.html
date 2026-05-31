@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Augur · 设计系统预览</title>
+<!-- 英文衬线 Source Serif 4 + 中文苹方(系统)；数字 JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#F4F2EA; --surface:#FBFAF5; --surface-2:#EFEDE2; --border:#E4E0D3;
+  --text:#211F1A; --text-muted:#6B6557; --text-faint:#9A9483;
+  --accent:#D97757; --accent-ink:#FFFFFF; --accent-weak:#F1DDD1;
+  --crayon-green:#7FA189; --crayon-red:#C68C7C;
+  --up:var(--crayon-green); --down:var(--crayon-red);
+  --shadow:0 1px 2px rgba(40,33,26,.04), 0 12px 32px -18px rgba(60,50,40,.20);
+  --font-serif:"Source Serif 4","PingFang SC",Georgia,serif;
+  --font-sans:"PingFang SC",-apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  --font-display:var(--font-serif);
+  --text-base:16px; --leading:1.62; --measure:64ch;
+  --radius-sm:8px; --radius:13px; --radius-lg:18px;
+}
+[data-theme="dark"]{
+  --bg:#1E1C19; --surface:#282622; --surface-2:#332F29; --border:#39352F;
+  --text:#ECEAE1; --text-muted:#A8A395; --text-faint:#766F63;
+  --accent:#E08A6A; --accent-ink:#241712; --accent-weak:#48372E;
+  --crayon-green:#8FB096; --crayon-red:#D49B8B;
+  --shadow:0 1px 2px rgba(0,0,0,.2), 0 16px 38px -20px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:var(--text-base);line-height:var(--leading);transition:background .4s,color .4s}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;letter-spacing:-.005em;line-height:1.2;margin:0}
+h1{font-size:2.3rem;font-weight:500} h2{font-size:1.42rem} h3{font-size:1.06rem}
+p{margin:0} .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--text-muted)} .faint{color:var(--text-faint)}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+section{margin:46px 0}
+.eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);font-weight:600;font-family:var(--font-sans)}
+
+.pagetop{position:sticky;top:0;z-index:20;backdrop-filter:saturate(1.4) blur(10px);background:color-mix(in srgb,var(--bg) 86%,transparent);border-bottom:1px solid var(--border)}
+.pagetop .row{display:flex;align-items:center;gap:14px;padding:12px 24px;max-width:1180px;margin:0 auto}
+.pagetop .brand{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-size:1.18rem;font-weight:600}
+.pagetop .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-weak)}
+.pagetop .hint{margin-left:auto;font-size:.78rem;color:var(--text-faint)}
+
+.caption{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--text-muted);margin:0 0 10px 2px}
+.caption .led{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.divider{display:flex;align-items:center;gap:14px;color:var(--text-faint);font-size:.74rem;letter-spacing:.1em;margin:8px 0 0}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--border)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow)}
+.btn{font:inherit;font-weight:500;border-radius:var(--radius-sm);padding:9px 16px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;transition:.18s}
+.btn:hover{border-color:var(--text-faint)}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-muted)}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:.84rem;font-variant-numeric:tabular-nums}
+.pill.up{color:var(--up)} .pill.down{color:var(--down)}
+.chip{font-size:.78rem;color:var(--text-muted);border:1px solid var(--border);background:var(--surface);padding:4px 11px;border-radius:999px;cursor:pointer}
+.chip.active{background:var(--accent-weak);color:var(--accent);border-color:transparent;font-weight:500}
+.badge{font-size:.7rem;color:var(--text-muted);background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:999px}
+
+/* ───────── App Mock ───────── */
+.app{overflow:hidden}
+.app-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)}
+.traffic{display:flex;gap:6px;margin-right:4px}
+.traffic i{width:11px;height:11px;border-radius:50%;background:var(--border)}
+.wordmark{font-family:var(--font-display);font-weight:600;font-size:1.08rem;display:flex;align-items:center;gap:7px;padding-right:4px}
+.fn-tabs{display:flex;gap:2px}
+.fn-tabs .t{font-size:.92rem;color:var(--text-muted);padding:6px 14px;border-radius:9px;cursor:pointer;transition:.16s}
+.fn-tabs .t:hover{background:var(--surface-2);color:var(--text)}
+.fn-tabs .t.active{background:var(--accent-weak);color:var(--accent);font-weight:500}
+.app-search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:7px 14px;color:var(--text-faint);font-size:.82rem;min-width:220px}
+.gear{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer}
+.gear:hover{background:var(--surface-2);color:var(--text)} .gear.active{background:var(--accent-weak);color:var(--accent)}
+.gear svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round}
+
+.app-body{display:grid;grid-template-columns:264px 1fr;min-height:560px}
+.panel{border-right:1px solid var(--border);padding:14px 12px;background:var(--surface);overflow:auto}
+.panel .lbl{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);font-weight:600;padding:2px 4px 7px;font-family:var(--font-sans);display:flex;align-items:center}
+.panel .lbl .add{margin-left:auto;color:var(--text-faint);cursor:pointer;font-weight:500;letter-spacing:0;text-transform:none;font-size:.8rem}
+/* 市场过滤器：整齐分段控件 */
+.mkt{display:flex;gap:2px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:16px}
+.mkt button{flex:1;border:0;background:transparent;color:var(--text-muted);font:inherit;font-size:.76rem;padding:6px 0;border-radius:7px;cursor:pointer;transition:.15s}
+.mkt button[aria-pressed=true]{background:var(--surface);color:var(--text);box-shadow:var(--shadow);font-weight:500}
+/* 两级板块树 */
+.tree{margin-top:2px}
+.l1grp{border-top:1px solid var(--border)} .l1grp:first-child{border-top:0}
+.l1{display:flex;align-items:center;gap:8px;padding:10px 8px;cursor:pointer;border-radius:9px}
+.l1:hover{background:var(--surface-2)}
+.l1 .chev{color:var(--text-faint);font-size:.64rem;width:9px}
+.l1 .nm{font-weight:600;font-size:.9rem;color:var(--text)}
+.l1 .ct{margin-left:auto;font-size:.7rem;color:var(--text-faint)}
+.l2grp{margin-left:13px;border-left:1px solid var(--border);padding-left:7px;margin-bottom:6px}
+.l2{display:flex;align-items:center;gap:7px;padding:6px 8px;cursor:pointer;color:var(--text-muted);border-radius:8px}
+.l2:hover{color:var(--text);background:var(--surface-2)}
+.l2 .chev{color:var(--text-faint);font-size:.58rem;width:8px}
+.l2 .nm{font-weight:500;font-size:.8rem}
+.l2 .ct{margin-left:auto;font-size:.68rem;color:var(--text-faint)}
+/* 个股行：左右各两行、上下对齐（代码/名称 · 价格/涨跌） */
+.stk{display:grid;grid-template-columns:1fr auto;column-gap:8px;row-gap:1px;padding:8px 9px;cursor:pointer}
+.stk:hover{background:var(--surface-2);border-radius:8px} .stk.active{background:var(--accent-weak);border-radius:8px}
+.stk + .stk{border-top:1px solid var(--border)}
+.stk .tk{grid-area:1/1;font-weight:500;font-size:.85rem}
+.stk .v{grid-area:1/2;font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:.83rem;text-align:right}
+.stk .cn{grid-area:2/1;font-size:.72rem;color:var(--text-faint)}
+.stk .d{grid-area:2/2;font-size:.71rem;text-align:right;font-variant-numeric:tabular-nums}
+.stk .d.up{color:var(--up)} .stk .d.down{color:var(--down)}
+.navrow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:.86rem;color:var(--text-muted)}
+.navrow:hover{background:var(--surface-2)} .navrow.active{background:var(--accent-weak);color:var(--accent);font-weight:500}
+
+.stage{padding:22px 26px;overflow:auto}
+.view{display:none;flex-direction:column;gap:18px} .view.active{display:flex}
+.stock-head{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.stock-head .px{font-family:var(--font-mono);font-size:2.1rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1}
+.stock-head h2{font-weight:500} .stock-head h2 .sub{font-size:.8rem;color:var(--text-faint);font-family:var(--font-sans);font-weight:400;margin-left:8px}
+.tf{display:flex;gap:6px;margin-left:auto}
+.chart{position:relative;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:8px 10px 4px}
+.chart .meta{position:absolute;top:12px;left:14px;font-size:.74rem;color:var(--text-faint);font-family:var(--font-sans)}
+.note{font-size:.76rem;color:var(--text-faint);display:flex;align-items:center;gap:7px}
+.cards2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mini{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px}
+.mini h3{margin-bottom:8px} .mini h3 .k{color:var(--accent);font-family:var(--font-sans);font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:3px}
+.mini p{font-size:.86rem;color:var(--text-muted);line-height:1.62} .mini .row{display:flex;align-items:center;gap:8px;margin-top:11px}
+.cluster{display:flex;align-items:baseline;gap:8px;padding:7px 0;border-top:1px solid var(--border)} .cluster:first-of-type{border-top:0}
+.cluster .t{font-size:.86rem} .cluster .s{margin-left:auto;font-size:.72rem;color:var(--text-faint)}
+.report{max-width:var(--measure)} .report .lead{color:var(--text-muted);margin:14px 0}
+.report .sec{margin-top:18px} .report .sec h3{margin-bottom:6px} .report .sec p{color:var(--text-muted);font-size:.92rem}
+.cite{color:var(--accent);font-size:.7rem;vertical-align:super}
+.hedge{margin-top:16px;border-left:3px solid var(--accent-weak);padding:8px 14px;color:var(--text-faint);font-size:.82rem;background:var(--surface-2);border-radius:0 8px 8px 0}
+.set-group{margin-bottom:24px} .set-group h3{margin-bottom:10px}
+.set-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-top:1px solid var(--border)} .set-row:first-of-type{border-top:0}
+.set-row .k{color:var(--text);font-size:.9rem} .set-row .d{color:var(--text-faint);font-size:.76rem;margin-top:2px}
+.set-row .ctl{margin-left:auto;display:flex;align-items:center;gap:10px}
+.set-row input[type=range]{width:170px;accent-color:var(--accent)}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--text-muted);font:inherit;font-size:.8rem;padding:5px 13px;border-radius:999px;cursor:pointer;transition:.16s}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.val{font-family:var(--font-mono);font-size:.8rem;color:var(--text-muted);width:42px;text-align:right}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.sw{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.sw .chip-c{height:60px} .sw .meta{padding:8px 10px;font-size:.74rem} .sw .meta .n{font-weight:500} .sw .meta .h{color:var(--text-faint);font-family:var(--font-mono)}
+.scale{display:flex;flex-direction:column;gap:6px;margin-top:10px} .scale .s{color:var(--text-faint);font-size:.7rem;font-family:var(--font-mono);width:60px;display:inline-block}
+footer{border-top:1px solid var(--border);margin-top:50px;padding:24px;text-align:center;color:var(--text-faint);font-size:.8rem}
+</style>
+</head>
+<body>
+
+<div class="pagetop"><div class="row">
+  <div class="brand"><span class="dot"></span> Augur 设计预览</div>
+  <span class="hint">本页是设计规范文档 · 只有下方带 🔮 顶栏的卡片＝实际产品 UI</span>
+</div></div>
+
+<div class="wrap">
+  <section style="margin-top:34px">
+    <div class="eyebrow">设计系统 · 实时预览 v4</div>
+    <h1 style="margin-top:10px;max-width:20ch">平静、克制，为清醒决策而设计。</h1>
+    <p class="muted" style="max-width:var(--measure);margin-top:12px">
+      下面这块带 <b>🔮 Augur</b> 顶栏的卡片，就是工程化后**实际产品**的样子。再往下用分割线隔开的色板、字体，是给开发当参照的**设计规范**，不会出现在产品里。
+    </p>
+  </section>
+
+  <section>
+    <div class="caption"><span class="led"></span>实际产品界面 —— 工程化（Vite + Tailwind）后即是此样</div>
+    <div class="card app">
+      <div class="app-bar">
+        <span class="traffic"><i></i><i></i><i></i></span>
+        <span class="wordmark">🔮 Augur</span>
+        <nav class="fn-tabs" id="fntabs">
+          <span class="t active" data-v="kan">看</span>
+          <span class="t" data-v="yan">研</span>
+          <span class="t" data-v="zhi">知</span>
+        </nav>
+        <div class="app-search">⌕ 搜索标的、板块…</div>
+        <button class="gear" id="gear" data-v="set" title="设置">
+          <svg viewBox="0 0 18 18"><line x1="2.5" y1="6" x2="15.5" y2="6"/><circle cx="11.5" cy="6" r="2.3" fill="var(--surface)"/><line x1="2.5" y1="12.5" x2="15.5" y2="12.5"/><circle cx="6" cy="12.5" r="2.3" fill="var(--surface)"/></svg>
+        </button>
+      </div>
+      <div class="app-body">
+        <aside class="panel">
+          <div id="panel-watch">
+            <!-- 市场：过滤器（不是板块层级） -->
+            <div class="lbl">市场</div>
+            <div class="mkt"><button aria-pressed="true">全部</button><button>美股</button><button>港股</button><button>A股</button><button>韩股</button></div>
+            <!-- 两级板块树 -->
+            <div class="lbl">自选分区<span class="add">＋ 新建</span></div>
+            <div class="tree">
+              <div class="l1grp">
+                <div class="l1"><span class="chev">▾</span><span class="nm">半导体</span><span class="ct">9</span></div>
+                <div class="l2grp">
+                  <div class="l2"><span class="chev">▾</span><span class="nm">GPU</span><span class="ct">3</span></div>
+                  <div class="stk active"><span class="tk">NVDA</span><span class="v">1,142.60</span><span class="cn">英伟达</span><span class="d up">▲ 2.14%</span></div>
+                  <div class="stk"><span class="tk">AMD</span><span class="v">168.30</span><span class="cn">超威半导体</span><span class="d down">▼ 0.92%</span></div>
+                </div>
+                <div class="l2grp">
+                  <div class="l2"><span class="chev">▾</span><span class="nm">光通信模块</span><span class="ct">2</span></div>
+                  <div class="stk"><span class="tk">300308</span><span class="v">142.80</span><span class="cn">中际旭创</span><span class="d up">▲ 3.05%</span></div>
+                  <div class="stk"><span class="tk">002281</span><span class="v">38.66</span><span class="cn">光迅科技</span><span class="d down">▼ 1.20%</span></div>
+                </div>
+              </div>
+              <div class="l1grp">
+                <div class="l1"><span class="chev">▸</span><span class="nm">航天</span><span class="ct">4</span></div>
+              </div>
+              <div class="l1grp">
+                <div class="l1"><span class="chev">▸</span><span class="nm">新能源</span><span class="ct">6</span></div>
+              </div>
+            </div>
+          </div>
+          <div id="panel-zhi" style="display:none">
+            <div class="lbl">趋势日报</div>
+            <div class="navrow active">5月31日 · 今天</div><div class="navrow">5月30日</div><div class="navrow">5月29日</div><div class="navrow">5月28日</div>
+          </div>
+          <div id="panel-set" style="display:none">
+            <div class="lbl">设置</div>
+            <div class="navrow active">排版</div><div class="navrow">主题与色彩</div><div class="navrow">数据与市场</div><div class="navrow">LLM 厂商</div>
+          </div>
+        </aside>
+
+        <main class="stage">
+          <div class="view active" id="view-kan">
+            <div class="stock-head">
+              <div><h2>英伟达 <span class="sub">NVDA · NASDAQ</span></h2>
+                <div style="display:flex;align-items:baseline;gap:12px;margin-top:8px"><span class="px">1,142.60</span><span class="pill up" style="font-size:1rem">▲ 23.90 (2.14%)</span></div></div>
+              <div class="tf"><span class="chip">日</span><span class="chip active">周</span><span class="chip">月</span><span class="chip">年</span></div>
+            </div>
+            <div class="chart"><div class="meta">MA7 · BOLL</div>
+              <svg id="kline" viewBox="0 0 880 300" width="100%" height="288" preserveAspectRatio="none" aria-label="K线"></svg></div>
+            <div class="note">◐ 蜡笔纸感：红绿规整直角、哑光、轻、半透明（让纸透出）。涨跌色按市场习惯可配（去「设置」切换）。</div>
+            <div class="cards2">
+              <div class="mini"><h3><span class="k">研 · Research</span>深度分析摘要</h3>
+                <p>数据中心需求延续强势，下一代架构放量在即；估值已部分反映乐观预期。需关注供给约束与客户集中度风险。</p>
+                <div class="row"><span class="badge">来源 · 12</span><span class="badge">更新 2h 前</span><a style="margin-left:auto;font-size:.84rem">查看完整分析 →</a></div></div>
+              <div class="mini"><h3><span class="k">知 · Daily</span>今日趋势 · 5月31日</h3>
+                <div class="cluster"><span class="t">AI 资本开支指引上修</span><span class="s">8 篇</span></div>
+                <div class="cluster"><span class="t">先进封装产能紧张</span><span class="s">5 篇</span></div>
+                <div class="cluster"><span class="t">出口管制新进展</span><span class="s">4 篇</span></div></div>
+            </div>
+          </div>
+          <div class="view" id="view-yan">
+            <div class="report">
+              <div class="eyebrow">研 · Deep Research</div>
+              <h2 style="margin-top:8px">英伟达 (NVDA) · 深度分析</h2>
+              <p class="lead">数据中心驱动的结构性增长仍在延续，但估值与集中度风险需冷静权衡。下文按基本面、技术面、风险展开，均标注来源。</p>
+              <div class="sec"><h3>基本面 · Fundamentals</h3><p>数据中心营收占比持续提升，毛利率维持高位<span class="cite">[3]</span>；下一代架构需求能见度高<span class="cite">[5]</span>。</p></div>
+              <div class="sec"><h3>技术面 · Technicals</h3><p>价格沿 MA7 上行，周线未见顶背离；近端缺口回补需求温和<span class="cite">[8]</span>。</p></div>
+              <div class="sec"><h3>风险 · Risks</h3><p>客户集中度高、出口管制、供给约束三者交织<span class="cite">[11]</span>。</p></div>
+              <div class="hedge">⚠ 本分析由 LLM 生成、基于免费数据源，可能延迟或出错；非投资建议。请结合一手信息独立判断。</div>
+              <div style="display:flex;gap:8px;margin-top:18px"><button class="btn btn-primary">重新深度研究</button><button class="btn">导出 Markdown</button></div>
+            </div>
+          </div>
+          <div class="view" id="view-zhi">
+            <div class="eyebrow">知 · 趋势日报</div>
+            <h2 style="margin-top:8px">2026年5月31日 · 全球趋势</h2>
+            <p class="muted" style="max-width:var(--measure);margin-top:10px">由 LLM 聚合 38 个顶级信源、去重聚类后蒸馏。点击任一主题展开来源与原文。</p>
+            <div class="cards2" style="margin-top:6px">
+              <div class="mini"><h3>AI 算力资本开支上修</h3><p>多家超大规模厂商上调全年 capex 指引，指向加速器与先进封装需求延续。</p><div class="row"><span class="badge">8 篇</span><span class="badge">半导体</span></div></div>
+              <div class="mini"><h3>先进封装产能紧张</h3><p>CoWoS 类产能持续吃紧，交期拉长，相关设备与材料受益链条受关注。</p><div class="row"><span class="badge">5 篇</span><span class="badge">供应链</span></div></div>
+            </div>
+          </div>
+          <div class="view" id="view-set">
+            <div class="eyebrow">设置 · 排版</div>
+            <h2 style="margin-top:8px">排版（字号 / 行距 / 字体）</h2>
+            <p class="muted" style="max-width:var(--measure);margin:10px 0 4px">Augur 的一等可调项——拖动即整页实时生效。</p>
+            <div class="set-group" style="margin-top:14px">
+              <div class="set-row"><div><div class="k">正文字号</div><div class="d">全局基准字号</div></div><div class="ctl"><input id="sz" type="range" min="14" max="19" step="1" value="16"><span class="val" id="szv">16px</span></div></div>
+              <div class="set-row"><div><div class="k">行距</div><div class="d">行与行的呼吸感</div></div><div class="ctl"><input id="ld" type="range" min="1.4" max="1.9" step="0.02" value="1.62"><span class="val" id="ldv">1.62</span></div></div>
+              <div class="set-row"><div><div class="k">英文标题字体</div><div class="d">默认 Source Serif 4 衬线（中文恒为苹方）</div></div><div class="ctl"><div class="seg" id="disp"><button data-f="serif" aria-pressed="true">衬线</button><button data-f="sans" aria-pressed="false">无衬线</button></div></div></div>
+            </div>
+            <div class="eyebrow">设置 · 主题与色彩</div>
+            <div class="set-group" style="margin-top:12px">
+              <div class="set-row"><div><div class="k">主题</div><div class="d">默认亮色，明暗皆暖</div></div><div class="ctl"><div class="seg" id="theme"><button data-t="light" aria-pressed="true">☀ 亮</button><button data-t="dark" aria-pressed="false">☾ 暗</button></div></div></div>
+              <div class="set-row"><div><div class="k">涨跌色习惯</div><div class="d">蜡笔纸感色，按市场切换</div></div><div class="ctl"><div class="seg" id="conv"><button data-c="us" aria-pressed="true">绿涨红跌</button><button data-c="cn" aria-pressed="false">红涨绿跌</button></div></div></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider">以下为设计规范参考 · 非产品界面</div>
+
+  <section>
+    <div class="eyebrow">颜色 token</div><h2 style="margin:10px 0 18px">暖纸感 + 轻蜡笔涨跌色</h2>
+    <div class="swatches" id="swatches"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">排版</div><h2 style="margin:10px 0 18px">English serif（Source Serif 4）· 中文苹方</h2>
+    <div class="card" style="padding:26px 28px">
+      <h1>Trends are footnotes written by time</h1>
+      <h2 style="margin-top:6px">趋势，是时间写下的注脚</h2>
+      <p class="muted" style="max-width:var(--measure);margin-top:8px">英文标题走 Source Serif 4 衬线，温润而克制；中文走苹方，干净利落。正文中英混排时英文是系统无衬线、中文是苹方——避免「苹方 + 中文宋体」的别扭。行宽约 64 字符、行距充足。</p>
+      <p class="mono" style="margin-top:10px;font-size:.9rem">1,142.60　+2.14%　¥ 8,931.5　₩ 71,200　— tabular-nums 价格对齐</p>
+      <div class="scale">
+        <div><span class="s">2.3rem</span><span style="font-family:var(--font-display);font-size:2.3rem">Augur Research</span></div>
+        <div><span class="s">1.42rem</span><span style="font-family:var(--font-display);font-size:1.42rem">Deep Analysis 标题</span></div>
+        <div><span class="s">1.0rem</span><span style="font-size:1rem">正文 Body 苹方</span></div>
+        <div><span class="s">0.8rem</span><span class="muted" style="font-size:.8rem">辅助 Caption</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Augur 设计预览 v4 · 英文衬线 Source Serif 4 + 中文苹方 · 轻蜡笔纸感涨跌色（直角）· 默认亮色<br/>
+    准则见 <span class="mono">docs/design-system.md</span> · M1 移植为 Tailwind v4 <span class="mono">@theme</span> + CSS 变量
+  </footer>
+</div>
+
+<script>
+const root=document.documentElement;
+const panels={kan:'panel-watch',yan:'panel-watch',zhi:'panel-zhi',set:'panel-set'};
+function go(v){
+  document.querySelectorAll('.fn-tabs .t').forEach(x=>x.classList.toggle('active',x.dataset.v===v));
+  gear.classList.toggle('active',v==='set');
+  ['kan','yan','zhi','set'].forEach(id=>document.getElementById('view-'+id).classList.toggle('active',id===v));
+  ['panel-watch','panel-zhi','panel-set'].forEach(p=>document.getElementById(p).style.display=(p===panels[v]?'':'none'));
+}
+fntabs.onclick=e=>{const t=e.target.closest('.t');if(t)go(t.dataset.v)};
+gear.onclick=()=>go('set');
+document.querySelector('.mkt').onclick=e=>{const b=e.target.closest('button');if(!b)return;[...e.currentTarget.children].forEach(x=>x.setAttribute('aria-pressed',x===b))};
+
+sz.oninput=e=>{root.style.setProperty('--text-base',e.target.value+'px');szv.textContent=e.target.value+'px'};
+ld.oninput=e=>{root.style.setProperty('--leading',e.target.value);ldv.textContent=e.target.value};
+disp.onclick=e=>{const b=e.target.closest('button');if(!b)return;[...disp.children].forEach(x=>x.setAttribute('aria-pressed',x===b));
+  root.style.setProperty('--font-display',b.dataset.f==='serif'?'var(--font-serif)':'var(--font-sans)')};
+theme.onclick=e=>{const b=e.target.closest('button');if(!b)return;[...theme.children].forEach(x=>x.setAttribute('aria-pressed',x===b));
+  root.setAttribute('data-theme',b.dataset.t);drawKline()};
+conv.onclick=e=>{const b=e.target.closest('button');if(!b)return;[...conv.children].forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const cn=b.dataset.c==='cn';root.style.setProperty('--up',cn?'var(--crayon-red)':'var(--crayon-green)');root.style.setProperty('--down',cn?'var(--crayon-green)':'var(--crayon-red)');drawKline()};
+
+const TOK=[['--bg','背景'],['--surface','表面'],['--border','描边'],['--text','主文本'],['--text-muted','次文本'],['--accent','强调色'],['--accent-weak','强调弱'],['--up','涨(轻蜡笔)'],['--down','跌(轻蜡笔)']];
+swatches.innerHTML=TOK.map(([v,n])=>`<div class="sw"><div class="chip-c" style="background:var(${v})"></div><div class="meta"><div class="n">${n}</div><div class="h">${v}</div></div></div>`).join('');
+
+// K线：规整直角矩形蜡烛（无圆角），哑光、轻、半透明 + 极淡纸纹
+function drawKline(){
+  const N=54,W=880,H=300,pad=16,cw=(W-pad*2)/N;const cs=getComputedStyle(root);
+  const up=cs.getPropertyValue('--up').trim(),down=cs.getPropertyValue('--down').trim();
+  const grid=cs.getPropertyValue('--border').trim(),faint=cs.getPropertyValue('--text-faint').trim(),accent=cs.getPropertyValue('--accent').trim();
+  const c=[];for(let i=0;i<N;i++){const base=100+i*1.5+7*Math.sin(i/3.3)+3.4*Math.sin(i/1.7)+2*Math.cos(i/5);
+    const o=base+Math.sin(i*1.1)*1.1,cl=base+Math.cos(i*1.4)*1.6;
+    const hi=Math.max(o,cl)+0.7+Math.abs(Math.sin(i*2))*1.3,lo=Math.min(o,cl)-0.7-Math.abs(Math.cos(i*1.5))*1.2;c.push({o,cl,hi,lo});}
+  const lo=Math.min(...c.map(x=>x.lo)),hi=Math.max(...c.map(x=>x.hi));const Y=v=>pad+(H-pad*2)*(1-(v-lo)/(hi-lo));
+  const ma=c.map((_,i)=>{const s=c.slice(Math.max(0,i-6),i+1);return s.reduce((a,b)=>a+b.cl,0)/s.length;});
+  let svg=`<defs><filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="p"/><feColorMatrix in="p" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .03 0"/></filter></defs>`;
+  svg+=`<rect x="0" y="0" width="${W}" height="${H}" filter="url(#paper)"/>`;
+  for(let g=0;g<=4;g++){const y=pad+(H-pad*2)*g/4;svg+=`<line x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}" stroke="${grid}" stroke-width="1" opacity=".5"/>`;
+    svg+=`<text x="${W-pad+2}" y="${y+3}" fill="${faint}" font-size="9" text-anchor="end" font-family="monospace">${(hi-(hi-lo)*g/4).toFixed(0)}</text>`;}
+  c.forEach((x,i)=>{const cx=pad+cw*i+cw/2;const isUp=x.cl>=x.o;const col=isUp?up:down;
+    svg+=`<line x1="${cx.toFixed(1)}" y1="${Y(x.hi).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${Y(x.lo).toFixed(1)}" stroke="${col}" stroke-width="1.2" opacity=".55"/>`;
+    const yt=Y(Math.max(x.o,x.cl)),yb=Y(Math.min(x.o,x.cl));
+    svg+=`<rect x="${(cx-cw*0.32).toFixed(1)}" y="${yt.toFixed(1)}" width="${(cw*0.64).toFixed(1)}" height="${Math.max(1.5,yb-yt).toFixed(1)}" fill="${col}" opacity="${isUp?.5:.6}"/>`;});
+  svg+=`<polyline fill="none" stroke="${accent}" stroke-width="1.5" opacity=".78" stroke-linejoin="round" points="${ma.map((v,i)=>`${(pad+cw*i+cw/2).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}"/>`;
+  document.getElementById('kline').innerHTML=svg;
+}
+drawKline();
+</script>
+</body>
+</html>
