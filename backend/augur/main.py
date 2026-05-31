@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .market import router as market_router
 from .storage import init_db
+from .watchlist import router as watchlist_router
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(market_router)
+app.include_router(watchlist_router)
 
 
 @app.get("/health")
