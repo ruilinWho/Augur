@@ -110,3 +110,15 @@ Augur 处理的是高波动、极易激发情绪的金融数据。**界面若嘈
 **Claude.ai · Linear · Things 3 · Stripe 文档 · Arc**。
 
 做 Augur 任何界面前，先想："如果这是上面某个团队出品的，它会长什么样？"
+
+## 10. 实现约定（M1.5 精修）
+
+落地后的动效与交互约定，新代码沿用：
+
+- **缓动统一用 `easeOutExpo`**：`cubic-bezier(0.22, 1, 0.36, 1)`，时长 200–300ms。求"落定"感，不要弹跳/回弹。
+- **动效用 `motion`（motion.dev）**：视图转场（`AnimatePresence mode="wait"`，淡入+微上移）、顶栏 Tab 滑动指示器（`layoutId="tabpill"`，spring）、列表错峰入场、折叠（`height:auto` 动画）。务必尊重 `prefers-reduced-motion`（全局降级已在 index.css）。
+- **滚动条**：细（11px）、主题色 thumb、透明 track；`scrollbar-width: thin`。
+- **焦点**：仅键盘 `:focus-visible` 显示 `--accent` 焦点环；鼠标点击不显描边。
+- **加载用骨架**（`.skeleton` shimmer，纸感）而非"加载中"文字。
+- **选中态**：列表选中项左缘 `inset 3px var(--accent)` 强调条 + `--accent-weak` 底。
+- **图表取色**：K线是 canvas，颜色用 `KLineView` 内 `PALETTE` 常量（镜像本文件 token），避免读 CSS 变量的 effect 时序问题。

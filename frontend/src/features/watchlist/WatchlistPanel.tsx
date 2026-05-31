@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useUI, type Market } from '../../store'
 import {
   useAddItem,
@@ -18,13 +19,9 @@ const MARKETS: { v: Market; label: string }[] = [
   { v: 'KR', label: '韩股' },
 ]
 
-function fmtPrice(n: number): string {
-  return n.toLocaleString('en-US', { maximumFractionDigits: 2 })
-}
-
-function countSymbols(s: Section): number {
-  return s.items.length + s.children.reduce((acc, c) => acc + c.items.length, 0)
-}
+const EASE = [0.22, 1, 0.36, 1] as const
+const fmtPrice = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+const countSymbols = (s: Section) => s.items.length + s.children.reduce((a, c) => a + c.items.length, 0)
 
 function InlineAdd({
   placeholder,
@@ -71,6 +68,25 @@ function StockRow({ item }: { item: Item }) {
   )
 }
 
+// 折叠动画容器
+function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: EASE }}
+          style={{ overflow: 'hidden' }}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function WatchlistPanel() {
   const market = useUI((s) => s.market)
   const setMarket = useUI((s) => s.setMarket)
@@ -80,7 +96,6 @@ export default function WatchlistPanel() {
   const delSection = useDeleteSection()
 
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
-  // adding: 'top' = 新一级；{id, kind} = 在某板块下加 标的 / 子板块
   const [adding, setAdding] = useState<'top' | { id: number; kind: 'stock' | 'sub' } | null>(null)
 
   const toggle = (id: number) =>
@@ -90,87 +105,75 @@ export default function WatchlistPanel() {
       return next
     })
 
-  const renderItems = (items: Item[]) => items.map((it) => <StockRow key={it.id} item={it} />)
+  const stockAdder = (id: number) =>
+    adding && adding !== 'top' && adding.id === id && adding.kind === 'stock' ? (
+      <InlineAdd
+        placeholder="代码，如 US:AAPL"
+        onSubmit={(v) => {
+          addItem.mutate({ sectionId: id, symbol: v })
+          setAdding(null)
+        }}
+        onCancel={() => setAdding(null)}
+      />
+    ) : null
 
   const renderL2 = (s: Section) => {
     const open = !collapsed.has(s.id)
     return (
       <div className="l2grp" key={s.id}>
         <div className="row2">
-          <span className="chev" onClick={() => toggle(s.id)}>
-            {open ? '▾' : '▸'}
-          </span>
-          <span className="nm" onClick={() => toggle(s.id)}>
-            {s.name}
-          </span>
+          <span className="chev" onClick={() => toggle(s.id)}>{open ? '▾' : '▸'}</span>
+          <span className="nm" onClick={() => toggle(s.id)}>{s.name}</span>
           <span className="ct">{s.items.length}</span>
-          <span className="add" title="加标的" onClick={() => setAdding({ id: s.id, kind: 'stock' })}>
-            ＋
-          </span>
-          <span className="del" title="删板块" onClick={() => delSection.mutate(s.id)}>
-            ×
-          </span>
+          <span className="add" title="加标的" onClick={() => setAdding({ id: s.id, kind: 'stock' })}>＋</span>
+          <span className="del" title="删板块" onClick={() => delSection.mutate(s.id)}>×</span>
         </div>
-        {open && renderItems(s.items)}
-        {open && adding && adding !== 'top' && adding.id === s.id && adding.kind === 'stock' && (
-          <InlineAdd
-            placeholder="代码，如 US:AAPL"
-            onSubmit={(v) => {
-              addItem.mutate({ sectionId: s.id, symbol: v })
-              setAdding(null)
-            }}
-            onCancel={() => setAdding(null)}
-          />
-        )}
+        <Collapse open={open}>
+          {s.items.map((it) => (
+            <StockRow key={it.id} item={it} />
+          ))}
+          {stockAdder(s.id)}
+        </Collapse>
       </div>
     )
   }
 
-  const renderL1 = (s: Section) => {
+  const renderL1 = (s: Section, idx: number) => {
     const open = !collapsed.has(s.id)
     return (
-      <div className="l1grp" key={s.id}>
+      <motion.div
+        className="l1grp"
+        key={s.id}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.2), ease: EASE }}
+      >
         <div className="row1">
-          <span className="chev" onClick={() => toggle(s.id)}>
-            {open ? '▾' : '▸'}
-          </span>
-          <span className="nm" onClick={() => toggle(s.id)}>
-            {s.name}
-          </span>
+          <span className="chev" onClick={() => toggle(s.id)}>{open ? '▾' : '▸'}</span>
+          <span className="nm" onClick={() => toggle(s.id)}>{s.name}</span>
           <span className="ct">{countSymbols(s)}</span>
-          <span className="add" title="加子板块" onClick={() => setAdding({ id: s.id, kind: 'sub' })}>
-            ⊞
-          </span>
-          <span className="add" title="加标的" onClick={() => setAdding({ id: s.id, kind: 'stock' })}>
-            ＋
-          </span>
-          <span className="del" title="删板块" onClick={() => delSection.mutate(s.id)}>
-            ×
-          </span>
+          <span className="add" title="加子板块" onClick={() => setAdding({ id: s.id, kind: 'sub' })}>⊞</span>
+          <span className="add" title="加标的" onClick={() => setAdding({ id: s.id, kind: 'stock' })}>＋</span>
+          <span className="del" title="删板块" onClick={() => delSection.mutate(s.id)}>×</span>
         </div>
-        {open && renderItems(s.items)}
-        {open && adding && adding !== 'top' && adding.id === s.id && adding.kind === 'stock' && (
-          <InlineAdd
-            placeholder="代码，如 US:AAPL"
-            onSubmit={(v) => {
-              addItem.mutate({ sectionId: s.id, symbol: v })
-              setAdding(null)
-            }}
-            onCancel={() => setAdding(null)}
-          />
-        )}
-        {open && s.children.map(renderL2)}
-        {open && adding && adding !== 'top' && adding.id === s.id && adding.kind === 'sub' && (
-          <InlineAdd
-            placeholder="子板块名…"
-            onSubmit={(v) => {
-              createSection.mutate({ name: v, parent_id: s.id })
-              setAdding(null)
-            }}
-            onCancel={() => setAdding(null)}
-          />
-        )}
-      </div>
+        <Collapse open={open}>
+          {s.items.map((it) => (
+            <StockRow key={it.id} item={it} />
+          ))}
+          {stockAdder(s.id)}
+          {s.children.map(renderL2)}
+          {adding && adding !== 'top' && adding.id === s.id && adding.kind === 'sub' && (
+            <InlineAdd
+              placeholder="子板块名…"
+              onSubmit={(v) => {
+                createSection.mutate({ name: v, parent_id: s.id })
+                setAdding(null)
+              }}
+              onCancel={() => setAdding(null)}
+            />
+          )}
+        </Collapse>
+      </motion.div>
     )
   }
 
@@ -187,9 +190,7 @@ export default function WatchlistPanel() {
 
       <div className="lbl">
         自选分区
-        <span className="act" onClick={() => setAdding('top')}>
-          ＋ 板块
-        </span>
+        <span className="act" onClick={() => setAdding('top')}>＋ 板块</span>
       </div>
       {adding === 'top' && (
         <InlineAdd
@@ -202,7 +203,14 @@ export default function WatchlistPanel() {
         />
       )}
 
-      {isLoading && <div className="faint" style={{ padding: 10, fontSize: '.82rem' }}>加载中…</div>}
+      {isLoading && (
+        <div className="wl-skel">
+          <div className="line skeleton" />
+          <div className="line short skeleton" />
+          <div className="line skeleton" />
+          <div className="line short skeleton" />
+        </div>
+      )}
       {error && (
         <div className="faint" style={{ padding: 10, fontSize: '.82rem', color: 'var(--down)' }}>
           {(error as Error).message}

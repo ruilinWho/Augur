@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useUI, type View } from './store'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
@@ -10,6 +11,8 @@ const TABS: { v: View; label: string }[] = [
   { v: 'yan', label: '研' },
   { v: 'zhi', label: '知' },
 ]
+
+const EASE = [0.22, 1, 0.36, 1] as const // easeOutExpo——柔和"落定"
 
 function SimplePanel({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -25,7 +28,6 @@ export default function App() {
   const setView = useUI((s) => s.setView)
   const { theme, textBase, leading, displayFont, convention } = useUI()
 
-  // Meta 设置实时落到 CSS 变量（整页响应）
   useEffect(() => {
     const el = document.documentElement
     el.dataset.theme = theme
@@ -49,11 +51,21 @@ export default function App() {
               className={`t ${view === t.v ? 'active' : ''}`}
               onClick={() => setView(t.v)}
             >
-              {t.label}
+              {view === t.v && (
+                <motion.span
+                  layoutId="tabpill"
+                  className="tabpill"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              )}
+              <span className="tab-label">{t.label}</span>
             </button>
           ))}
         </nav>
-        <div className="app-search">⌕ 搜索标的（M1 用左侧分区导航）</div>
+        <button className="app-search" onClick={() => setView('kan')} title="搜索（即将上线）">
+          <span>⌕ 搜索标的、板块</span>
+          <kbd className="kbd">⌘K</kbd>
+        </button>
         <button
           className={`gear ${view === 'set' ? 'active' : ''}`}
           title="设置"
@@ -73,25 +85,34 @@ export default function App() {
           <WatchlistPanel />
         ) : view === 'zhi' ? (
           <SimplePanel label="趋势日报">
-            <div className="row2" style={{ opacity: 0.6 }}>
-              <span className="nm">日报列表（M3 接入）</span>
-            </div>
+            <div className="navrow" style={{ opacity: 0.6 }}>日报列表（M3 接入）</div>
           </SimplePanel>
         ) : (
           <SimplePanel label="设置">
             {['排版', '主题与色彩', '数据与市场', 'LLM 厂商'].map((c) => (
-              <div key={c} className="row2">
-                <span className="nm">{c}</span>
+              <div key={c} className="navrow">
+                {c}
               </div>
             ))}
           </SimplePanel>
         )}
 
         <main className="stage">
-          {view === 'kan' && <KLineView />}
-          {view === 'yan' && <Placeholder pillar="研" />}
-          {view === 'zhi' && <Placeholder pillar="知" />}
-          {view === 'set' && <SettingsView />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: EASE }}
+              style={{ height: '100%' }}
+            >
+              {view === 'kan' && <KLineView />}
+              {view === 'yan' && <Placeholder pillar="研" />}
+              {view === 'zhi' && <Placeholder pillar="知" />}
+              {view === 'set' && <SettingsView />}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
