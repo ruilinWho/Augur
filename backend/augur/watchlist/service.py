@@ -1,0 +1,182 @@
+"""自选分区服务：两级板块 + 标的（CLAUDE.md §8）。
+
+硬约束：depth ≤ 2 —— 二级板块不能再有子级，在 create/move 时强校验。
+市场（US/HK/CN/KR）是查询过滤器（正交），不是第三层。
+"""
+
+from __future__ import annotations
+
+import sqlite3
+
+from ..market.symbols import parse_symbol
+from ..storage.db import get_conn
+
+
+class DepthError(ValueError):
+    """违反"最多两级"不变量。"""
+
+
+class NotFound(ValueError):
+    pass
+
+
+def _item_out(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "symbol": row["symbol"],
+        "note": row["note"],
+        "sort_order": row["sort_order"],
+    }
+
+
+def list_tree(market: str | None = None) -> list[dict]:
+    conn = get_conn()
+    try:
+        sections = conn.execute("SELECT * FROM sections ORDER BY sort_order, id").fetchall()
+        items = conn.execute("SELECT * FROM watchlist_items ORDER BY sort_order, id").fetchall()
+    finally:
+        conn.close()
+
+    keep_all = not market or market.upper() == "ALL"
+
+    def keep(symbol: str) -> bool:
+        return keep_all or symbol.split(":", 1)[0].upper() == market.upper()
+
+    items_by_section: dict[int, list[sqlite3.Row]] = {}
+    for it in items:
+        if keep(it["symbol"]):
+            items_by_section.setdefault(it["section_id"], []).append(it)
+
+    subs_by_parent: dict[int, list[sqlite3.Row]] = {}
+    for s in sections:
+        if s["parent_id"] is not None:
+            subs_by_parent.setdefault(s["parent_id"], []).append(s)
+
+    def to_out(s: sqlite3.Row) -> dict:
+        return {
+            "id": s["id"],
+            "name": s["name"],
+            "parent_id": s["parent_id"],
+            "sort_order": s["sort_order"],
+            "items": [_item_out(i) for i in items_by_section.get(s["id"], [])],
+            "children": [to_out(c) for c in subs_by_parent.get(s["id"], [])],
+        }
+
+    return [to_out(s) for s in sections if s["parent_id"] is None]
+
+
+def create_section(name: str, parent_id: int | None = None) -> dict:
+    conn = get_conn()
+    try:
+        if parent_id is not None:
+            parent = conn.execute(
+                "SELECT parent_id FROM sections WHERE id = ?", (parent_id,)
+            ).fetchone()
+            if parent is None:
+                raise NotFound(f"父板块 {parent_id} 不存在")
+            if parent["parent_id"] is not None:
+                raise DepthError("最多两级：二级板块下不能再建子级")
+        if parent_id is None:
+            n = conn.execute(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n "
+                "FROM sections WHERE parent_id IS NULL"
+            ).fetchone()["n"]
+        else:
+            n = conn.execute(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM sections WHERE parent_id = ?",
+                (parent_id,),
+            ).fetchone()["n"]
+        cur = conn.execute(
+            "INSERT INTO sections (name, parent_id, sort_order) VALUES (?, ?, ?)",
+            (name.strip(), parent_id, n),
+        )
+        conn.commit()
+        s = conn.execute("SELECT * FROM sections WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return {
+            "id": s["id"],
+            "name": s["name"],
+            "parent_id": s["parent_id"],
+            "sort_order": s["sort_order"],
+            "items": [],
+            "children": [],
+        }
+    finally:
+        conn.close()
+
+
+def rename_section(section_id: int, name: str) -> None:
+    conn = get_conn()
+    try:
+        cur = conn.execute("UPDATE sections SET name = ? WHERE id = ?", (name.strip(), section_id))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise NotFound(f"板块 {section_id} 不存在")
+    finally:
+        conn.close()
+
+
+def delete_section(section_id: int) -> None:
+    """删除板块；FK ON DELETE CASCADE 连带删除其二级板块与所有标的。"""
+    conn = get_conn()
+    try:
+        cur = conn.execute("DELETE FROM sections WHERE id = ?", (section_id,))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise NotFound(f"板块 {section_id} 不存在")
+    finally:
+        conn.close()
+
+
+def add_item(section_id: int, symbol: str, note: str = "") -> dict:
+    sym = parse_symbol(symbol)  # 校验并归一化
+    conn = get_conn()
+    try:
+        if conn.execute("SELECT 1 FROM sections WHERE id = ?", (section_id,)).fetchone() is None:
+            raise NotFound(f"板块 {section_id} 不存在")
+        n = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n "
+            "FROM watchlist_items WHERE section_id = ?",
+            (section_id,),
+        ).fetchone()["n"]
+        try:
+            cur = conn.execute(
+                "INSERT INTO watchlist_items (section_id, symbol, note, sort_order) "
+                "VALUES (?, ?, ?, ?)",
+                (section_id, sym.canonical, note, n),
+            )
+        except sqlite3.IntegrityError as e:
+            raise ValueError(f"{sym.canonical} 已在此板块") from e
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM watchlist_items WHERE id = ?", (cur.lastrowid,)
+        ).fetchone()
+        return _item_out(row)
+    finally:
+        conn.close()
+
+
+def remove_item(item_id: int) -> None:
+    conn = get_conn()
+    try:
+        cur = conn.execute("DELETE FROM watchlist_items WHERE id = ?", (item_id,))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise NotFound(f"标的项 {item_id} 不存在")
+    finally:
+        conn.close()
+
+
+def reorder(kind: str, ordered_ids: list[int]) -> None:
+    """按给定顺序写回 sort_order（dnd-kit 拖拽后调用）。"""
+    table = {"section": "sections", "item": "watchlist_items"}.get(kind)
+    if table is None:
+        raise ValueError(f"未知 kind {kind!r}，应为 'section' 或 'item'")
+    conn = get_conn()
+    try:
+        conn.executemany(
+            f"UPDATE {table} SET sort_order = ? WHERE id = ?",
+            [(idx, _id) for idx, _id in enumerate(ordered_ids)],
+        )
+        conn.commit()
+    finally:
+        conn.close()

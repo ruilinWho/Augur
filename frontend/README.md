@@ -6,30 +6,34 @@ Anthropic 对齐、排版可调、**美观度极高**的 UI。
 
 ## 状态
 
-⚪ 尚未搭建 —— 在 **M1** 创建。计划引导（用 pnpm）：
+✅ M1 基础功能已搭好（用 **npm**；corepack/pnpm 当前环境装不上，故用 npm）。
 
 ```bash
-pnpm create vite@latest . --template react-ts      # Vite 8 + React 19 + TS
-pnpm add lightweight-charts klinecharts             # 图表
-pnpm add @tanstack/react-router @tanstack/react-query zustand zod  # 路由/状态/校验
-pnpm add @dnd-kit/core @dnd-kit/sortable motion     # 拖拽 + 动效
-pnpm add @fontsource/source-serif-4 @fontsource/jetbrains-mono # 字体（中文苹方用系统，无需安装）
-pnpm add -D tailwindcss @tailwindcss/vite           # Tailwind v4（CSS-first）
-# 无头组件按需：pnpm add @radix-ui/react-*（自己上妆，不套默认视觉）
-pnpm dev                                            # dev server，代理 /api → :8788
+npm install     # 装依赖（已有 package.json / package-lock.json）
+npm run dev     # dev server :5173，已代理 /market /watchlist /llm → 后端 :8788
+npm run build   # 生产构建（tsc --noEmit + vite build）
+npm run typecheck
 ```
+> ⚠️ 需先起后端：`cd ../backend && uv run uvicorn augur.main:app --reload --port 8788`。
+
+技术栈：**Vite 8 + React 19 + Tailwind v4 + TanStack Query + Zustand + Zod + Lightweight Charts v5**。
+视图切换暂用 Zustand（无 URL 路由需求，TanStack Router 暂缓）；拖拽排序（dnd-kit）后端已就绪、前端待接。
 
 > 字体：**英文衬线 Source Serif 4 + 中文苹方**（Anthropic 路子）；中文一律苹方（系统），不用中文宋体；数字 JetBrains Mono。详见 [../docs/design-system.md §3](../docs/design-system.md)。
 
-## 计划结构
+## 结构（现状）
 
 ```
 src/
-├── app/        外壳：顶栏 Tab 导航(看/研/知/设置) + 上下文面板 + 主舞台、路由、布局
-├── features/   watchlist · kline · analysis · news · settings（Meta 设置集中于此）
-├── components/ 共享 UI 原子件
-├── theme/      设计 token + CSS 变量 + 排版控制
-└── lib/        api 客户端（REST + SSE）、hooks、格式化
+├── main.tsx, App.tsx          外壳：顶栏 Tab(看/研/知)+设置齿轮 + 上下文面板 + 主舞台
+├── store.ts                   Zustand：视图/选中标的/市场 + 排版主题设置（持久化）
+├── api.ts                     fetch + Zod 校验 + TanStack Query 钩子/变更
+├── index.css                  设计 token + 组件样式（移植自 design-preview）
+└── features/
+    ├── watchlist/             市场过滤 + 两级树 + 内联新建/加标的 + 实时报价
+    ├── kline/                 Lightweight Charts v5（蜡笔纸感主题）
+    ├── settings/              字号/行距/字体/主题/涨跌色 + LLM 角色状态
+    └── misc/                  研/知 占位（M2/M3 接入）
 ```
 
 ## 不可妥协

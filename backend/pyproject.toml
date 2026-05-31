@@ -6,7 +6,17 @@ requires-python = ">=3.13"
 # NOTE: dependencies are intentionally unpinned here and will be added/locked at
 # M1 via `uv add ...` (see backend/README.md). This manifest exists so the
 # project structure is real; `uv sync` becomes meaningful once deps are added.
-dependencies = []
+dependencies = [
+    "apscheduler>=3.11.2",
+    "fastapi>=0.136.3",
+    "finance-datareader>=0.9.202",
+    "httpx>=0.28.1",
+    "litellm>=1.86.2",
+    "pyarrow>=24.0.0",
+    "pydantic-settings>=2.14.1",
+    "pykrx>=1.2.8",
+    "uvicorn[standard]>=0.48.0",
+]
 
 [dependency-groups]
 dev = [

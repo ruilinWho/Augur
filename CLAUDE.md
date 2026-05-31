@@ -220,6 +220,7 @@ cd frontend && pnpm dev
 
 ## 12. 当前状态与下一步
 
-- **现在：** M0 —— 仓库脚手架完成（结构、文档、CLAUDE.md、中文化、前沿技术栈定稿）。尚无运行时代码。
-- **下一步（M1）：** 基础设施 + 自选分区 + K线 —— LLM 网关骨架、四市场数据适配器、两级板块、图表外壳。
+- **现在：** M1 基础功能跑通 ✅ —— 后端（四市场行情 FDR+pykrx、两级自选分区、litellm 网关）+ 前端（Vite8/React19/Tailwind v4 外壳、自选分区面板、Lightweight Charts v5 K线、设置）端到端工作，真实数据 + 截图验证。
+- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理到后端）。
+- **下一步（M2）：** 单股深度分析（research 编排 + LLM）。待补：`/market/search`、前端拖拽排序、`.env` 配 LLM key。
 - 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。
