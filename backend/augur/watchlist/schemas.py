@@ -35,6 +35,10 @@ class ItemCreate(BaseModel):
     note: str = ""
 
 
+class ItemMove(BaseModel):
+    section_id: int  # 目标板块
+
+
 class ReorderRequest(BaseModel):
     kind: str  # "section" | "item"
     ordered_ids: list[int]

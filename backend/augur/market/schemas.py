@@ -29,3 +29,17 @@ class Quote(BaseModel):
     change_pct: float  # 百分比
     time: str
     source: str
+
+
+class SearchHit(BaseModel):
+    symbol: str  # MARKET:CODE
+    market: str
+    code: str
+    name: str  # 主显示名（本地语优先）
+    sub: str = ""  # 次要显示（英文名 / 中文别名）
+
+
+class SearchResponse(BaseModel):
+    query: str
+    indexing: bool  # 索引仍在后台构建（首跑/刷新中）
+    results: list[SearchHit] = []

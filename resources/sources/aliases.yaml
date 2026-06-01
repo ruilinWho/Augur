@@ -1,0 +1,88 @@
+# 跨语言别名种子（curated，版本化输入 → resources/）。
+#
+# 为什么需要它：免费列表源的名字是单语的——FDR 美/中股是英文名、韩股是韩文名；
+# akshare 能补 A 股中文名，但港股（eastmoney）在本机偶发被代理拦截。
+# 于是「搜 海力士 → 韩国 SK 海力士」这类跨语言检索，只能靠这张人工维护的别名表兜底。
+#
+# 字段：
+#   symbol : 归一化 MARKET:CODE（必填）
+#   cn     : 中文显示名（可选）——命中别名但目录里只有外文名时，前端展示这个
+#   names  : 可搜索别名（中文/拼音/英文/韩文皆可），会并入该标的的检索文本
+#
+# 维护：只增不改地往下加；保持精炼、高频优先。目录里已有中文名的 A 股一般无需登记。
+
+# ───────────────────────── 韩股（KR）·目录只有韩文名，靠这里补中文/英文 ─────────────────────────
+- { symbol: KR:005930, cn: 三星电子,   names: [三星, 三星电子, samsung, 삼성전자] }
+- { symbol: KR:000660, cn: SK海力士,   names: [海力士, sk海力士, 하이닉스, hynix, sk hynix] }
+- { symbol: KR:373220, cn: LG新能源,   names: [lg新能源, lg能源, lg energy, 엘지에너지솔루션] }
+- { symbol: KR:207940, cn: 三星生物,   names: [三星生物, samsung biologics, 삼성바이오로직스] }
+- { symbol: KR:005380, cn: 现代汽车,   names: [现代, 现代汽车, hyundai, 현대차] }
+- { symbol: KR:000270, cn: 起亚,       names: [起亚, kia, 기아] }
+- { symbol: KR:005490, cn: 浦项制铁,   names: [浦项, 浦项制铁, posco, 포스코] }
+- { symbol: KR:035420, cn: NAVER,      names: [naver, 네이버] }
+- { symbol: KR:035720, cn: Kakao,      names: [kakao, 카카오] }
+- { symbol: KR:051910, cn: LG化学,     names: [lg化学, lg chem, 엘지화학] }
+- { symbol: KR:006400, cn: 三星SDI,    names: [三星sdi, samsung sdi, 삼성sdi] }
+- { symbol: KR:105560, cn: KB金融,     names: [kb金融, kb financial, 케이비금융] }
+- { symbol: KR:068270, cn: 赛特瑞恩,   names: [赛特瑞恩, celltrion, 셀트리온] }
+
+# ───────────────────────── 美股（US）·中文俗名 / 拼音 ─────────────────────────
+- { symbol: US:NVDA,  cn: 英伟达,     names: [英伟达, 辉达, nvidia] }
+- { symbol: US:AAPL,  cn: 苹果,       names: [苹果, apple] }
+- { symbol: US:MSFT,  cn: 微软,       names: [微软, microsoft] }
+- { symbol: US:GOOGL, cn: 谷歌,       names: [谷歌, 字母表, google, alphabet] }
+- { symbol: US:AMZN,  cn: 亚马逊,     names: [亚马逊, amazon] }
+- { symbol: US:META,  cn: Meta,       names: [脸书, 脸谱, facebook, meta] }
+- { symbol: US:TSLA,  cn: 特斯拉,     names: [特斯拉, tesla] }
+- { symbol: US:NFLX,  cn: 奈飞,       names: [奈飞, 网飞, netflix] }
+- { symbol: US:TSM,   cn: 台积电,     names: [台积电, 台积, tsmc, taiwan semi] }
+- { symbol: US:AVGO,  cn: 博通,       names: [博通, broadcom] }
+- { symbol: US:AMD,   cn: 超威半导体, names: [超威, amd] }
+- { symbol: US:INTC,  cn: 英特尔,     names: [英特尔, intel] }
+- { symbol: US:QCOM,  cn: 高通,       names: [高通, qualcomm] }
+- { symbol: US:MU,    cn: 美光,       names: [美光, micron] }
+- { symbol: US:ASML,  cn: 阿斯麦,     names: [阿斯麦, asml] }
+- { symbol: US:PLTR,  cn: Palantir,   names: [palantir, 帕兰提尔] }
+- { symbol: US:HOOD,  cn: 罗宾汉,     names: [罗宾汉, robinhood] }
+- { symbol: US:COIN,  cn: Coinbase,   names: [coinbase] }
+- { symbol: US:LLY,   cn: 礼来,       names: [礼来, eli lilly] }
+- { symbol: US:BRK.B, cn: 伯克希尔,   names: [伯克希尔, berkshire, 巴菲特] }
+- { symbol: US:KO,    cn: 可口可乐,   names: [可口可乐, coca cola] }
+- { symbol: US:MCD,   cn: 麦当劳,     names: [麦当劳, mcdonald] }
+- { symbol: US:SBUX,  cn: 星巴克,     names: [星巴克, starbucks] }
+- { symbol: US:NKE,   cn: 耐克,       names: [耐克, nike] }
+- { symbol: US:DIS,   cn: 迪士尼,     names: [迪士尼, disney] }
+- { symbol: US:BA,    cn: 波音,       names: [波音, boeing] }
+- { symbol: US:PDD,   cn: 拼多多,     names: [拼多多, 拼夕夕, pinduoduo] }
+- { symbol: US:BABA,  cn: 阿里巴巴,   names: [阿里巴巴, 阿里, alibaba] }
+
+# ───────────────────────── 港股（HK）·目录可能缺失，俗名优先 ─────────────────────────
+- { symbol: HK:00700, cn: 腾讯控股,   names: [腾讯, 腾讯控股, tencent] }
+- { symbol: HK:09988, cn: 阿里巴巴,   names: [阿里巴巴, 阿里, alibaba] }
+- { symbol: HK:03690, cn: 美团,       names: [美团, meituan] }
+- { symbol: HK:01810, cn: 小米集团,   names: [小米, 小米集团, xiaomi] }
+- { symbol: HK:01211, cn: 比亚迪股份, names: [比亚迪, byd] }
+- { symbol: HK:09618, cn: 京东集团,   names: [京东, jd] }
+- { symbol: HK:09999, cn: 网易,       names: [网易, netease] }
+- { symbol: HK:01024, cn: 快手,       names: [快手, kuaishou] }
+- { symbol: HK:09868, cn: 小鹏汽车,   names: [小鹏, 小鹏汽车, xpeng] }
+- { symbol: HK:09866, cn: 蔚来,       names: [蔚来, nio] }
+- { symbol: HK:02015, cn: 理想汽车,   names: [理想, 理想汽车, li auto] }
+- { symbol: HK:00981, cn: 中芯国际,   names: [中芯, 中芯国际, smic] }
+- { symbol: HK:00388, cn: 香港交易所, names: [港交所, 香港交易所, hkex] }
+- { symbol: HK:00941, cn: 中国移动,   names: [中国移动, china mobile] }
+- { symbol: HK:00005, cn: 汇丰控股,   names: [汇丰, 汇丰控股, hsbc] }
+- { symbol: HK:01299, cn: 友邦保险,   names: [友邦, 友邦保险, aia] }
+- { symbol: HK:00939, cn: 建设银行,   names: [建行, 建设银行, ccb] }
+- { symbol: HK:01398, cn: 工商银行,   names: [工行, 工商银行, icbc] }
+- { symbol: HK:02269, cn: 药明生物,   names: [药明生物, wuxi bio] }
+- { symbol: HK:01024, cn: 快手,       names: [快手, kuaishou] }
+
+# ───────────────────────── A股（CN）·akshare 已给中文名，这里补拼音/俗名 ─────────────────────────
+- { symbol: CN:600519, cn: 贵州茅台,   names: [茅台, moutai, kweichow] }
+- { symbol: CN:300750, cn: 宁德时代,   names: [宁王, 宁德时代, catl] }
+- { symbol: CN:002594, cn: 比亚迪,     names: [比亚迪, byd] }
+- { symbol: CN:601318, cn: 中国平安,   names: [平安, 中国平安, ping an] }
+- { symbol: CN:600036, cn: 招商银行,   names: [招行, 招商银行, cmb] }
+- { symbol: CN:000858, cn: 五粮液,     names: [五粮液, wuliangye] }
+- { symbol: CN:300308, cn: 中际旭创,   names: [旭创, 中际旭创, innolight] }

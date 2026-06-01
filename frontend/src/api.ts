@@ -79,11 +79,35 @@ const roleSchema = z.object({
   model: z.string().nullable(),
   configured: z.boolean(),
 })
+const searchHitSchema = z.object({
+  symbol: z.string(),
+  market: z.string(),
+  code: z.string(),
+  name: z.string(),
+  sub: z.string(),
+})
+const searchRespSchema = z.object({
+  query: z.string(),
+  indexing: z.boolean(),
+  results: z.array(searchHitSchema),
+})
+
+const journalSchema = z.object({
+  id: z.number(),
+  symbol: z.string(),
+  entry_date: z.string(),
+  body: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+})
 
 export type Candle = z.infer<typeof candleSchema>
 export type Ohlcv = z.infer<typeof ohlcvSchema>
 export type Quote = z.infer<typeof quoteSchema>
 export type RoleStatus = z.infer<typeof roleSchema>
+export type SearchHit = z.infer<typeof searchHitSchema>
+export type SearchResp = z.infer<typeof searchRespSchema>
+export type JournalEntry = z.infer<typeof journalSchema>
 
 // ───────────────────────── 查询钩子 ─────────────────────────
 export function useSections(market: string) {
@@ -120,6 +144,20 @@ export function useRoles() {
   return useQuery({
     queryKey: ['roles'],
     queryFn: async () => z.array(roleSchema).parse(await getJSON('/llm/roles')),
+  })
+}
+
+export function useSearch(query: string, market: string) {
+  const q = query.trim()
+  return useQuery({
+    enabled: q.length > 0,
+    queryKey: ['search', q, market],
+    queryFn: async () =>
+      searchRespSchema.parse(
+        await getJSON(`/market/search?q=${encodeURIComponent(q)}&market=${market}&limit=20`),
+      ),
+    placeholderData: (prev) => prev, // 输入时保留上次结果，避免闪烁
+    staleTime: 60_000,
   })
 }
 
@@ -160,5 +198,66 @@ export function useDeleteItem() {
   return useMutation({
     mutationFn: (id: number) => send(`/watchlist/items/${id}`, 'DELETE'),
     onSuccess: invalidate,
+  })
+}
+
+export function useMoveItem() {
+  const invalidate = useInvalidateSections()
+  return useMutation({
+    mutationFn: ({ itemId, sectionId }: { itemId: number; sectionId: number }) =>
+      send(`/watchlist/items/${itemId}`, 'PATCH', { section_id: sectionId }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useReorder() {
+  const invalidate = useInvalidateSections()
+  return useMutation({
+    mutationFn: ({ kind, orderedIds }: { kind: 'section' | 'item'; orderedIds: number[] }) =>
+      send('/watchlist/reorder', 'POST', { kind, ordered_ids: orderedIds }),
+    onSuccess: invalidate,
+  })
+}
+
+// ───────────────────────── 判断日记 ─────────────────────────
+export function useJournal(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['journal', symbol],
+    queryFn: async () =>
+      z
+        .array(journalSchema)
+        .parse(await getJSON(`/journal/entries?symbol=${encodeURIComponent(symbol!)}`)),
+  })
+}
+
+function useInvalidateJournal() {
+  const qc = useQueryClient()
+  return (symbol: string) => qc.invalidateQueries({ queryKey: ['journal', symbol] })
+}
+
+export function useCreateJournal() {
+  const invalidate = useInvalidateJournal()
+  return useMutation({
+    mutationFn: (body: { symbol: string; entry_date: string; body: string }) =>
+      send('/journal/entries', 'POST', body),
+    onSuccess: (_d, v) => invalidate(v.symbol),
+  })
+}
+
+export function useUpdateJournal(symbol: string) {
+  const invalidate = useInvalidateJournal()
+  return useMutation({
+    mutationFn: ({ id, entry_date, body }: { id: number; entry_date?: string; body?: string }) =>
+      send(`/journal/entries/${id}`, 'PATCH', { entry_date, body }),
+    onSuccess: () => invalidate(symbol),
+  })
+}
+
+export function useDeleteJournal(symbol: string) {
+  const invalidate = useInvalidateJournal()
+  return useMutation({
+    mutationFn: (id: number) => send(`/journal/entries/${id}`, 'DELETE'),
+    onSuccess: () => invalidate(symbol),
   })
 }

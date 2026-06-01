@@ -52,17 +52,33 @@ def list_tree(market: str | None = None) -> list[dict]:
         if s["parent_id"] is not None:
             subs_by_parent.setdefault(s["parent_id"], []).append(s)
 
-    def to_out(s: sqlite3.Row) -> dict:
+    # 分区按"标的所在市场"显示（CLAUDE.md §8）：选了具体市场时，只露出在该市场有标的的
+    # 分区、且只露该市场的标的；既无匹配标的、子分区也都空的分区 → 剪掉（空分区只在「全部」出现）。
+    def to_out(s: sqlite3.Row) -> dict | None:
+        items_out = [_item_out(i) for i in items_by_section.get(s["id"], [])]
+        children: list[dict] = []
+        for ch in subs_by_parent.get(s["id"], []):
+            c = to_out(ch)
+            if c is not None:
+                children.append(c)
+        if not keep_all and not items_out and not children:
+            return None
         return {
             "id": s["id"],
             "name": s["name"],
             "parent_id": s["parent_id"],
             "sort_order": s["sort_order"],
-            "items": [_item_out(i) for i in items_by_section.get(s["id"], [])],
-            "children": [to_out(c) for c in subs_by_parent.get(s["id"], [])],
+            "items": items_out,
+            "children": children,
         }
 
-    return [to_out(s) for s in sections if s["parent_id"] is None]
+    roots: list[dict] = []
+    for s in sections:
+        if s["parent_id"] is None:
+            out = to_out(s)
+            if out is not None:
+                roots.append(out)
+    return roots
 
 
 def create_section(name: str, parent_id: int | None = None) -> dict:
@@ -151,6 +167,36 @@ def add_item(section_id: int, symbol: str, note: str = "") -> dict:
             "SELECT * FROM watchlist_items WHERE id = ?", (cur.lastrowid,)
         ).fetchone()
         return _item_out(row)
+    finally:
+        conn.close()
+
+
+def move_item(item_id: int, section_id: int) -> dict:
+    """把标的移动到另一个板块（拖拽换区）。追加到目标板块末尾，再由 reorder 精排位置。"""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM watchlist_items WHERE id = ?", (item_id,)).fetchone()
+        if row is None:
+            raise NotFound(f"标的项 {item_id} 不存在")
+        if conn.execute("SELECT 1 FROM sections WHERE id = ?", (section_id,)).fetchone() is None:
+            raise NotFound(f"板块 {section_id} 不存在")
+        if row["section_id"] == section_id:
+            return _item_out(row)  # 同区 → 交给 reorder 处理顺序
+        n = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n "
+            "FROM watchlist_items WHERE section_id = ?",
+            (section_id,),
+        ).fetchone()["n"]
+        try:
+            conn.execute(
+                "UPDATE watchlist_items SET section_id = ?, sort_order = ? WHERE id = ?",
+                (section_id, n, item_id),
+            )
+        except sqlite3.IntegrityError as e:
+            raise ValueError(f"{row['symbol']} 已在目标板块") from e
+        conn.commit()
+        moved = conn.execute("SELECT * FROM watchlist_items WHERE id = ?", (item_id,)).fetchone()
+        return _item_out(moved)
     finally:
         conn.close()
 

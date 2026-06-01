@@ -1,8 +1,9 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useUI, type View } from './store'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
+import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
 import Placeholder from './features/misc/Placeholder'
 
@@ -23,10 +24,29 @@ function SimplePanel({ label, children }: { label: string; children: ReactNode }
   )
 }
 
+// 左栏宽度拖拽手柄：拖动更新 --panel-w（panel 左缘在视口 x=0，故宽度=指针 clientX）
+function ResizeHandle() {
+  const setPanelW = useUI((s) => s.setPanelW)
+  const onPointerDown = (e: ReactPointerEvent) => {
+    e.preventDefault()
+    const move = (ev: globalThis.PointerEvent) => setPanelW(ev.clientX)
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.classList.remove('resizing')
+    }
+    document.body.classList.add('resizing')
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  return <div className="resize-handle" onPointerDown={onPointerDown} title="拖动调整栏宽" />
+}
+
 export default function App() {
   const view = useUI((s) => s.view)
   const setView = useUI((s) => s.setView)
-  const { theme, textBase, leading, displayFont, convention } = useUI()
+  const selectedSymbol = useUI((s) => s.selectedSymbol)
+  const { theme, textBase, leading, displayFont, convention, panelW } = useUI()
 
   useEffect(() => {
     const el = document.documentElement
@@ -36,7 +56,8 @@ export default function App() {
     el.style.setProperty('--font-display', displayFont === 'serif' ? 'var(--font-serif)' : 'var(--font-sans)')
     el.style.setProperty('--up', convention === 'cn' ? 'var(--crayon-red)' : 'var(--crayon-green)')
     el.style.setProperty('--down', convention === 'cn' ? 'var(--crayon-green)' : 'var(--crayon-red)')
-  }, [theme, textBase, leading, displayFont, convention])
+    el.style.setProperty('--panel-w', `${panelW}px`)
+  }, [theme, textBase, leading, displayFont, convention, panelW])
 
   return (
     <div className="app-shell">
@@ -97,6 +118,8 @@ export default function App() {
           </SimplePanel>
         )}
 
+        <ResizeHandle />
+
         <main className="stage">
           <AnimatePresence mode="wait">
             <motion.div
@@ -105,9 +128,14 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: EASE }}
-              style={{ height: '100%' }}
+              style={{ minHeight: '100%' }}
             >
-              {view === 'kan' && <KLineView />}
+              {view === 'kan' && (
+                <>
+                  <KLineView />
+                  {selectedSymbol && <JournalPanel symbol={selectedSymbol} />}
+                </>
+              )}
               {view === 'yan' && <Placeholder pillar="研" />}
               {view === 'zhi' && <Placeholder pillar="知" />}
               {view === 'set' && <SettingsView />}
