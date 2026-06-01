@@ -122,7 +122,7 @@ export default function KLineView() {
         >
           <div>
             <h2>
-              {code} <span className="sub">{symbol} · {mkt}</span>
+              {q?.name || code} <span className="sub">{code} · {mkt}</span>
             </h2>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
               <span className="px">{q ? fmt(q.price) : '—'}</span>

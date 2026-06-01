@@ -178,9 +178,11 @@ function RowBody({ item }: { item: Item }) {
   const up = q.data ? q.data.change >= 0 : true
   return (
     <>
-      <span className="tk">{code}</span>
+      <span className="tk">{q.data?.name || code}</span>
       <span className="v">{q.data ? fmtPrice(q.data.price) : '—'}</span>
-      <span className="cn">{market}</span>
+      <span className="cn">
+        {code} · {market}
+      </span>
       <span className={`d ${up ? 'up' : 'down'}`}>
         {q.data ? `${up ? '▲' : '▼'} ${Math.abs(q.data.change_pct).toFixed(2)}%` : ''}
       </span>

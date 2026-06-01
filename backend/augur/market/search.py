@@ -24,6 +24,7 @@ from ..config import get_settings
 from . import listings
 
 _WS = re.compile(r"\s+")
+_HAN = re.compile(r"[一-鿿]")  # 判断是否含中文（汉字），用于"中文名优先"
 
 
 def _norm(s: str) -> str:
@@ -42,6 +43,7 @@ class _Rec:
 
 
 _INDEX: list[_Rec] = []
+_SYM_INDEX: dict[str, _Rec] = {}  # symbol → rec（同一 symbol 取首条：本地目录优先于纯别名条目）
 _READY = False
 _LOCK = threading.Lock()
 
@@ -70,7 +72,7 @@ def _load_aliases() -> dict[str, dict]:
 
 def build_index() -> int:
     """从磁盘目录 + 别名种子重建内存索引。返回索引条数。可重复调用（刷新）。"""
-    global _INDEX, _READY
+    global _INDEX, _SYM_INDEX, _READY
     aliases = _load_aliases()
     recs: list[_Rec] = []
     seen: set[str] = set()
@@ -122,8 +124,12 @@ def build_index() -> int:
                 names_l=[n for n in names_l if n],
             )
         )
+    sym_index: dict[str, _Rec] = {}
+    for r in recs:
+        sym_index.setdefault(r.symbol, r)  # 首条优先（本地目录条目排在纯别名条目之前）
     with _LOCK:
         _INDEX = recs
+        _SYM_INDEX = sym_index
         _READY = True
     print(f"[search] 索引就绪：{len(recs)} 条")
     return len(recs)
@@ -293,3 +299,36 @@ def search(query: str, market: str | None = None, limit: int = 20) -> list[dict]
         {"symbol": r.symbol, "market": r.market, "code": r.code, "name": r.name, "sub": r.sub}
         for _, _, r in ranked[:limit]
     ]
+
+
+_name_cache: dict[str, str] = {}  # symbol → 展示名（东财反查结果缓存）
+
+
+def display_name(symbol: str) -> str:
+    """解析标的的"看得懂"的展示名，**中文优先**（CLAUDE.md §8/§9）。
+
+    例：KR:000660 → SK海力士（而非韩文 SK하이닉스 或数字 000660）。
+    顺序：本地索引(中文名>中文别名>本地名) → 东财按代码反查(缓存) → 退回代码。
+    """
+    code = symbol.split(":", 1)[1] if ":" in symbol else symbol
+    rec = _SYM_INDEX.get(symbol)
+    if rec is not None:
+        if _HAN.search(rec.name):
+            return rec.name
+        if rec.sub and _HAN.search(rec.sub):
+            return rec.sub
+        return rec.name or code
+    cached = _name_cache.get(symbol)
+    if cached is not None:
+        return cached
+    name = code
+    try:
+        for item in _em_suggest(code):
+            r = _map_em(item)
+            if r is not None and r.symbol == symbol:
+                name = r.name
+                break
+    except Exception:  # noqa: BLE001 — 反查失败就用代码兜底
+        pass
+    _name_cache[symbol] = name
+    return name

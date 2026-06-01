@@ -498,6 +498,10 @@ body.resizing * {
   grid-area: 1 / 1;
   font-weight: 500;
   font-size: 0.85rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .stk .v {
   grid-area: 1 / 2;
@@ -960,9 +964,9 @@ input:focus:not(:focus-visible) {
 }
 
 /* ───────────────────────── 判断日记（K 线下方·复盘决策）───────────────────────── */
+/* 与 K 线框同宽（充满主舞台），随栏宽拖拽一起回流，对齐美观 */
 .journal {
   margin-top: 26px;
-  max-width: 760px;
   padding-bottom: 40px;
 }
 .journal-head {

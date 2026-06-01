@@ -24,6 +24,7 @@ class OHLCVResponse(BaseModel):
 
 class Quote(BaseModel):
     symbol: str
+    name: str = ""  # 中文优先的展示名（如 SK海力士）
     price: float
     change: float  # 较前收的绝对变动
     change_pct: float  # 百分比

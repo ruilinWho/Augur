@@ -42,6 +42,7 @@ const ohlcvSchema = z.object({
 })
 const quoteSchema = z.object({
   symbol: z.string(),
+  name: z.string().default(''),
   price: z.number(),
   change: z.number(),
   change_pct: z.number(),
