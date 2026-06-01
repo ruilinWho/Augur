@@ -13,6 +13,7 @@ export default defineConfig({
       '/market': backend,
       '/watchlist': backend,
       '/llm': backend,
+      '/journal': backend,
       '/health': backend,
     },
   },

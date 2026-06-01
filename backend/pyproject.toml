@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 # M1 via `uv add ...` (see backend/README.md). This manifest exists so the
 # project structure is real; `uv sync` becomes meaningful once deps are added.
 dependencies = [
+    "akshare>=1.18.64",
     "apscheduler>=3.11.2",
     "fastapi>=0.136.3",
     "finance-datareader>=0.9.202",

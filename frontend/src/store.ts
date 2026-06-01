@@ -7,6 +7,9 @@ export type Theme = 'light' | 'dark'
 export type DisplayFont = 'serif' | 'sans'
 export type Convention = 'us' | 'cn' // us: 绿涨红跌；cn: 红涨绿跌
 
+export const PANEL_MIN = 208
+export const PANEL_MAX = 520
+
 interface UIState {
   view: View
   selectedSymbol: string | null
@@ -17,6 +20,7 @@ interface UIState {
   leading: number
   displayFont: DisplayFont
   convention: Convention
+  panelW: number // 左栏宽度（px），可拖拽调整
 
   setView: (v: View) => void
   select: (s: string) => void
@@ -26,6 +30,7 @@ interface UIState {
   setLeading: (n: number) => void
   setDisplayFont: (f: DisplayFont) => void
   setConvention: (c: Convention) => void
+  setPanelW: (n: number) => void
 }
 
 export const useUI = create<UIState>()(
@@ -39,6 +44,7 @@ export const useUI = create<UIState>()(
       leading: 1.62,
       displayFont: 'serif',
       convention: 'us',
+      panelW: 268,
 
       setView: (view) => set({ view }),
       select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
@@ -48,6 +54,8 @@ export const useUI = create<UIState>()(
       setLeading: (leading) => set({ leading }),
       setDisplayFont: (displayFont) => set({ displayFont }),
       setConvention: (convention) => set({ convention }),
+      setPanelW: (panelW) =>
+        set({ panelW: Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(panelW))) }),
     }),
     {
       name: 'augur-ui',
@@ -58,6 +66,7 @@ export const useUI = create<UIState>()(
         displayFont: s.displayFont,
         convention: s.convention,
         market: s.market,
+        panelW: s.panelW,
       }),
     },
   ),

@@ -6,7 +6,15 @@ from fastapi import APIRouter, HTTPException
 from starlette.concurrency import run_in_threadpool
 
 from . import service
-from .schemas import ItemCreate, ItemOut, ReorderRequest, SectionCreate, SectionOut, SectionRename
+from .schemas import (
+    ItemCreate,
+    ItemMove,
+    ItemOut,
+    ReorderRequest,
+    SectionCreate,
+    SectionOut,
+    SectionRename,
+)
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
@@ -46,6 +54,16 @@ async def delete_section(section_id: int) -> None:
 async def add_item(section_id: int, body: ItemCreate) -> dict:
     try:
         return await run_in_threadpool(service.add_item, section_id, body.symbol, body.note)
+    except service.NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@router.patch("/items/{item_id}", response_model=ItemOut)
+async def move_item(item_id: int, body: ItemMove) -> dict:
+    try:
+        return await run_in_threadpool(service.move_item, item_id, body.section_id)
     except service.NotFound as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:

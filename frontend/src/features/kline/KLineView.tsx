@@ -185,12 +185,6 @@ export default function KLineView() {
           K线获取失败：{(ohlcv.error as Error).message}
         </div>
       )}
-      {ohlcv.data && (
-        <div className="faint" style={{ marginTop: 8, fontSize: '.74rem' }}>
-          数据源 {ohlcv.data.source} · {ohlcv.data.candles.length} 根 · {tf.interval}
-          {ohlcv.data.cached ? ' · 缓存' : ''} · 免费源可能延迟/有误，仅供研究
-        </div>
-      )}
     </>
   )
 }

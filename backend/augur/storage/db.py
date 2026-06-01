@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     completion_tokens INTEGER,
     cost_usd          REAL
 );
+
+-- 判断日记：对某标的在某日写下的决策笔记，供日后复盘（CLAUDE.md §1「研」的轻量前身）
+CREATE TABLE IF NOT EXISTS journal_entries (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol      TEXT    NOT NULL,                  -- 归一化 MARKET:CODE
+    entry_date  TEXT    NOT NULL,                  -- 'YYYY-MM-DD'：决策发生那天（可改）
+    body        TEXT    NOT NULL DEFAULT '',       -- 笔记正文
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_journal_symbol ON journal_entries(symbol, entry_date DESC);
 """
 
 

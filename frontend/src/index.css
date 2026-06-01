@@ -206,8 +206,41 @@ button {
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 268px 1fr;
+  grid-template-columns: var(--panel-w, 268px) 1fr;
   min-height: 0;
+  position: relative;
+}
+/* 左栏拖拽手柄：盖在 panel 右缘上，hover/拖拽时显出陶土细线 */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--panel-w, 268px);
+  width: 10px;
+  transform: translateX(-5px);
+  cursor: col-resize;
+  z-index: 20;
+}
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.resize-handle:hover::after,
+body.resizing .resize-handle::after {
+  background: var(--accent);
+}
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.resizing * {
+  cursor: col-resize !important;
 }
 .panel {
   border-right: 1px solid var(--border);
@@ -673,7 +706,7 @@ input:focus:not(:focus-visible) {
 .chip,
 .fn-tabs .t,
 .mkt button {
-  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, padding 0.16s ease;
 }
 
 /* 选中标的：左缘陶土强调（巧思细节）*/
@@ -804,4 +837,267 @@ input:focus:not(:focus-visible) {
 .chip,
 .fn-tabs .t {
   white-space: nowrap;
+}
+
+/* ───────────────────────── 检索式添加（搜代码/中文/英文/拼音/别名）───────────────────────── */
+.adder {
+  margin: 4px 6px 8px;
+}
+.adder .input {
+  width: 100%;
+}
+.sresults {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.sopt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  border-top: 1px solid var(--border);
+  transition: background 0.12s ease;
+}
+.sopt:first-child {
+  border-top: 0;
+}
+.sopt.hi {
+  background: var(--accent-weak);
+}
+.mbadge {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.scode {
+  font-size: 0.78rem;
+  color: var(--text);
+  min-width: 48px;
+}
+.sname {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssub {
+  margin-left: auto;
+  padding-left: 6px;
+  color: var(--text-faint);
+  font-size: 0.71rem;
+  white-space: nowrap;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shint {
+  padding: 11px;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+
+/* ───────────────────────── 拖拽换区：落点高亮 / 拖影 / 移除按钮 ───────────────────────── */
+.row1.drop-into,
+.row2.drop-into {
+  background: var(--accent-weak);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.drag-ghost {
+  width: calc(var(--panel-w, 268px) - 38px);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  cursor: grabbing;
+}
+/* 悬浮时整行内容左移让位，× 落在腾出的净空里——绝不与价格/涨跌重叠 */
+.stk:hover {
+  padding-right: 32px;
+}
+.stk-del {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+.stk:hover .stk-del {
+  opacity: 0.85;
+}
+.stk-del:hover {
+  color: var(--down);
+  background: var(--surface);
+  opacity: 1;
+}
+
+/* ───────────────────────── 判断日记（K 线下方·复盘决策）───────────────────────── */
+.journal {
+  margin-top: 26px;
+  max-width: 760px;
+  padding-bottom: 40px;
+}
+.journal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.journal-head h3 {
+  font-family: var(--font-display);
+}
+.journal-head .btn {
+  margin-left: auto;
+}
+.btn.jsm {
+  padding: 6px 13px;
+  font-size: 0.82rem;
+  border-radius: var(--radius-sm);
+}
+.journal-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 22px 18px;
+  color: var(--text-faint);
+  font-size: 0.86rem;
+  line-height: 1.7;
+  text-align: center;
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+}
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.jentry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.jentry-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+.jentry-head:hover {
+  background: var(--surface-2);
+}
+.jentry-head .chev {
+  color: var(--text-faint);
+  font-size: 0.66rem;
+}
+.jdate {
+  font-size: 0.92rem;
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.jago {
+  font-size: 0.74rem;
+}
+.jactions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.jentry-head:hover .jactions {
+  opacity: 1;
+}
+.jbtn {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.92rem;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  transition: 0.14s;
+}
+.jbtn:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+.jbtn.jdel:hover {
+  color: var(--down);
+}
+.jbody {
+  padding: 2px 16px 15px 33px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.72;
+}
+.jeditor {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-weak);
+  padding: 13px 14px;
+  margin-bottom: 10px;
+}
+.jeditor-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+.jdate-lbl {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+}
+.jdate-input {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color-scheme: light dark;
+}
+.jtext {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.7;
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+}
+.jeditor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 11px;
 }

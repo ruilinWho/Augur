@@ -5,8 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from starlette.concurrency import run_in_threadpool
 
+from . import search as search_mod
 from . import service
-from .schemas import Candle, OHLCVResponse, Quote
+from .schemas import Candle, OHLCVResponse, Quote, SearchResponse
 from .symbols import parse_symbol
 
 router = APIRouter(prefix="/market", tags=["market"])
@@ -45,6 +46,13 @@ async def get_ohlcv(symbol: str, interval: str = "1d", range: str = "2y") -> OHL
         cached=cached,
         candles=_to_candles(df),
     )
+
+
+@router.get("/search", response_model=SearchResponse)
+async def search(q: str, market: str | None = None, limit: int = 20) -> SearchResponse:
+    """模糊检索标的：代码/中文/英文/韩文/拼音/别名；market 限定范围（CLAUDE.md §7）。"""
+    hits = await run_in_threadpool(search_mod.search, q, market, min(limit, 50))
+    return SearchResponse(query=q, indexing=not search_mod.ready(), results=hits)
 
 
 @router.get("/quote", response_model=Quote)

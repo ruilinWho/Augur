@@ -43,8 +43,9 @@
                         │  HTTP + SSE（流式）
 ┌───────────────────────┴──────────────────────────────┐
 │  后端  Python 3.13 + FastAPI                            │
-│  market/    → 四市场数据适配器 (FDR+akshare+yf+pykrx)    │
-│  watchlist/ → 自选分区（两级板块）                        │
+│  market/    → 四市场数据适配器 + 检索(本地目录∪东财联想)  │
+│  watchlist/ → 自选分区（两级板块）+ 拖拽换区               │
+│  journal/   → 判断日记（个股决策复盘）                    │
 │  llm/       → litellm 网关（任意厂商、自配 base_url）      │
 │  research/  → deep-research 编排                         │
 │  news/      → RSS/API 摄取 + APScheduler + 趋势日报       │
@@ -72,12 +73,12 @@ Augur/
 │   └── memory/            ← 跨会话项目记忆（见 §10）
 ├── backend/               ← Python（uv 管理）FastAPI 服务
 │   ├── pyproject.toml
-│   └── augur/  market/ · watchlist/ · llm/ · research/ · news/ · storage/ · config.py · main.py
+│   └── augur/  market/ · watchlist/ · journal/ · llm/ · research/ · news/ · storage/ · config.py · main.py
 ├── frontend/              ← React + Vite + TS（M1 搭建）
 ├── resources/             ← 入库的静态资产（版本控制）
 │   ├── fonts/             ← 自带字体
 │   ├── prompts/           ← LLM 提示词模板（要版本化！）
-│   └── sources/           ← 新闻信源清单（YAML）
+│   └── sources/           ← 新闻信源清单 + aliases.yaml（跨语言别名种子）（YAML）
 ├── data/                  ← 仅运行时 · 被 git 忽略 · 在 git 里永不作为真相来源
 │   ├── cache/（parquet）   ├── db/（sqlite）  └── logs/
 └── src-tauri/             ← Phase 2 桌面外壳
@@ -160,6 +161,7 @@ cd frontend && pnpm dev
 - **适配器模式：** 每个源一个模块（`fdr.py`、`akshare.py`、`yfinance.py`、`pykrx.py`），统一在 `MarketAdapter` 接口后（`get_ohlcv`、`search`、`quote`）。一个 resolver 按市场选最佳适配器并带回退。
 - **缓存优先：** OHLCV 缓存为 Parquet 到 `data/cache/`，键为 `MARKET:CODE/interval`。只抓缺失的尾巴。尊重限流。
 - 各市场的交易日历、币种、代码格式都不同——存进适配器元数据，**别假设美股惯例**。
+- **检索（`search.py` + `listings.py`）= 本地目录 ∪ 东方财富实时联想，统一打分去重。** 本地目录（FDR 列表 + akshare A股中文名 + KOSPI/KOSDAQ 韩文名，缓存 Parquet）管美股英文名 + 韩股 + 离线兜底；东财 suggest 管港股/A股/新股 + 拼音（MiniMax/智谱 也搜得到）；跨语言别名靠 `resources/sources/aliases.yaml`（海力士→KR:000660）。带缓存/超时/失败降级。**坑见 [docs/memory/search-data-sources.md](docs/memory/search-data-sources.md)**（东财无韩股、`push2` 被代理拦截、FDR 港股列表未实现…）。
 
 ---
 
@@ -176,8 +178,9 @@ cd frontend && pnpm dev
   - `watchlist_items(id, section_id, symbol /* MARKET:CODE */, note, sort_order, added_at)`
   - 一只标的**可同时属于多个分区**；可直接挂在一级下，也可挂在二级下。
 - **市场（美/港/A/韩/全部）是过滤器，不是第三层。** 标的的市场已编码在 `symbol`（`MARKET:CODE`）里；导航上市场是个跨分区的**筛选器**（面板顶部分段控件），与"两级板块"正交——既好看，又保住两级铁律。
-- **前端** `features/watchlist/` 是看/研的**上下文面板**（左栏，顶栏 Tab 之下）：市场过滤器 + 可折叠两级树，**dnd-kit 拖拽**组织；点击标的 → 在主舞台看/研。
-- 删除一级板块时如何处理其下二级与标的，要有明确策略（级联或迁移），在实现时定并写进 docs。
+- **分区按"标的所在市场"显示（不是死绑一个市场）。** 一个分区可跨市场（`半导体` 里能同时有 `US:NVDA` + `KR:000660`）。选了具体市场时，只露出在该市场**有标的**的分区、且只显示该市场的标的（`半导体` 在韩股只露海力士、在 A 股只露 300308）；**空分区 / 在该市场无标的的分区被隐藏，只在「全部」出现**（这样 `大模型` 不会污染韩股）。逻辑在 `service.list_tree(market)`（按内容剪枝）。
+- **前端** `features/watchlist/` 是看/研的**上下文面板**（左栏，顶栏 Tab 之下）：市场过滤器 + 可折叠两级树，**dnd-kit 拖拽换区/重排**（后端 `PATCH /watchlist/items/{id}` 移动 + `/reorder` 排序）；整行点击折叠；检索式加股（选了市场只敲代码即可，`全部`则全市场搜）；点击标的 → 在主舞台看/研。**左栏宽度可拖拽**（`--panel-w`，持久化）。
+- 删除一级板块时如何处理其下二级与标的：**级联删除**（FK `ON DELETE CASCADE`，连带二级与标的）。
 
 ---
 
@@ -220,7 +223,7 @@ cd frontend && pnpm dev
 
 ## 12. 当前状态与下一步
 
-- **现在：** M1 基础功能跑通 ✅ —— 后端（四市场行情 FDR+pykrx、两级自选分区、litellm 网关）+ 前端（Vite8/React19/Tailwind v4 外壳、自选分区面板、Lightweight Charts v5 K线、设置）端到端工作，真实数据 + 截图验证。
-- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理到后端）。
-- **下一步（M2）：** 单股深度分析（research 编排 + LLM）。待补：`/market/search`、前端拖拽排序、`.env` 配 LLM key。
+- **现在：** M1 + M1.5（UI 精修）+ M1.6 跑通 ✅。M1.6 = 主人驱动的一批体验功能：**全市场模糊检索加股**（本地目录 ∪ 东财实时联想，港股 MiniMax/智谱 + 拼音/中文/英文/韩文皆可，详见 §7）、**dnd-kit 拖拽换区/重排**、**左栏可拖拽调宽**、**判断日记**（个股 K 线下方的决策复盘，`journal/` 域 + SQLite CRUD）。真实数据 + 截图验证、零控制台错、构建通过。
+- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /health`）。
+- **下一步（M2）：** 单股深度分析（research 编排 + LLM；判断日记是其轻量前身）。待补：`.env` 配 LLM key 后接通实时对话/研究。
 - 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。
