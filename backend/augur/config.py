@@ -9,10 +9,15 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent  # .../backend
 REPO_ROOT = BACKEND_DIR.parent  # 仓库根
+
+# 把 backend/.env 灌进 os.environ：litellm/gateway 直接 os.getenv 读厂商 key（DEEPSEEK_API_KEY、
+# RELAY_API_KEY/RELAY_BASE_URL…），而 pydantic-settings 只认 AUGUR_ 前缀，故这里显式加载一次。
+load_dotenv(BACKEND_DIR / ".env")
 
 
 class Settings(BaseSettings):
