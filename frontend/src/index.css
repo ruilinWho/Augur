@@ -1036,6 +1036,11 @@ input:focus:not(:focus-visible) {
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
 }
+/* 数值列定宽 → 约 5 期可见，更多则横向拖动（最新贴右） */
+.fin-table th:not(.rlabel),
+.fin-table td:not(.rlabel) {
+  min-width: 88px;
+}
 .fin-table tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -1051,7 +1056,12 @@ input:focus:not(:focus-visible) {
   color: var(--text-muted);
   position: sticky;
   left: 0;
+  z-index: 1; /* 横向滚动时压住数值列 */
   background: var(--surface);
+  box-shadow: 1px 0 0 var(--border); /* 与滚动区分隔线 */
+}
+.fin-table tbody tr:hover td.rlabel {
+  background: var(--surface-2);
 }
 .fin-table tbody td {
   color: var(--text);
@@ -1090,31 +1100,31 @@ input:focus:not(:focus-visible) {
   font-size: 0.86rem;
   padding: 14px 2px;
 }
-.ai-btn {
-  font-size: 0.84rem;
-  padding: 7px 14px;
+/* 季度 / 年度 段控 */
+.fin-toggle {
+  display: inline-flex;
+  margin-left: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
   background: var(--surface);
 }
-.ai-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+.fin-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.76rem;
+  padding: 3px 11px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
-.ai-out {
-  margin-top: 12px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  background: var(--surface-2);
-  padding: 13px 16px;
-  font-size: 0.9rem;
-  line-height: 1.75;
+.fin-toggle button:hover {
   color: var(--text-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
 }
-.ai-out.err {
-  color: var(--down);
-  border-left-color: var(--down);
+.fin-toggle button.on {
+  color: var(--surface);
+  background: var(--accent);
 }
 
 /* ───────────────────────── 判断日记（K 线下方·复盘决策）───────────────────────── */

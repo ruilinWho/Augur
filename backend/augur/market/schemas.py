@@ -58,7 +58,7 @@ class Fundamentals(BaseModel):
 
 
 class FinancialPeriod(BaseModel):
-    period: str  # 'YYYY-MM'（财年）
+    period: str  # 季度 '2026Q1' / 年度 '2025'
     revenue: float | None = None
     revenue_growth: float | None = None  # 同比
     net_income: float | None = None
@@ -75,6 +75,7 @@ class ReportLink(BaseModel):
 
 class FinancialsTable(BaseModel):
     symbol: str
+    period: str = "quarter"  # 'quarter' | 'annual'
     currency: str = ""
     periods: list[FinancialPeriod] = []  # 最新在前
     links: list[ReportLink] = []

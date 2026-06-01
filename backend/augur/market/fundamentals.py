@@ -118,14 +118,32 @@ def _growth(cur: float | None, prev: float | None) -> float | None:
     return (cur - prev) / prev
 
 
-def get_financials(symbol: str, periods: int = 5) -> dict:
-    """近若干个**年度**财报关键项（最新在前）：营收/营收增长/净利/净利率/EPS/EPS增长/自由现金流。"""
+def _period_label(c, quarter: bool) -> str:
+    """列日期 → 期次标签：季度 2026Q1（按自然季）/ 年度 2025。"""
+    if not hasattr(c, "month"):
+        s = str(c)
+        return s[:7] if quarter else s[:4]
+    return f"{c.year}Q{(c.month - 1) // 3 + 1}" if quarter else str(c.year)
+
+
+def get_financials(symbol: str, period: str = "quarter", limit: int = 8) -> dict:
+    """近若干期财报关键项（最新在前）：营收/营收增长/净利/净利率/EPS/EPS增长/自由现金流。
+
+    period：`quarter`（季度，默认）| `annual`（年度）。增长率按**同比**——季度 vs 去年同季
+    （回退 4 列）、年度 vs 上一年（回退 1 列）——以避开季节性误导（§11 暴露不确定性）。
+    yfinance 免费季度仅约 5–7 期；年度约 4–5 年。
+    """
+    quarter = period != "annual"
+    lag = 4 if quarter else 1  # 同比基期相隔列数（季度回退 4 列＝去年同季）
+    cap = limit if quarter else min(limit, 6)
+    key = f"{symbol}:{period}"
     now = time.time()
     with _LOCK:
-        hit = _FIN_CACHE.get(symbol)
+        hit = _FIN_CACHE.get(key)
         if hit and now - hit[0] < _TTL:
             return hit[1]
     out: dict = {
+        "period": "quarter" if quarter else "annual",
         "currency": _CURRENCY.get(symbol.partition(":")[0], ""),
         "periods": [],
         "links": [],
@@ -133,8 +151,8 @@ def get_financials(symbol: str, periods: int = 5) -> dict:
     for ysym in _yahoo_symbols(symbol):
         try:
             t = yf.Ticker(ysym)
-            inc = t.income_stmt
-            cf = t.cashflow
+            inc = t.quarterly_income_stmt if quarter else t.income_stmt
+            cf = t.quarterly_cashflow if quarter else t.cashflow
         except Exception:  # noqa: BLE001
             continue
         if inc is None or inc.empty:
@@ -152,12 +170,12 @@ def get_financials(symbol: str, periods: int = 5) -> dict:
         fcf = pick(cf, ["Free Cash Flow"])
         cols = list(inc.columns)
         rows = []
-        for i, c in enumerate(cols[:periods]):
-            older = cols[i + 1] if i + 1 < len(cols) else None
+        for i, c in enumerate(cols[:cap]):
+            older = cols[i + lag] if i + lag < len(cols) else None
             rv, nv, ev, fv = _num(rev, c), _num(ni, c), _num(eps, c), _num(fcf, c)
             rows.append(
                 {
-                    "period": (str(c.date())[:7] if hasattr(c, "date") else str(c)[:7]),
+                    "period": _period_label(c, quarter),
                     "revenue": rv,
                     "revenue_growth": _growth(rv, _num(rev, older)) if older is not None else None,
                     "net_income": nv,
@@ -172,5 +190,5 @@ def get_financials(symbol: str, periods: int = 5) -> dict:
             out["links"] = _report_links(symbol, ysym)
             break
     with _LOCK:
-        _FIN_CACHE[symbol] = (now, out)
+        _FIN_CACHE[key] = (now, out)
     return out

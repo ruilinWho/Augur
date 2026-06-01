@@ -81,7 +81,19 @@ def list_tree(market: str | None = None) -> list[dict]:
     return roots
 
 
+def _section_out(s: sqlite3.Row) -> dict:
+    return {
+        "id": s["id"],
+        "name": s["name"],
+        "parent_id": s["parent_id"],
+        "sort_order": s["sort_order"],
+        "items": [],
+        "children": [],
+    }
+
+
 def create_section(name: str, parent_id: int | None = None) -> dict:
+    name = name.strip()
     conn = get_conn()
     try:
         if parent_id is not None:
@@ -92,6 +104,12 @@ def create_section(name: str, parent_id: int | None = None) -> dict:
                 raise NotFound(f"父板块 {parent_id} 不存在")
             if parent["parent_id"] is not None:
                 raise DepthError("最多两级：二级板块下不能再建子级")
+        # 幂等：同层（同 parent_id）已存在同名板块 → 返回既有，避免重复提交造成"两个大模型"
+        dup = conn.execute(
+            "SELECT * FROM sections WHERE name = ? AND parent_id IS ?", (name, parent_id)
+        ).fetchone()
+        if dup is not None:
+            return _section_out(dup)
         if parent_id is None:
             n = conn.execute(
                 "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n "
@@ -104,18 +122,11 @@ def create_section(name: str, parent_id: int | None = None) -> dict:
             ).fetchone()["n"]
         cur = conn.execute(
             "INSERT INTO sections (name, parent_id, sort_order) VALUES (?, ?, ?)",
-            (name.strip(), parent_id, n),
+            (name, parent_id, n),
         )
         conn.commit()
         s = conn.execute("SELECT * FROM sections WHERE id = ?", (cur.lastrowid,)).fetchone()
-        return {
-            "id": s["id"],
-            "name": s["name"],
-            "parent_id": s["parent_id"],
-            "sort_order": s["sort_order"],
-            "items": [],
-            "children": [],
-        }
+        return _section_out(s)
     finally:
         conn.close()
 

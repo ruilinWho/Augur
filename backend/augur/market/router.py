@@ -75,13 +75,14 @@ async def fundamentals(symbol: str) -> Fundamentals:
 
 
 @router.get("/financials", response_model=FinancialsTable)
-async def financials(symbol: str) -> FinancialsTable:
-    """历史财报趋势表：近 ~5 个年度的营收/增长/净利/净利率/EPS/自由现金流 + 财报链接。"""
+async def financials(symbol: str, period: str = "quarter") -> FinancialsTable:
+    """历史财报趋势表（最新在前）：营收/增长/净利/净利率/EPS/自由现金流 + 财报链接。
+    period：`quarter`（季度，默认，~5–7 期）| `annual`（年度，~4–5 年）。"""
     try:
         sym = parse_symbol(symbol)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    data = await run_in_threadpool(fundamentals_mod.get_financials, sym.canonical)
+    data = await run_in_threadpool(fundamentals_mod.get_financials, sym.canonical, period)
     return FinancialsTable(symbol=sym.canonical, **data)
 
 

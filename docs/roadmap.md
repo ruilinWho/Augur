@@ -66,7 +66,8 @@
 
 - ✅ **LLM 网关接通**：`.env`（DeepSeek + OhMyGPT 中转）+ `config.py` load_dotenv；四角色实测可用（chat/deep_research→claude-sonnet-4 中转、summarize/cheap→deepseek-chat）；`/llm/chat` SSE 流式验证。密钥永不入库（`.env.example` 模板）。
 - ✅ **基本面**（`market/fundamentals.py`，yfinance）：市值/营收/利润/P-E，四市场，6h 缓存，缺数据降级。
-- ✅ **财报分析面板**（K 线下方、可折叠）：指标卡 + **AI 解读**（调 `/llm/chat` 流式简评，暴露不确定性、不构成投资建议）。
+- ✅ **财报分析面板**（K 线下方、可折叠）：历史趋势表，**季度（默认）/ 年度段控可切**，最新一期在右、横向可滚（默认滚到最新），关键行默认显示、「更多指标」展开，带财报链接；增长率一律**同比**（季度回退 4 列＝去年同季）避开季节性。_（AI 解读已先移除，待 `research/` 编排成熟后再以多轮带引用形式回归。）_
+- ✅ **自选分区去重**：`create_section` 同层同名幂等（重复提交返回既有），根治"两个大模型"。
 - ✅ LongBridge OpenAPI 调研：暂不采用（偏交易/需凭证/基本面薄），见 [ADR-0004](decisions/0004-llm-live-fundamentals-longbridge.md)。
 - ⚪ `research/` 编排器：规划 → 收集（行情+基本面+新闻+网络/Deep Research）→ 综合 → 引用；`POST /research/stock` SSE；报告持久化。
 - ⚪ 财报分析升级：接更结构化的财报（akshare/yfinance financials）、多轮、带引用。

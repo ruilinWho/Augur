@@ -123,6 +123,7 @@ const finPeriodSchema = z.object({
 })
 const financialsSchema = z.object({
   symbol: z.string(),
+  period: z.string().default('quarter'), // 'quarter' | 'annual'
   currency: z.string(),
   periods: z.array(finPeriodSchema),
   links: z.array(z.object({ label: z.string(), url: z.string() })),
@@ -183,13 +184,15 @@ export function useFundamentals(symbol: string | null) {
   })
 }
 
-export function useFinancials(symbol: string | null) {
+export function useFinancials(symbol: string | null, period: 'quarter' | 'annual' = 'quarter') {
   return useQuery({
     enabled: !!symbol,
-    queryKey: ['financials', symbol],
+    queryKey: ['financials', symbol, period],
     queryFn: async () =>
       financialsSchema.parse(
-        await getJSON(`/market/financials?symbol=${encodeURIComponent(symbol!)}`),
+        await getJSON(
+          `/market/financials?symbol=${encodeURIComponent(symbol!)}&period=${period}`,
+        ),
       ),
     staleTime: 30 * 60_000,
     retry: 1,
