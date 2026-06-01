@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useUI, type View } from './store'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
+import FinancialsPanel from './features/analysis/FinancialsPanel'
 import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
 import Placeholder from './features/misc/Placeholder'
@@ -133,6 +134,7 @@ export default function App() {
               {view === 'kan' && (
                 <>
                   <KLineView />
+                  {selectedSymbol && <FinancialsPanel symbol={selectedSymbol} />}
                   {selectedSymbol && <JournalPanel symbol={selectedSymbol} />}
                 </>
               )}

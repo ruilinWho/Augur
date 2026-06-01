@@ -62,12 +62,14 @@
 - ✅ 删除按钮悬浮时整行让位，不再与价格重叠。
 - ✅ 决策记录见 [ADR-0003](decisions/0003-search-journal-resizable.md)；数据源坑见 [memory/search-data-sources.md](memory/search-data-sources.md)。
 
-## M2 · 单股深度分析 ⚪
+## M2 · 单股深度分析 🟡（起步）
 
-- ⚪ `research/` 编排器：规划 → 收集（行情+新闻+网络/Deep Research）→ 综合 → 引用
-- ⚪ `POST /research/stock` SSE 流；报告持久化
-- ⚪ akshare / yfinance / pykrx 深度适配器（基本面、财务）
-- ⚪ 分析 UI：流式、结构化、带引用的报告；暴露不确定性
+- ✅ **LLM 网关接通**：`.env`（DeepSeek + OhMyGPT 中转）+ `config.py` load_dotenv；四角色实测可用（chat/deep_research→claude-sonnet-4 中转、summarize/cheap→deepseek-chat）；`/llm/chat` SSE 流式验证。密钥永不入库（`.env.example` 模板）。
+- ✅ **基本面**（`market/fundamentals.py`，yfinance）：市值/营收/利润/P-E，四市场，6h 缓存，缺数据降级。
+- ✅ **财报分析面板**（K 线下方、可折叠）：指标卡 + **AI 解读**（调 `/llm/chat` 流式简评，暴露不确定性、不构成投资建议）。
+- ✅ LongBridge OpenAPI 调研：暂不采用（偏交易/需凭证/基本面薄），见 [ADR-0004](decisions/0004-llm-live-fundamentals-longbridge.md)。
+- ⚪ `research/` 编排器：规划 → 收集（行情+基本面+新闻+网络/Deep Research）→ 综合 → 引用；`POST /research/stock` SSE；报告持久化。
+- ⚪ 财报分析升级：接更结构化的财报（akshare/yfinance financials）、多轮、带引用。
 
 ## M3 · 新闻聚合 + 趋势日报 ⚪
 

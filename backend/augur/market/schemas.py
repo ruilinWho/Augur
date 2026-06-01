@@ -44,3 +44,13 @@ class SearchResponse(BaseModel):
     query: str
     indexing: bool  # 索引仍在后台构建（首跑/刷新中）
     results: list[SearchHit] = []
+
+
+class Fundamentals(BaseModel):
+    symbol: str
+    market_cap: float | None = None  # 市值（本币原值）
+    pe: float | None = None  # 滚动 P/E（亏损/缺失为 None）
+    revenue: float | None = None  # 营收（TTM）
+    net_income: float | None = None  # 净利润
+    eps: float | None = None  # 每股收益
+    currency: str = ""  # USD/HKD/CNY/KRW

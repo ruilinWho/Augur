@@ -5,9 +5,10 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from starlette.concurrency import run_in_threadpool
 
+from . import fundamentals as fundamentals_mod
 from . import search as search_mod
 from . import service
-from .schemas import Candle, OHLCVResponse, Quote, SearchResponse
+from .schemas import Candle, Fundamentals, OHLCVResponse, Quote, SearchResponse
 from .symbols import parse_symbol
 
 router = APIRouter(prefix="/market", tags=["market"])
@@ -53,6 +54,17 @@ async def search(q: str, market: str | None = None, limit: int = 20) -> SearchRe
     """模糊检索标的：代码/中文/英文/韩文/拼音/别名；market 限定范围（CLAUDE.md §7）。"""
     hits = await run_in_threadpool(search_mod.search, q, market, min(limit, 50))
     return SearchResponse(query=q, indexing=not search_mod.ready(), results=hits)
+
+
+@router.get("/fundamentals", response_model=Fundamentals)
+async def fundamentals(symbol: str) -> Fundamentals:
+    """基本面：市值 / 营收 / 利润 / P-E（yfinance，本币原值；缺失为 null）。"""
+    try:
+        sym = parse_symbol(symbol)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    data = await run_in_threadpool(fundamentals_mod.get_fundamentals, sym.canonical)
+    return Fundamentals(symbol=sym.canonical, **data)
 
 
 @router.get("/quote", response_model=Quote)

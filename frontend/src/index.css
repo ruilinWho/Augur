@@ -963,6 +963,82 @@ input:focus:not(:focus-visible) {
   opacity: 1;
 }
 
+/* ───────────────────────── 财报分析（K 线下方·可折叠·后接 LLM）───────────────────────── */
+.financials {
+  margin-top: 26px;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 12px;
+  user-select: none;
+}
+.sec-head h3 {
+  font-family: var(--font-display);
+  transition: color 0.15s ease;
+}
+.sec-head .chev {
+  color: var(--text-faint);
+  font-size: 0.7rem;
+}
+.sec-head:hover h3 {
+  color: var(--accent);
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+.metric {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 13px 15px;
+}
+.m-label {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-bottom: 5px;
+}
+.m-value {
+  font-size: 1.12rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.ai-block {
+  margin-top: 14px;
+}
+.ai-btn {
+  font-size: 0.84rem;
+  padding: 7px 14px;
+  background: var(--surface);
+}
+.ai-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ai-out {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-2);
+  padding: 13px 16px;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-out.err {
+  color: var(--down);
+  border-left-color: var(--down);
+}
+
 /* ───────────────────────── 判断日记（K 线下方·复盘决策）───────────────────────── */
 /* 与 K 线框同宽（充满主舞台），随栏宽拖拽一起回流，对齐美观 */
 .journal {

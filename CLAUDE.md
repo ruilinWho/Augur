@@ -162,6 +162,7 @@ cd frontend && pnpm dev
 - **缓存优先：** OHLCV 缓存为 Parquet 到 `data/cache/`，键为 `MARKET:CODE/interval`。只抓缺失的尾巴。尊重限流。
 - 各市场的交易日历、币种、代码格式都不同——存进适配器元数据，**别假设美股惯例**。
 - **检索（`search.py` + `listings.py`）= 本地目录 ∪ 东方财富实时联想，统一打分去重。** 本地目录（FDR 列表 + akshare A股中文名 + KOSPI/KOSDAQ 韩文名，缓存 Parquet）管美股英文名 + 韩股 + 离线兜底；东财 suggest 管港股/A股/新股 + 拼音（MiniMax/智谱 也搜得到）；跨语言别名靠 `resources/sources/aliases.yaml`（海力士→KR:000660）。带缓存/超时/失败降级。**坑见 [docs/memory/search-data-sources.md](docs/memory/search-data-sources.md)**（东财无韩股、`push2` 被代理拦截、FDR 港股列表未实现…）。
+- **基本面（`fundamentals.py`）= yfinance（雅虎）一库覆盖四市场**：市值/营收/利润/P-E（本币原值，前端按亿/万亿格式化）；雅虎缺 P/E（韩股常见）用 `市值/净利润` 兜底。6h 内存缓存。缺数据置 null → 前端「—」（暴露不确定性）。**LongBridge OpenAPI 已调研、暂不采用**（偏交易、需账号/凭证、基本面薄、实时非刚需——见 ADR-0004）。
 
 ---
 
@@ -224,7 +225,7 @@ cd frontend && pnpm dev
 
 ## 12. 当前状态与下一步
 
-- **现在：** M1 + M1.5（UI 精修）+ M1.6 跑通 ✅。M1.6 = 主人驱动的一批体验功能：**全市场模糊检索加股**（本地目录 ∪ 东财实时联想，港股 MiniMax/智谱 + 拼音/中文/英文/韩文皆可，详见 §7）、**dnd-kit 拖拽换区/重排**、**左栏可拖拽调宽**、**判断日记**（个股 K 线下方的决策复盘，`journal/` 域 + SQLite CRUD）。真实数据 + 截图验证、零控制台错、构建通过。
-- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /health`）。
-- **下一步（M2）：** 单股深度分析（research 编排 + LLM；判断日记是其轻量前身）。待补：`.env` 配 LLM key 后接通实时对话/研究。
+- **现在：** M1 + M1.5 + M1.6 ✅，**M2 起步中**。M1.6 = 全市场检索加股、拖拽换区、可调栏宽、判断日记、个股显示中文名（详见 §7/§8）。**M2 已落地**：**LLM 网关接通**（`.env` 配 DeepSeek + OhMyGPT 中转，`config.py` load_dotenv，四角色实测可用，/llm/chat 流式验证）、**基本面**（yfinance：市值/营收/利润/P-E）、**财报分析**面板（K 线下方，可折叠，**AI 解读** 调 LLM 流式生成、暴露不确定性）。真机截图验证、零控制台错、构建通过。
+- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /health`）。LLM 需 `backend/.env`（见 `.env.example`，**密钥永不入库**）。
+- **下一步（M2 续）：** `research/` 深度研究编排（多轮：行情+基本面+新闻+网络 → 综合 → 引用）；财报分析接更结构化的财报数据。
 - 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。

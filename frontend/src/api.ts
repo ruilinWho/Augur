@@ -101,6 +101,15 @@ const journalSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 })
+const fundamentalsSchema = z.object({
+  symbol: z.string(),
+  market_cap: z.number().nullable(),
+  pe: z.number().nullable(),
+  revenue: z.number().nullable(),
+  net_income: z.number().nullable(),
+  eps: z.number().nullable(),
+  currency: z.string(),
+})
 
 export type Candle = z.infer<typeof candleSchema>
 export type Ohlcv = z.infer<typeof ohlcvSchema>
@@ -109,6 +118,7 @@ export type RoleStatus = z.infer<typeof roleSchema>
 export type SearchHit = z.infer<typeof searchHitSchema>
 export type SearchResp = z.infer<typeof searchRespSchema>
 export type JournalEntry = z.infer<typeof journalSchema>
+export type Fundamentals = z.infer<typeof fundamentalsSchema>
 
 // ───────────────────────── 查询钩子 ─────────────────────────
 export function useSections(market: string) {
@@ -139,6 +149,61 @@ export function useQuote(symbol: string | null) {
     queryFn: async () => quoteSchema.parse(await getJSON(`/market/quote?symbol=${encodeURIComponent(symbol!)}`)),
     retry: 1,
   })
+}
+
+export function useFundamentals(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['fundamentals', symbol],
+    queryFn: async () =>
+      fundamentalsSchema.parse(
+        await getJSON(`/market/fundamentals?symbol=${encodeURIComponent(symbol!)}`),
+      ),
+    staleTime: 30 * 60_000,
+    retry: 1,
+  })
+}
+
+// 流式对话（SSE）：把 /llm/chat 的 data: {delta} 增量回调出去。失败/中断抛错。
+export async function streamChat(
+  messages: { role: string; content: string }[],
+  role: string,
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const r = await fetch('/llm/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ messages, role }),
+    signal,
+  })
+  if (!r.ok || !r.body) {
+    const d = (await r.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(d.detail ?? `HTTP ${r.status}`)
+  }
+  const reader = r.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    const parts = buf.split('\n\n')
+    buf = parts.pop() ?? ''
+    for (const part of parts) {
+      const line = part.trim()
+      if (!line.startsWith('data:')) continue
+      const payload = line.slice(5).trim()
+      if (payload === '[DONE]') return
+      try {
+        const obj = JSON.parse(payload) as { delta?: string; error?: string }
+        if (obj.error) throw new Error(obj.error)
+        if (obj.delta) onDelta(obj.delta)
+      } catch {
+        /* 半行/非 JSON，忽略 */
+      }
+    }
+  }
 }
 
 export function useRoles() {
