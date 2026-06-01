@@ -11,6 +11,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from ..storage import cache
+from . import search
 from .resolver import get_adapter
 from .symbols import Symbol
 
@@ -87,6 +88,7 @@ def get_quote(sym: Symbol) -> dict | None:
     prev = float(df.iloc[-2]["close"]) if len(df) >= 2 else price
     change = price - prev
     return {
+        "name": search.display_name(sym.canonical),
         "price": price,
         "change": change,
         "change_pct": (change / prev * 100.0) if prev else 0.0,

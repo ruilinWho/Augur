@@ -13,6 +13,11 @@
   docs/ADR 写的是 pnpm，实际用 npm，lockfile = `package-lock.json`。日后能装 pnpm 再切。
 
 ## 坑
+- **新增后端路由前缀 → 必须同时加进 `frontend/vite.config.ts` 的 `proxy` 并重启 vite。**
+  proxy 配置**不走 HMR**；漏配/没重启时，前端打该前缀（如 `/journal`）会被 SPA 兜底：
+  GET 返回 `index.html`（200 但是 HTML，Zod 解析失败 → 不渲染）、POST 直接 404（保存静默失败）。
+  现象就是"功能像没接好"。排查：`curl localhost:5173/<prefix>/...` 看回的是 JSON 还是 `<!doctype`。
+  解法：proxy 里补上前缀 + `pkill -f vite` 重启。当前已代理 `/market /watchlist /journal /llm /health`。
 - **切 git 分支 + 快速连续编辑后，Vite HMR 会卡死**（控制台刷 `[vite] Failed to reload …`，页面渲染不出/0 行）。
   这不是代码错（`npm run build` 能过就说明代码没问题）。**解法：`pkill -f vite` 后重新 `npm run dev`**。
 - 前端视图切换用 **Zustand**（非 TanStack Router）—— 本地应用无 URL 路由需求，Router 暂缓。
