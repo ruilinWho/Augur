@@ -9,7 +9,8 @@ import {
   type Time,
 } from 'lightweight-charts'
 import { useUI } from '../../store'
-import { useOhlcv, useQuote } from '../../api'
+import { useFundamentals, useOhlcv, useQuote } from '../../api'
+import { fmtMoney, fmtPctPlain } from '../../format'
 
 // 与 index.css 的 token 镜像（图表是 canvas，直接取色避免读 CSS 变量的时序问题）
 const PALETTE = {
@@ -37,6 +38,7 @@ export default function KLineView() {
 
   const ohlcv = useOhlcv(symbol, tf.interval, tf.range)
   const quote = useQuote(symbol)
+  const fund = useFundamentals(symbol)
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -150,6 +152,23 @@ export default function KLineView() {
             ))}
           </div>
         </motion.div>
+      )}
+
+      {symbol && fund.data && (
+        <div className="snapshot">
+          <span>
+            <i>市值</i>
+            {fmtMoney(fund.data.market_cap, fund.data.currency)}
+          </span>
+          <span>
+            <i>市盈率</i>
+            {fund.data.pe != null ? fund.data.pe.toFixed(1) : '—'}
+          </span>
+          <span>
+            <i>净利率</i>
+            {fmtPctPlain(fund.data.net_margin)}
+          </span>
+        </div>
       )}
 
       <motion.div

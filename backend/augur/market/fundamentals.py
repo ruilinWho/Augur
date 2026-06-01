@@ -46,6 +46,7 @@ def get_fundamentals(symbol: str) -> dict:
         "pe": None,
         "revenue": None,
         "net_income": None,
+        "net_margin": None,
         "eps": None,
         "currency": _CURRENCY.get(symbol.partition(":")[0], ""),
     }
@@ -66,6 +67,110 @@ def get_fundamentals(symbol: str) -> dict:
     # 雅虎缺 trailingPE（韩股常见）时，用 市值/净利润 兜底（= P/E），净利润为正才算
     if out["pe"] is None and out["market_cap"] and out["net_income"] and out["net_income"] > 0:
         out["pe"] = out["market_cap"] / out["net_income"]
+    if out["revenue"] and out["net_income"] is not None:
+        out["net_margin"] = out["net_income"] / out["revenue"]
     with _LOCK:
         _CACHE[symbol] = (now, out)
+    return out
+
+
+# ───────────────────────── 历史财报（趋势表）─────────────────────────
+_FIN_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+def _report_links(symbol: str, ysym: str) -> list[dict]:
+    """财报来源/目录链接：雅虎财报页（通用）+ 各市场官方披露入口（尽力而为）。"""
+    market, _, code = symbol.partition(":")
+    links = [{"label": "完整财报", "url": f"https://finance.yahoo.com/quote/{ysym}/financials"}]
+    if market == "US":
+        links.append(
+            {
+                "label": "SEC 公告",
+                "url": f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker={code}&type=10-K&dateb=&owner=include&count=40",
+            }
+        )
+    elif market == "CN":
+        links.append(
+            {"label": "巨潮公告", "url": f"http://www.cninfo.com.cn/new/fulltextSearch?keyWord={code}"}
+        )
+    elif market == "HK":
+        links.append({"label": "披露易", "url": "https://www1.hkexnews.hk/search/titlesearch.xhtml"})
+    elif market == "KR":
+        links.append({"label": "DART", "url": "https://dart.fss.or.kr/"})
+    return links
+
+
+def _num(series, col) -> float | None:
+    if series is None or col not in series.index:
+        return None
+    v = series.get(col)
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if f != f else f  # NaN → None
+
+
+def _growth(cur: float | None, prev: float | None) -> float | None:
+    """同比增长率；基期需为正才有意义（亏损/缺失 → None）。"""
+    if cur is None or prev is None or prev <= 0:
+        return None
+    return (cur - prev) / prev
+
+
+def get_financials(symbol: str, periods: int = 5) -> dict:
+    """近若干个**年度**财报关键项（最新在前）：营收/营收增长/净利/净利率/EPS/EPS增长/自由现金流。"""
+    now = time.time()
+    with _LOCK:
+        hit = _FIN_CACHE.get(symbol)
+        if hit and now - hit[0] < _TTL:
+            return hit[1]
+    out: dict = {
+        "currency": _CURRENCY.get(symbol.partition(":")[0], ""),
+        "periods": [],
+        "links": [],
+    }
+    for ysym in _yahoo_symbols(symbol):
+        try:
+            t = yf.Ticker(ysym)
+            inc = t.income_stmt
+            cf = t.cashflow
+        except Exception:  # noqa: BLE001
+            continue
+        if inc is None or inc.empty:
+            continue
+
+        def pick(df, names):
+            for n in names:
+                if df is not None and not df.empty and n in df.index:
+                    return df.loc[n]
+            return None
+
+        rev = pick(inc, ["Total Revenue"])
+        ni = pick(inc, ["Net Income", "Net Income Common Stockholders"])
+        eps = pick(inc, ["Diluted EPS", "Basic EPS"])
+        fcf = pick(cf, ["Free Cash Flow"])
+        cols = list(inc.columns)
+        rows = []
+        for i, c in enumerate(cols[:periods]):
+            older = cols[i + 1] if i + 1 < len(cols) else None
+            rv, nv, ev, fv = _num(rev, c), _num(ni, c), _num(eps, c), _num(fcf, c)
+            rows.append(
+                {
+                    "period": (str(c.date())[:7] if hasattr(c, "date") else str(c)[:7]),
+                    "revenue": rv,
+                    "revenue_growth": _growth(rv, _num(rev, older)) if older is not None else None,
+                    "net_income": nv,
+                    "net_margin": (nv / rv) if (nv is not None and rv) else None,
+                    "eps": ev,
+                    "eps_growth": _growth(ev, _num(eps, older)) if older is not None else None,
+                    "fcf": fv,
+                }
+            )
+        if rows:
+            out["periods"] = rows
+            out["links"] = _report_links(symbol, ysym)
+            break
+    with _LOCK:
+        _FIN_CACHE[symbol] = (now, out)
     return out

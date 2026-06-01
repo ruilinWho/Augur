@@ -8,7 +8,14 @@ from starlette.concurrency import run_in_threadpool
 from . import fundamentals as fundamentals_mod
 from . import search as search_mod
 from . import service
-from .schemas import Candle, Fundamentals, OHLCVResponse, Quote, SearchResponse
+from .schemas import (
+    Candle,
+    FinancialsTable,
+    Fundamentals,
+    OHLCVResponse,
+    Quote,
+    SearchResponse,
+)
 from .symbols import parse_symbol
 
 router = APIRouter(prefix="/market", tags=["market"])
@@ -65,6 +72,17 @@ async def fundamentals(symbol: str) -> Fundamentals:
         raise HTTPException(status_code=400, detail=str(e)) from e
     data = await run_in_threadpool(fundamentals_mod.get_fundamentals, sym.canonical)
     return Fundamentals(symbol=sym.canonical, **data)
+
+
+@router.get("/financials", response_model=FinancialsTable)
+async def financials(symbol: str) -> FinancialsTable:
+    """历史财报趋势表：近 ~5 个年度的营收/增长/净利/净利率/EPS/自由现金流 + 财报链接。"""
+    try:
+        sym = parse_symbol(symbol)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    data = await run_in_threadpool(fundamentals_mod.get_financials, sym.canonical)
+    return FinancialsTable(symbol=sym.canonical, **data)
 
 
 @router.get("/quote", response_model=Quote)

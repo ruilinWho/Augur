@@ -107,8 +107,25 @@ const fundamentalsSchema = z.object({
   pe: z.number().nullable(),
   revenue: z.number().nullable(),
   net_income: z.number().nullable(),
+  net_margin: z.number().nullable(),
   eps: z.number().nullable(),
   currency: z.string(),
+})
+const finPeriodSchema = z.object({
+  period: z.string(),
+  revenue: z.number().nullable(),
+  revenue_growth: z.number().nullable(),
+  net_income: z.number().nullable(),
+  net_margin: z.number().nullable(),
+  eps: z.number().nullable(),
+  eps_growth: z.number().nullable(),
+  fcf: z.number().nullable(),
+})
+const financialsSchema = z.object({
+  symbol: z.string(),
+  currency: z.string(),
+  periods: z.array(finPeriodSchema),
+  links: z.array(z.object({ label: z.string(), url: z.string() })),
 })
 
 export type Candle = z.infer<typeof candleSchema>
@@ -119,6 +136,8 @@ export type SearchHit = z.infer<typeof searchHitSchema>
 export type SearchResp = z.infer<typeof searchRespSchema>
 export type JournalEntry = z.infer<typeof journalSchema>
 export type Fundamentals = z.infer<typeof fundamentalsSchema>
+export type FinancialsTable = z.infer<typeof financialsSchema>
+export type FinPeriod = z.infer<typeof finPeriodSchema>
 
 // ───────────────────────── 查询钩子 ─────────────────────────
 export function useSections(market: string) {
@@ -158,6 +177,19 @@ export function useFundamentals(symbol: string | null) {
     queryFn: async () =>
       fundamentalsSchema.parse(
         await getJSON(`/market/fundamentals?symbol=${encodeURIComponent(symbol!)}`),
+      ),
+    staleTime: 30 * 60_000,
+    retry: 1,
+  })
+}
+
+export function useFinancials(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['financials', symbol],
+    queryFn: async () =>
+      financialsSchema.parse(
+        await getJSON(`/market/financials?symbol=${encodeURIComponent(symbol!)}`),
       ),
     staleTime: 30 * 60_000,
     retry: 1,

@@ -52,5 +52,29 @@ class Fundamentals(BaseModel):
     pe: float | None = None  # 滚动 P/E（亏损/缺失为 None）
     revenue: float | None = None  # 营收（TTM）
     net_income: float | None = None  # 净利润
+    net_margin: float | None = None  # 净利润率
     eps: float | None = None  # 每股收益
     currency: str = ""  # USD/HKD/CNY/KRW
+
+
+class FinancialPeriod(BaseModel):
+    period: str  # 'YYYY-MM'（财年）
+    revenue: float | None = None
+    revenue_growth: float | None = None  # 同比
+    net_income: float | None = None
+    net_margin: float | None = None
+    eps: float | None = None
+    eps_growth: float | None = None
+    fcf: float | None = None  # 自由现金流
+
+
+class ReportLink(BaseModel):
+    label: str
+    url: str
+
+
+class FinancialsTable(BaseModel):
+    symbol: str
+    currency: str = ""
+    periods: list[FinancialPeriod] = []  # 最新在前
+    links: list[ReportLink] = []

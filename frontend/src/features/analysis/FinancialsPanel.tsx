@@ -1,21 +1,32 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { streamChat, useFundamentals, useQuote } from '../../api'
+import {
+  streamChat,
+  useFinancials,
+  useFundamentals,
+  useQuote,
+  type FinPeriod,
+} from '../../api'
+import { fmtMoney, fmtNum, fmtPct, fmtPctPlain } from '../../format'
 
 const EASE = [0.22, 1, 0.36, 1] as const
-const CUR: Record<string, string> = { USD: '$', HKD: 'HK$', CNY: '¥', KRW: '₩' }
 
-// 本币原值 → 亿/万亿（带币种符号；缺失为「—」）
-function fmtMoney(v: number | null | undefined, cur: string): string {
-  if (v == null) return '—'
-  const s = CUR[cur] ?? ''
-  const neg = v < 0 ? '-' : ''
-  const a = Math.abs(v)
-  if (a >= 1e12) return `${neg}${s}${(a / 1e12).toFixed(2)} 万亿`
-  if (a >= 1e8) return `${neg}${s}${(a / 1e8).toFixed(a / 1e8 >= 100 ? 0 : 1)} 亿`
-  if (a >= 1e4) return `${neg}${s}${(a / 1e4).toFixed(1)} 万`
-  return `${neg}${s}${a.toFixed(0)}`
+type RowDef = {
+  key: Exclude<keyof FinPeriod, 'period'> // 仅数值列
+  label: string
+  kind: 'money' | 'pct' | 'num'
+  growth?: boolean // 按正负着色
+  extra?: boolean // 默认折叠
 }
+const ROWS: RowDef[] = [
+  { key: 'revenue', label: '营业收入', kind: 'money' },
+  { key: 'revenue_growth', label: '营收增长', kind: 'pct', growth: true },
+  { key: 'net_income', label: '净利润', kind: 'money' },
+  { key: 'net_margin', label: '净利润率', kind: 'pct' },
+  { key: 'eps', label: '每股收益', kind: 'num', extra: true },
+  { key: 'eps_growth', label: 'EPS 增长', kind: 'pct', growth: true, extra: true },
+  { key: 'fcf', label: '自由现金流', kind: 'money', extra: true },
+]
 
 function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
   return (
@@ -35,41 +46,48 @@ function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="metric">
-      <div className="m-label">{label}</div>
-      <div className="m-value mono">{value}</div>
-    </div>
-  )
+function cellText(p: FinPeriod, row: RowDef, cur: string): string {
+  const v = p[row.key]
+  if (row.kind === 'money') return fmtMoney(v, cur)
+  if (row.kind === 'pct') return row.growth ? fmtPct(v) : fmtPctPlain(v) // 增长率带符号，比率不带
+  return fmtNum(v)
 }
 
 export default function FinancialsPanel({ symbol }: { symbol: string }) {
-  const { data, isLoading } = useFundamentals(symbol)
+  const fin = useFinancials(symbol)
+  const fund = useFundamentals(symbol)
   const quote = useQuote(symbol)
   const [open, setOpen] = useState(true)
+  const [showExtra, setShowExtra] = useState(false)
   const [ai, setAi] = useState('')
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
 
-  // 切标的时清空上一只的 AI 解读
   useEffect(() => {
     setAi('')
     setAiState('idle')
   }, [symbol])
 
-  const cur = data?.currency ?? ''
+  const cur = fin.data?.currency || fund.data?.currency || ''
+  const periods = fin.data?.periods ?? []
+  const rows = showExtra ? ROWS : ROWS.filter((r) => !r.extra)
 
   const runAI = async () => {
     setAi('')
     setAiState('loading')
     const name = quote.data?.name || symbol
+    const trend = periods
+      .slice(0, 5)
+      .map(
+        (p) =>
+          `${p.period} 营收${fmtMoney(p.revenue, cur)}(同比${fmtPct(p.revenue_growth)}) ` +
+          `净利${fmtMoney(p.net_income, cur)} 净利率${fmtPct(p.net_margin)}`,
+      )
+      .join('；')
     const prompt =
-      `你是严谨、克制的投研助手。基于下列数据，简要分析 ${name}（${symbol}）的财务与估值。\n` +
-      `市值 ${fmtMoney(data?.market_cap, cur)}；营收(TTM) ${fmtMoney(data?.revenue, cur)}；` +
-      `净利润 ${fmtMoney(data?.net_income, cur)}；市盈率 ${data?.pe != null ? data.pe.toFixed(1) : '—'}；` +
-      `最新价 ${quote.data?.price ?? '—'}。\n` +
-      `分别用 1-2 句点出：盈利能力、估值高低、增长与主要风险。暴露不确定性，不构成投资建议。` +
-      `用纯文本中文，不要 markdown 符号（如 ** 或 #），180 字内。`
+      `你是严谨、克制的投研助手。基于 ${name}（${symbol}）近几年财报趋势：\n${trend || '（暂无）'}\n` +
+      `当前市值 ${fmtMoney(fund.data?.market_cap, cur)}、市盈率 ${fund.data?.pe != null ? fund.data.pe.toFixed(1) : '—'}。\n` +
+      `分别用 1-2 句点出：营收/利润趋势、盈利能力变化、估值水平、主要风险。暴露不确定性，不构成投资建议。` +
+      `纯文本中文，不要 markdown 符号，180 字内。`
     try {
       await streamChat([{ role: 'user', content: prompt }], 'deep_research', (d) =>
         setAi((p) => p + d),
@@ -86,23 +104,69 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <span className="chev">{open ? '▾' : '▸'}</span>
         <h3>财报分析</h3>
+        {fin.data?.links?.length ? (
+          <span className="fin-links">
+            {fin.data.links.map((l) => (
+              <a
+                key={l.url}
+                href={l.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {l.label} ↗
+              </a>
+            ))}
+          </span>
+        ) : null}
       </div>
       <Collapse open={open}>
-        <div className="metrics">
-          <Metric label="市值" value={isLoading ? '…' : fmtMoney(data?.market_cap, cur)} />
-          <Metric label="营收 TTM" value={isLoading ? '…' : fmtMoney(data?.revenue, cur)} />
-          <Metric label="净利润" value={isLoading ? '…' : fmtMoney(data?.net_income, cur)} />
-          <Metric
-            label="市盈率 P/E"
-            value={isLoading ? '…' : data?.pe != null ? data.pe.toFixed(1) : '—'}
-          />
-        </div>
-        <div className="ai-block">
-          <button className="btn ai-btn" disabled={aiState === 'loading' || isLoading} onClick={runAI}>
-            {aiState === 'loading' ? '解读中…' : '✨ AI 解读'}
-          </button>
-          {ai && <div className={`ai-out ${aiState === 'error' ? 'err' : ''}`}>{ai}</div>}
-        </div>
+        {periods.length > 0 ? (
+          <>
+            <div className="fin-table-wrap">
+              <table className="fin-table">
+                <thead>
+                  <tr>
+                    <th className="rlabel" />
+                    {periods.map((p) => (
+                      <th key={p.period}>{p.period}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.key}>
+                      <td className="rlabel">{row.label}</td>
+                      {periods.map((p) => {
+                        const cls = row.growth && p[row.key] != null ? (p[row.key]! >= 0 ? 'up' : 'down') : ''
+                        return (
+                          <td key={p.period} className={`mono ${cls}`}>
+                            {cellText(p, row, cur)}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="fin-actions">
+              <button className="btn-ghost more-btn" onClick={() => setShowExtra((s) => !s)}>
+                {showExtra ? '收起 ▴' : '更多指标 ▾'}
+              </button>
+              <button
+                className="btn ai-btn"
+                disabled={aiState === 'loading'}
+                onClick={runAI}
+              >
+                {aiState === 'loading' ? '解读中…' : '✨ AI 解读'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="fin-empty">{fin.isLoading ? '加载财报…' : '暂无财报数据'}</div>
+        )}
+        {ai && <div className={`ai-out ${aiState === 'error' ? 'err' : ''}`}>{ai}</div>}
       </Collapse>
     </section>
   )
