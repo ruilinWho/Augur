@@ -85,6 +85,7 @@ feeds:
   - { name: "The Information", url: "https://www.theinformation.com/feed", lang: en, category: tech }  # Cloudflare：本机住宅 IP 可达；标题/链接入流，正文需订阅
   - { name: "Stratechery (Ben Thompson)", url: "https://stratechery.com/feed/", lang: en, category: tech }
   - { name: "MIT Technology Review", url: "https://www.technologyreview.com/feed/", lang: en, category: tech }
+  - { name: "Bloomberg · 科技", url: "https://feeds.bloomberg.com/technology/news.rss", lang: en, category: tech }  # 彭博官方 RSS（精英二手·未公开文档，带回退）
   - { name: "Microsoft Blog", url: "https://blogs.microsoft.com/feed/", lang: en, category: tech }
   - { name: "Google · The Keyword", url: "https://blog.google/rss/", lang: en, category: tech }
   - { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
@@ -101,6 +102,7 @@ feeds:
   - { name: "WSJ · Markets", url: "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain", lang: en, category: markets }
   - { name: "MarketWatch · 头条", url: "https://feeds.content.dowjones.io/public/rss/mw_topstories", lang: en, category: markets }
   - { name: "FT · Markets", url: "https://www.ft.com/markets?format=rss", lang: en, category: markets }
+  - { name: "Bloomberg · Markets", url: "https://feeds.bloomberg.com/markets/news.rss", lang: en, category: markets }  # 彭博官方 RSS（精英二手）
   - { name: "CNBC · 美股头条", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", lang: en, category: markets }
   - { name: "华尔街见闻 (WallStreetCN)", url: "https://dedicated.wallstreetcn.com/rss.xml", lang: zh, category: markets }
 
