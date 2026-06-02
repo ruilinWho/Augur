@@ -8,20 +8,21 @@ import OpportunitiesPanel from './OpportunitiesPanel'
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
-// 主题展示名与排序（前沿方向在前；与后端 service.THEME_ORDER 一致）
-const THEME_META: Record<string, string> = {
-  ai: '大模型 / AI',
-  chips: '芯片 / 半导体',
-  robotics: '机器人',
-  space: '航天',
-  tech: '科技',
-  markets: '行情',
-  macro: '宏观 / 政策',
-  crypto: '加密',
-  world: '国际',
-  other: '其他',
+// 今日要闻按天归类的日期标签
+function dayLabel(iso: string | null): string {
+  if (!iso) return '更早'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '更早'
+  const a = new Date()
+  a.setHours(0, 0, 0, 0)
+  const b = new Date(d)
+  b.setHours(0, 0, 0, 0)
+  const diff = Math.round((a.getTime() - b.getTime()) / 86400000)
+  if (diff <= 0) return '今天'
+  if (diff === 1) return '昨天'
+  if (diff < 7) return `${diff} 天前`
+  return `${b.getMonth() + 1}月${b.getDate()}日`
 }
-const THEME_ORDER = ['ai', 'chips', 'robotics', 'space', 'tech', 'markets', 'macro', 'crypto', 'world', 'other']
 
 // ── 极简内联：**加粗** → <strong> ──
 function inline(text: string): ReactNode[] {
@@ -101,7 +102,7 @@ export default function KnowView() {
   const selectedDate = useNews((s) => s.selectedDate)
   const setSelectedDate = useNews((s) => s.setSelectedDate)
   const report = useNewsReport(selectedDate)
-  const feed = useNewsFeed(40)
+  const feed = useNewsFeed(150)
   const qc = useQueryClient()
 
   const [gen, setGen] = useState('')
@@ -127,11 +128,19 @@ export default function KnowView() {
   const data = report.data
   const streaming = genState === 'loading'
 
-  // 今日要闻按主题分组（前沿方向在前）
-  const grouped = useMemo(() => {
+  // 今日要闻按天归类（feed 已按时间倒序，故天的出现顺序即新→旧）
+  const byDay = useMemo(() => {
+    const order: string[] = []
     const m: Record<string, NewsItem[]> = {}
-    for (const it of feed.data ?? []) (m[it.theme || 'other'] ??= []).push(it)
-    return THEME_ORDER.filter((t) => m[t]?.length).map((t) => [t, m[t]] as const)
+    for (const it of feed.data ?? []) {
+      const d = dayLabel(it.published_at)
+      if (!m[d]) {
+        m[d] = []
+        order.push(d)
+      }
+      m[d].push(it)
+    }
+    return order.map((d) => [d, m[d]] as const)
   }, [feed.data])
 
   return (
@@ -175,10 +184,10 @@ export default function KnowView() {
         </div>
         <Collapse open={feedOpen}>
           <div className="feed-groups">
-            {grouped.map(([theme, items]) => (
-              <div key={theme} className="feed-group">
+            {byDay.map(([day, items]) => (
+              <div key={day} className="feed-group">
                 <div className="fg-head">
-                  <span className="fg-theme">{THEME_META[theme] ?? theme}</span>
+                  <span className="fg-theme">{day}</span>
                   <span className="fg-n">{items.length}</span>
                 </div>
                 <div className="hl-list">

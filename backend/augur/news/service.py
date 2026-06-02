@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from ..config import get_settings
@@ -93,6 +94,40 @@ def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:
         conn.close()
 
 
+def _day_bounds_utc(day: str | None) -> tuple[str, str]:
+    """某日（主人时区）的 [起,止) → UTC 'YYYY-MM-DD HH:MM:SS'（供 sqlite datetime() 比较）。"""
+    tz = ZoneInfo(get_settings().tz)
+    if day:
+        start = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=tz)
+    else:
+        start = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    utc = ZoneInfo("UTC")
+    return (
+        start.astimezone(utc).strftime("%Y-%m-%d %H:%M:%S"),
+        (start + timedelta(days=1)).astimezone(utc).strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+def items_for_day(day: str | None = None, theme: str | None = None) -> list[dict]:
+    """某日（默认今天，主人时区）的全部相关条目（relevance!=2），时间倒序。日报/机会喂全天。"""
+    lo, hi = _day_bounds_utc(day)
+    conn = get_conn()
+    try:
+        sql = (
+            "SELECT * FROM news_items WHERE relevance != 2 "
+            "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
+            "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
+        )
+        args: list = [lo, hi]
+        if theme:
+            sql += " AND theme = ?"
+            args.append(theme)
+        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC"
+        return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
+    finally:
+        conn.close()
+
+
 def _stock_terms(symbol: str) -> list[str]:
     """某标的的匹配词：中文展示名 + 英文名(首词)。用于在新闻标题里找相关资讯。"""
     terms: set[str] = set()
@@ -139,6 +174,66 @@ def _norm_url(u: str) -> str:
     return (u or "").split("?")[0].rstrip("/").lower()
 
 
+_stock_clean_cache: dict[str, tuple[float, list[dict]]] = {}
+_STOCK_CLEAN_TTL = 3600.0  # 个股相关新闻 LLM 清洗结果缓存 1h
+
+
+def _clean_stock_news_llm(items: list[dict]) -> list[dict]:
+    """cheap 模型：去标题党/与投资无关、译非中文、去重。未配/失败/全空 → 原样返回。"""
+    try:
+        gateway.check_ready("cheap")
+    except gateway.LLMNotConfigured:
+        return items
+    block = "\n".join(
+        f"[{i + 1}] [{it['source']}] {it.get('title_zh') or it['title']}"
+        for i, it in enumerate(items)
+    )
+    prompt = _load_prompt("stock_news_clean").replace("{{ITEMS}}", block)
+    try:
+        raw = gateway.complete(
+            [{"role": "user", "content": prompt}],
+            role="cheap",
+            response_format={"type": "json_object"},
+        )
+        data = _parse_json_lenient(raw)
+    except Exception:  # noqa: BLE001
+        return items
+    kept = data.get("kept") if isinstance(data, dict) else None
+    if not isinstance(kept, list):
+        return items
+    out: list[dict] = []
+    used: set[int] = set()
+    for k in kept:
+        if not isinstance(k, dict):
+            continue
+        try:
+            idx = int(k.get("i")) - 1
+        except (TypeError, ValueError):
+            continue
+        if idx < 0 or idx >= len(items) or idx in used:
+            continue
+        used.add(idx)
+        it = dict(items[idx])
+        zh = k.get("zh")
+        if isinstance(zh, str) and zh.strip():
+            it["title_zh"] = zh.strip()[:300]
+        out.append(it)
+    return out or items  # 全空 → 原样（防误清空）
+
+
+def _clean_stock_news(symbol: str, items: list[dict]) -> list[dict]:
+    """LLM 清洗个股相关新闻（缓存 1h）。"""
+    if not items:
+        return items
+    now = time.time()
+    hit = _stock_clean_cache.get(symbol)
+    if hit and now - hit[0] < _STOCK_CLEAN_TTL:
+        return hit[1]
+    cleaned = _clean_stock_news_llm(items)
+    _stock_clean_cache[symbol] = (now, cleaned)
+    return cleaned
+
+
 def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
     """个股相关新闻：雅虎逐-ticker API（更准、英文）∪ 聚合流按公司名匹配（中文翻译），
     url 去重、时间倒序。API 走 ticker_news（失败/空则只剩聚合流，优雅降级）。
@@ -174,7 +269,7 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
         seen.add(u)
         out.append(it)
     out.sort(key=lambda x: x.get("published_at") or "", reverse=True)
-    return out[:limit]
+    return _clean_stock_news(symbol, out[:limit])
 
 
 def stock_official(symbol: str, limit: int = 15) -> list[dict]:
@@ -261,9 +356,9 @@ def generate_report_stream(
     无新闻条目 → ValueError（前端提示先刷新）。
     """
     rd = report_date or _today()
-    items = recent_items(limit=_DIGEST_INPUT_MAX)
+    items = items_for_day(rd)  # 喂当天全部新闻（按天，不再只取最近 N 条）
     if not items:
-        raise ValueError("暂无新闻条目，请先刷新（POST /news/refresh）")
+        raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
     prompt = (
         _load_prompt("news_digest")
         .replace("{{DATE}}", rd)
@@ -428,9 +523,9 @@ def get_opportunities(report_date: str | None = None) -> dict | None:
 def generate_opportunities(report_date: str | None = None, role: str = "summarize") -> dict:
     """阶段 A（LLM 抽取）+ 阶段 B（确定性接地到 MARKET:CODE + 交叉自选）。落库覆盖当天。"""
     rd = report_date or _today()
-    items = recent_items(limit=_OPP_INPUT_MAX)
+    items = items_for_day(rd)[:200]  # 当天全部（封顶 200，控 token 与证据序号空间）
     if not items:
-        raise ValueError("暂无新闻条目，请先刷新（POST /news/refresh）")
+        raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
     block, by_n = _items_block(items)
     prompt = _load_prompt("news_opportunities").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)

@@ -16,7 +16,7 @@ from ..llm import gateway
 from ..storage import get_conn
 
 _BATCH = 40  # 每批条数（控对齐风险与 token）
-_MAX_PER_RUN = 240  # 单次最多判多少条（"不心疼 token"但也别一次打爆存量）
+_MAX_PER_RUN = 400  # 单次最多判多少条（"不心疼 token"；从严 prompt 后多判些）
 _KEEP = {"true", "keep", "yes", "1", "相关", "保留"}
 _DROP = {"false", "drop", "no", "0", "无关", "丢弃"}
 
