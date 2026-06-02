@@ -20,6 +20,7 @@ from .market import router as market_router
 from .market import search as search_mod
 from .news import router as news_router
 from .news import scheduler as news_scheduler
+from .research import router as research_router
 from .settings_router import router as settings_router
 from .storage import init_db
 from .watchlist import router as watchlist_router
@@ -57,6 +58,7 @@ app.include_router(watchlist_router)
 app.include_router(llm_router)
 app.include_router(journal_router)
 app.include_router(news_router)
+app.include_router(research_router)
 app.include_router(settings_router)
 
 

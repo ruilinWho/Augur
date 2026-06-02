@@ -95,6 +95,17 @@ CREATE TABLE IF NOT EXISTS news_opportunities (
     created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_opp_date ON news_opportunities(report_date, rank);
+
+-- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
+CREATE TABLE IF NOT EXISTS research_reports (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol      TEXT    NOT NULL UNIQUE,            -- MARKET:CODE（一股一份，重生成覆盖）
+    name        TEXT    NOT NULL DEFAULT '',
+    body        TEXT    NOT NULL DEFAULT '',
+    sources     TEXT    NOT NULL DEFAULT '[]',      -- JSON：引用来源 [{n,title,source,url}]
+    model       TEXT    NOT NULL DEFAULT '',
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 

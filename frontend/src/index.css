@@ -1823,6 +1823,138 @@ input:focus:not(:focus-visible) {
   color: var(--text);
 }
 
+/* ───────── 研 · 深度研究 ───────── */
+.research {
+  padding-bottom: 48px;
+}
+.research-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.rh-id {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.rh-id h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.rh-sym {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+.rh-when {
+  font-size: 0.74rem;
+}
+
+/* 报告内的引用块（一句话结论 / 免责声明） */
+.digest.report blockquote {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 var(--radius-sm, 8px) var(--radius-sm, 8px) 0;
+}
+.digest.report blockquote p {
+  margin: 4px 0;
+  color: var(--text);
+  font-size: 0.94rem;
+}
+.digest.report blockquote p:only-child {
+  margin: 0;
+}
+
+/* [n] 引用上标 */
+.cite {
+  font-size: 0.62em;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0 1px;
+}
+.cite-a {
+  text-decoration: none;
+}
+.cite-a:hover .cite {
+  text-decoration: underline;
+}
+.cite-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.84em;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.cite-link:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* 财务趋势表 */
+.rep-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+}
+.rep-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.84rem;
+}
+.rep-table th,
+.rep-table td {
+  padding: 8px 12px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+.rep-table th:first-child,
+.rep-table td:first-child {
+  text-align: left;
+  color: var(--text);
+}
+.rep-table thead th {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.rep-table td {
+  color: var(--text-muted);
+}
+.rep-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* 未选标的时的空舞台 */
+.empty-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 60vh;
+  text-align: center;
+}
+.es-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.es-sub {
+  font-size: 0.9rem;
+  max-width: 320px;
+  line-height: 1.7;
+}
+
 /* 今日要闻 */
 .feed {
   margin-top: 30px;

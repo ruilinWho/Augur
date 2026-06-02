@@ -31,7 +31,7 @@ import SettingsView from './features/settings/SettingsView'
 import NewsListPanel from './features/news/NewsListPanel'
 import KnowView from './features/news/KnowView'
 import StockNews from './features/news/StockNews'
-import Placeholder from './features/misc/Placeholder'
+import ResearchView from './features/research/ResearchView'
 
 const TABS: { v: View; label: string }[] = [
   { v: 'kan', label: '看' },
@@ -270,7 +270,7 @@ export default function App() {
                 {selectedSymbol && <KanStack symbol={selectedSymbol} />}
               </>
             )}
-            {view === 'yan' && <Placeholder pillar="研" />}
+            {view === 'yan' && <ResearchView />}
             {view === 'zhi' && <KnowView />}
             {view === 'set' && <SettingsView />}
           </motion.div>

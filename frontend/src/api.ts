@@ -688,3 +688,78 @@ export async function streamReport(
     }
   }
 }
+
+// ───────────────────────── 研 · 单股深度研究 ─────────────────────────
+const researchSourceSchema = z.object({
+  n: z.number(),
+  title: z.string().default(''),
+  source: z.string().default(''),
+  url: z.string().nullable().default(null),
+})
+const researchReportSchema = z.object({
+  symbol: z.string(),
+  name: z.string().default(''),
+  body: z.string(),
+  sources: z.array(researchSourceSchema).default([]),
+  model: z.string().default(''),
+  created_at: z.string().nullable().default(null),
+})
+export type ResearchSource = z.infer<typeof researchSourceSchema>
+export type ResearchReport = z.infer<typeof researchReportSchema>
+
+// 已生成的深度研究报告。404（暂无）→ null 而非抛错。
+export function useResearchReport(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['research', symbol],
+    queryFn: async () => {
+      try {
+        return researchReportSchema.parse(
+          await getJSON(`/research/stock?symbol=${encodeURIComponent(symbol!)}`),
+        )
+      } catch (e) {
+        if ((e as Error).message.includes('暂无')) return null
+        throw e
+      }
+    },
+  })
+}
+
+// 生成单股深度研究（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
+export async function streamResearch(
+  symbol: string,
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const r = await fetch(`/research/stock/generate?symbol=${encodeURIComponent(symbol)}`, {
+    method: 'POST',
+    signal,
+  })
+  if (!r.ok || !r.body) {
+    const d = (await r.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(d.detail ?? `HTTP ${r.status}`)
+  }
+  const reader = r.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    const parts = buf.split('\n\n')
+    buf = parts.pop() ?? ''
+    for (const part of parts) {
+      const line = part.trim()
+      if (!line.startsWith('data:')) continue
+      const payload = line.slice(5).trim()
+      if (payload === '[DONE]') return
+      try {
+        const obj = JSON.parse(payload) as { delta?: string; error?: string }
+        if (obj.error) throw new Error(obj.error)
+        if (obj.delta) onDelta(obj.delta)
+      } catch {
+        /* 半行/非 JSON，忽略 */
+      }
+    }
+  }
+}
