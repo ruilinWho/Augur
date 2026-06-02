@@ -1508,3 +1508,167 @@ input:focus:not(:focus-visible) {
   font-size: 0.7rem;
   color: var(--text-faint);
 }
+
+/* 今日机会 */
+.opps {
+  margin-top: 30px;
+}
+.opp-gen {
+  margin-left: auto;
+}
+.opp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.opp-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+.opp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+}
+.opp-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.96rem;
+  color: var(--text);
+  transition: color 0.15s ease;
+}
+.opp-head:hover .opp-title {
+  color: var(--accent);
+}
+.opp-theme {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: var(--surface-2);
+}
+.opp-conf {
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.cf-high {
+  color: var(--accent);
+  font-weight: 600;
+}
+.cf-med {
+  color: var(--text-muted);
+}
+.cf-low {
+  color: var(--text-faint);
+}
+.opp-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.opp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.opp-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.opp-chip.watched {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.opp-chip .wdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.opp-chip.unresolved {
+  cursor: default;
+  color: var(--text-faint);
+  border-style: dashed;
+}
+.opp-chip.unresolved:hover {
+  border-color: var(--border);
+  color: var(--text-faint);
+}
+.opp-body {
+  padding-top: 11px;
+}
+.opp-thesis {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+.opp-caveats {
+  margin: 9px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+.opp-ev {
+  margin-top: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.opp-ev-lbl {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.opp-ev-item {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 1px 0;
+}
+a.opp-ev-item:hover {
+  color: var(--accent);
+}
+.opp-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 26px 22px;
+  text-align: center;
+  line-height: 1.7;
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+}
+.oe-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  margin-bottom: 7px;
+  color: var(--text);
+}
+.opp-foot {
+  margin-top: 12px;
+  font-size: 0.74rem;
+  line-height: 1.6;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.opp-err {
+  color: var(--down);
+  font-size: 0.84rem;
+  padding: 10px 2px;
+}

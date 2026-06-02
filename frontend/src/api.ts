@@ -448,6 +448,69 @@ export function useRefreshNews() {
   })
 }
 
+// ── 今日投资机会 ──
+const relatedSchema = z.object({
+  symbol: z.string().nullable().default(null),
+  name: z.string(),
+  market: z.string().default(''),
+  resolved: z.boolean().default(false),
+  in_watchlist: z.boolean().default(false),
+  sections: z.array(z.string()).default([]),
+})
+const evidenceSchema = z.object({
+  news_id: z.number().nullable().default(null),
+  title: z.string(),
+  source: z.string(),
+  url: z.string().nullable().default(null),
+})
+const opportunitySchema = z.object({
+  title: z.string(),
+  thesis: z.string().default(''),
+  theme: z.string().default(''),
+  confidence: z.string().default('low'),
+  caveats: z.string().default(''),
+  related: z.array(relatedSchema).default([]),
+  evidence: z.array(evidenceSchema).default([]),
+})
+const opportunitiesSchema = z.object({
+  report_date: z.string(),
+  model: z.string().default(''),
+  item_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+  disclaimer: z.string().default(''),
+  opportunities: z.array(opportunitySchema).default([]),
+})
+export type RelatedSymbol = z.infer<typeof relatedSchema>
+export type Opportunity = z.infer<typeof opportunitySchema>
+export type OpportunitiesResp = z.infer<typeof opportunitiesSchema>
+
+export function useOpportunities(date: string | null) {
+  return useQuery({
+    queryKey: ['news-opps', date ?? 'today'],
+    queryFn: async () => {
+      try {
+        return opportunitiesSchema.parse(
+          await getJSON(`/news/opportunities${date ? `?date=${date}` : ''}`),
+        )
+      } catch (e) {
+        if ((e as Error).message.includes('暂无')) return null // 未生成 → null（非错误）
+        throw e
+      }
+    },
+  })
+}
+
+export function useGenerateOpportunities() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (date?: string | null) =>
+      opportunitiesSchema.parse(
+        await send(`/news/opportunities/generate${date ? `?date=${date}` : ''}`, 'POST'),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['news-opps'] }),
+  })
+}
+
 // 生成趋势日报（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
 export async function streamReport(
   date: string | null,

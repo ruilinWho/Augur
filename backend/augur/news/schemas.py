@@ -44,3 +44,39 @@ class RefreshResult(BaseModel):
     sources_failed: int
     failures: list[str] = []  # 失败的信源名
     translated: int = 0  # 本次翻译成中文的标题数
+
+
+# ───────────────────────── 今日投资机会（接地后对外形状）─────────────────────────
+class RelatedSymbol(BaseModel):
+    symbol: str | None = None  # MARKET:CODE；未解析为 None（防编造，只信本地索引命中）
+    name: str
+    market: str
+    resolved: bool = False
+    in_watchlist: bool = False
+    sections: list[str] = []  # 若已关注，所属分区路径，如 半导体/GPU
+
+
+class Evidence(BaseModel):
+    news_id: int | None = None
+    title: str
+    source: str
+    url: str | None = None
+
+
+class Opportunity(BaseModel):
+    title: str
+    thesis: str = ""
+    theme: str = ""
+    confidence: str = "low"  # low/med/high
+    caveats: str = ""
+    related: list[RelatedSymbol] = []
+    evidence: list[Evidence] = []
+
+
+class OpportunitiesResponse(BaseModel):
+    report_date: str
+    model: str = ""
+    item_count: int = 0
+    created_at: str | None = None
+    disclaimer: str = "研究辅助，非投资建议；基于所列新闻，可能有误，请回看原文核实。"
+    opportunities: list[Opportunity] = []

@@ -1,0 +1,128 @@
+import { useState } from 'react'
+import Collapse from '../../components/Collapse'
+import { useUI } from '../../store'
+import {
+  useGenerateOpportunities,
+  useOpportunities,
+  type Opportunity,
+  type RelatedSymbol,
+} from '../../api'
+
+const CONF: Record<string, { label: string; cls: string }> = {
+  high: { label: '高把握', cls: 'cf-high' },
+  med: { label: '中', cls: 'cf-med' },
+  low: { label: '低', cls: 'cf-low' },
+}
+
+// 关联标的 chip：已解析→可点（跳去看/研）；已关注→陶土描边+圆点；未解析→灰、不可点
+function Chip({ r }: { r: RelatedSymbol }) {
+  const select = useUI((s) => s.select)
+  if (!r.resolved || !r.symbol) {
+    return (
+      <span className="opp-chip unresolved" title="未能解析到具体上市公司代码">
+        {r.name}
+      </span>
+    )
+  }
+  return (
+    <button
+      className={`opp-chip ${r.in_watchlist ? 'watched' : ''}`}
+      title={r.in_watchlist ? `已关注 · ${r.sections.join(' / ')}` : r.symbol}
+      onClick={() => select(r.symbol!)}
+    >
+      {r.in_watchlist && <span className="wdot" />}
+      {r.name}
+    </button>
+  )
+}
+
+function OppCard({ o }: { o: Opportunity }) {
+  const [open, setOpen] = useState(false)
+  const conf = CONF[o.confidence] ?? CONF.low
+  return (
+    <article className="opp-card">
+      <header className="opp-head" onClick={() => setOpen((v) => !v)} role="button">
+        <span className="opp-title">{o.title}</span>
+        {o.theme && <span className="opp-theme">{o.theme}</span>}
+        <span className={`opp-conf ${conf.cls}`}>{conf.label}</span>
+      </header>
+      {o.related.length > 0 && (
+        <div className="opp-related">
+          {o.related.map((r, i) => (
+            <Chip key={i} r={r} />
+          ))}
+        </div>
+      )}
+      <Collapse open={open}>
+        <div className="opp-body">
+          <p className="opp-thesis">{o.thesis}</p>
+          {o.caveats && <p className="opp-caveats">不确定性：{o.caveats}</p>}
+          {o.evidence.length > 0 && (
+            <div className="opp-ev">
+              <span className="opp-ev-lbl">依据</span>
+              {o.evidence.map((e, i) =>
+                e.url ? (
+                  <a key={i} className="opp-ev-item" href={e.url} target="_blank" rel="noreferrer">
+                    {e.source} · {e.title}
+                  </a>
+                ) : (
+                  <span key={i} className="opp-ev-item">
+                    {e.source} · {e.title}
+                  </span>
+                ),
+              )}
+            </div>
+          )}
+        </div>
+      </Collapse>
+    </article>
+  )
+}
+
+export default function OpportunitiesPanel() {
+  const opps = useOpportunities(null)
+  const gen = useGenerateOpportunities()
+  const [open, setOpen] = useState(true)
+  const list = opps.data?.opportunities ?? []
+
+  return (
+    <section className="opps">
+      <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
+        <h3>今日机会</h3>
+        <button
+          className="btn btn-primary jsm opp-gen"
+          disabled={gen.isPending}
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpen(true)
+            gen.mutate(null)
+          }}
+        >
+          {gen.isPending ? '识别中…' : list.length ? '重新识别' : '✨ 识别机会'}
+        </button>
+      </div>
+      <Collapse open={open}>
+        {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
+        {gen.isPending ? (
+          <div className="opp-empty faint">正在从今日新闻中识别可研究的方向…（约 20–40 秒）</div>
+        ) : list.length ? (
+          <>
+            <div className="opp-list">
+              {list.map((o, i) => (
+                <OppCard key={i} o={o} />
+              ))}
+            </div>
+            {opps.data?.disclaimer && <div className="opp-foot faint">{opps.data.disclaimer}</div>}
+          </>
+        ) : (
+          <div className="opp-empty">
+            <div className="oe-title">还没有今日机会</div>
+            <div className="faint">
+              点「识别机会」，由 LLM 从今日新闻里找出新的研究方向、关联到具体个股（已关注的会高亮）。
+            </div>
+          </div>
+        )}
+      </Collapse>
+    </section>
+  )
+}

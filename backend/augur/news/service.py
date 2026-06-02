@@ -7,13 +7,16 @@ I/O（网络在 ingest、磁盘在 storage、LLM 在 gateway）挡在外层，�
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterator
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from ..config import get_settings
 from ..llm import gateway
+from ..market import search
 from ..storage import get_conn
+from ..watchlist import service as wl
 from . import ingest, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
@@ -165,3 +168,221 @@ def generate_report_stream(
     body = "".join(buf).strip()
     if body:
         _save_report(rd, body, model, len(items))
+
+
+# ───────────────────────── 今日投资机会（抽取 + 接地）─────────────────────────
+_OPP_INPUT_MAX = 80
+
+
+def _simplify(s: str) -> str:
+    return re.sub(r"[\s\-_.,'\"·()（）]", "", s or "").lower()
+
+
+def _parse_json_lenient(raw: str) -> dict:
+    """剥围栏 + 取首个 {...}；失败 → {}（不抛 500）。"""
+    s = (raw or "").strip()
+    if s.startswith("```"):
+        s = re.sub(r"^```[a-zA-Z]*\n?", "", s)
+        s = re.sub(r"\n?```$", "", s).strip()
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", s, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except json.JSONDecodeError:
+                return {}
+        return {}
+
+
+def _items_block(items: list[dict]) -> tuple[str, dict[int, dict]]:
+    """带 [n] 序号的条目块 + 序号→item 回查表（喂中文标题，LLM 读着更准）。"""
+    lines: list[str] = []
+    by_n: dict[int, dict] = {}
+    for n, it in enumerate(items, start=1):
+        by_n[n] = it
+        cat = f"({it.get('theme')}) " if it.get("theme") else ""
+        title = it.get("title_zh") or it["title"]
+        lines.append(f"[{n}] {cat}[{it['source']}] {title}")
+    return "\n".join(lines), by_n
+
+
+def _watched() -> dict[str, list[str]]:
+    """symbol → 所属分区路径列表（用于 in_watchlist 高亮）。遍历自选分区树。"""
+    paths: dict[str, list[str]] = {}
+
+    def walk(node: dict, prefix: str) -> None:
+        here = f"{prefix}/{node['name']}" if prefix else node["name"]
+        for it in node.get("items", []):
+            paths.setdefault(it["symbol"], []).append(here)
+        for ch in node.get("children", []):
+            walk(ch, here)
+
+    for root in wl.list_tree(None):
+        walk(root, "")
+    return paths
+
+
+def _resolve_company(name: str, market: str, code_guess: str = "") -> tuple[str | None, str, bool]:
+    """name+market → (symbol|None, 展示名, resolved)。
+
+    防编造：ticker 只能来自本地目录∪东财的真实命中。先验证 LLM 的 code_guess，
+    再按公司名强命中；弱模糊一律判未解析（只保留人读名）。
+    """
+    market = (market or "").upper()
+    if market not in ("US", "HK", "CN", "KR"):
+        return None, name, False
+    cg = (code_guess or "").strip()
+    if cg:
+        hits = search.search(cg, market=market, limit=1)
+        if hits and hits[0]["code"].lstrip("0").upper() == cg.lstrip("0").upper():
+            sym = hits[0]["symbol"]
+            return sym, search.display_name(sym), True
+    if name:
+        hits = search.search(name, market=market, limit=1)
+        if hits:
+            h = hits[0]
+            q = _simplify(name)
+            hn, hs = _simplify(h["name"]), _simplify(h.get("sub", ""))
+            strong = bool(q) and (
+                q in hn or hn in q or (hs and (q in hs or hs in q)) or h["code"].lstrip("0") == q
+            )
+            if strong:
+                return h["symbol"], search.display_name(h["symbol"]), True
+    return None, name, False
+
+
+def _save_opportunities(rd: str, opps: list[dict], model: str) -> None:
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM news_opportunities WHERE report_date = ?", (rd,))
+        conn.executemany(
+            "INSERT INTO news_opportunities "
+            "(report_date, rank, title, thesis, theme, confidence, caveats, "
+            "related, evidence, model) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    rd,
+                    i,
+                    o["title"],
+                    o["thesis"],
+                    o["theme"],
+                    o["confidence"],
+                    o["caveats"],
+                    json.dumps(o["related"], ensure_ascii=False),
+                    json.dumps(o["evidence"], ensure_ascii=False),
+                    model,
+                )
+                for i, o in enumerate(opps)
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_opportunities(report_date: str | None = None) -> dict | None:
+    """取某日（默认今天）已生成的机会列表；无 → None。"""
+    rd = report_date or _today()
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM news_opportunities WHERE report_date = ? ORDER BY rank", (rd,)
+        ).fetchall()
+        if not rows:
+            return None
+        opps = [
+            {
+                "title": r["title"],
+                "thesis": r["thesis"],
+                "theme": r["theme"],
+                "confidence": r["confidence"],
+                "caveats": r["caveats"],
+                "related": json.loads(r["related"] or "[]"),
+                "evidence": json.loads(r["evidence"] or "[]"),
+            }
+            for r in rows
+        ]
+        return {
+            "report_date": rd,
+            "model": rows[0]["model"],
+            "item_count": 0,
+            "created_at": rows[0]["created_at"],
+            "opportunities": opps,
+        }
+    finally:
+        conn.close()
+
+
+def generate_opportunities(report_date: str | None = None, role: str = "summarize") -> dict:
+    """阶段 A（LLM 抽取）+ 阶段 B（确定性接地到 MARKET:CODE + 交叉自选）。落库覆盖当天。"""
+    rd = report_date or _today()
+    items = recent_items(limit=_OPP_INPUT_MAX)
+    if not items:
+        raise ValueError("暂无新闻条目，请先刷新（POST /news/refresh）")
+    block, by_n = _items_block(items)
+    prompt = (
+        _load_prompt("news_opportunities").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
+    )
+    _, model = gateway.resolve_role(role)
+    raw = gateway.complete(
+        [{"role": "user", "content": prompt}],
+        role=role,
+        response_format={"type": "json_object"},
+    )
+    data = _parse_json_lenient(raw)
+    llm_opps = data.get("opportunities", []) if isinstance(data, dict) else []
+    watched = _watched()
+    out: list[dict] = []
+    for o in llm_opps[:8]:
+        related = []
+        for c in o.get("companies") or []:
+            sym, disp, resolved = _resolve_company(
+                c.get("name", ""), c.get("market", ""), c.get("code_guess", "")
+            )
+            secs = watched.get(sym, []) if sym else []
+            related.append(
+                {
+                    "symbol": sym,
+                    "name": disp,
+                    "market": (c.get("market") or "").upper(),
+                    "resolved": resolved,
+                    "in_watchlist": bool(secs),
+                    "sections": secs,
+                }
+            )
+        ev = []
+        for n in o.get("evidence") or []:
+            key = int(n) if isinstance(n, int) or (isinstance(n, str) and n.isdigit()) else None
+            it = by_n.get(key) if key is not None else None
+            if it:
+                ev.append(
+                    {
+                        "news_id": it["id"],
+                        "title": it.get("title_zh") or it["title"],
+                        "source": it["source"],
+                        "url": it["url"],
+                    }
+                )
+        conf = o.get("confidence", "low")
+        out.append(
+            {
+                "title": (o.get("title") or "")[:120],
+                "thesis": o.get("thesis", ""),
+                "theme": o.get("theme", ""),
+                "confidence": conf if conf in ("low", "med", "high") else "low",
+                "caveats": o.get("caveats", ""),
+                "related": related,
+                "evidence": ev,
+            }
+        )
+    _save_opportunities(rd, out, model)
+    return get_opportunities(rd) or {
+        "report_date": rd,
+        "model": model,
+        "item_count": len(items),
+        "created_at": None,
+        "opportunities": [],
+    }

@@ -77,6 +77,23 @@ CREATE TABLE IF NOT EXISTS news_reports (
     item_count   INTEGER NOT NULL DEFAULT 0,
     created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- 今日投资机会（M3）：LLM 从当日新闻抽取机会 + 确定性接地到 MARKET:CODE，一天一批（重生成覆盖）
+CREATE TABLE IF NOT EXISTS news_opportunities (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_date  TEXT    NOT NULL,                  -- 'YYYY-MM-DD'，与 news_reports 对齐
+    rank         INTEGER NOT NULL DEFAULT 0,        -- 当日内排序（confidence 高→低）
+    title        TEXT    NOT NULL,
+    thesis       TEXT    NOT NULL DEFAULT '',
+    theme        TEXT    NOT NULL DEFAULT '',
+    confidence   TEXT    NOT NULL DEFAULT 'low',    -- low/med/high
+    caveats      TEXT    NOT NULL DEFAULT '',
+    related      TEXT    NOT NULL DEFAULT '[]',     -- JSON：[{symbol,name,market,resolved,...}]
+    evidence     TEXT    NOT NULL DEFAULT '[]',     -- JSON：[{news_id,title,source,url}]
+    model        TEXT    NOT NULL DEFAULT '',
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_opp_date ON news_opportunities(report_date, rank);
 """
 
 

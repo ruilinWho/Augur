@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from ..llm import gateway
 from . import service
-from .schemas import NewsItem, NewsReport, RefreshResult, ReportMeta
+from .schemas import NewsItem, NewsReport, OpportunitiesResponse, RefreshResult, ReportMeta
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -40,6 +40,25 @@ async def report(date: str | None = None) -> dict:
     if data is None:
         raise HTTPException(status_code=404, detail="暂无日报，先 POST /news/report/generate 生成")
     return data
+
+
+@router.get("/opportunities", response_model=OpportunitiesResponse)
+async def opportunities(date: str | None = None) -> dict:
+    """某日（默认今天）已生成的投资机会列表（接地后含关联个股）。"""
+    data = await run_in_threadpool(service.get_opportunities, date)
+    if data is None:
+        raise HTTPException(status_code=404, detail="暂无今日机会，先生成")
+    return data
+
+
+@router.post("/opportunities/generate", response_model=OpportunitiesResponse)
+async def generate_opportunities(date: str | None = None) -> dict:
+    """从当日新闻抽取投资机会 + 接地到 MARKET:CODE（阻塞，约 20–40s）。落库覆盖当天。"""
+    try:
+        gateway.check_ready("summarize")
+    except gateway.LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return await run_in_threadpool(service.generate_opportunities, date)
 
 
 @router.post("/report/generate")

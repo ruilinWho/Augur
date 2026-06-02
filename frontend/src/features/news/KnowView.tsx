@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import Collapse from '../../components/Collapse'
 import { streamReport, useNewsFeed, useNewsReport, type NewsItem } from '../../api'
 import { useNews } from './store'
+import OpportunitiesPanel from './OpportunitiesPanel'
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
@@ -173,6 +174,8 @@ export default function KnowView() {
           <div className="faint">点右上「生成今日日报」，由 LLM 蒸馏当下全球要闻为一份趋势速览。</div>
         </div>
       )}
+
+      <OpportunitiesPanel />
 
       <section className="feed">
         <div className="sec-head" onClick={() => setFeedOpen((o) => !o)} role="button">
