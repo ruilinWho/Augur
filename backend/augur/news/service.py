@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from ..config import get_settings
 from ..llm import gateway
 from ..storage import get_conn
-from . import ingest
+from . import ingest, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -48,8 +48,13 @@ def _today() -> str:
 
 
 def refresh() -> dict:
-    """抓取所有信源并落库。"""
-    return ingest.ingest_all()
+    """抓取所有信源并落库，随后批量翻译新标题（cheap 角色，失败降级不阻断）。"""
+    result = ingest.ingest_all()
+    try:
+        result["translated"] = translate.translate_pending()
+    except Exception:  # noqa: BLE001
+        result["translated"] = 0
+    return result
 
 
 def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:

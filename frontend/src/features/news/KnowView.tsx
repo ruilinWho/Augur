@@ -89,7 +89,7 @@ function Headline({ item }: { item: NewsItem }) {
   return (
     <a className="hl" href={item.url} target="_blank" rel="noreferrer">
       <span className="hl-src">{item.source}</span>
-      <span className="hl-title">{item.title}</span>
+      <span className="hl-title">{item.title_zh || item.title}</span>
       {ago(item.published_at) && <span className="hl-ago">{ago(item.published_at)}</span>}
     </a>
   )

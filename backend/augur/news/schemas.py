@@ -16,6 +16,7 @@ class NewsItem(BaseModel):
     published_at: str | None = None
     theme: str = ""  # 主题主类（ai/chips/robotics/space/tech/markets/crypto/world/other）
     topics: list[str] = []  # 细标签（多值）
+    title_zh: str | None = None  # 中文标题（cheap 翻译；None=未翻，前端回退原文）
 
 
 class NewsReport(BaseModel):
@@ -42,3 +43,4 @@ class RefreshResult(BaseModel):
     sources_ok: int
     sources_failed: int
     failures: list[str] = []  # 失败的信源名
+    translated: int = 0  # 本次翻译成中文的标题数
