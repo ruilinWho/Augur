@@ -752,6 +752,216 @@ body.resizing * {
   outline: none;
 }
 
+/* ───────────────────────── 设置 v2（多页 · Anthropic 风格）───────────────────────── */
+/* 左栏导航（取代旧装饰 navrow）*/
+.set-navitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  margin: 2px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.set-navitem:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.set-navitem.active {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 500;
+}
+.set-navicon {
+  display: inline-flex;
+  color: var(--text-faint);
+}
+.set-navitem.active .set-navicon {
+  color: var(--accent);
+}
+
+/* 内容区 */
+.set2-body {
+  max-width: 860px;
+  padding-bottom: 40px;
+}
+.set2-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 2px 0 4px;
+}
+.set2-sec {
+  margin-top: 26px;
+}
+.set2-sec-h {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  margin: 0 0 2px;
+}
+.set2-note {
+  font-size: 0.8rem;
+  color: var(--text-faint);
+  line-height: 1.6;
+  margin: 8px 0 12px;
+}
+.set2-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 2px;
+  border-top: 1px solid var(--border);
+}
+.set2-rows > .set2-row:first-child {
+  border-top: 0;
+}
+.set2-row-l {
+  flex: 1;
+  min-width: 0;
+}
+.set2-row-lbl {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+.set2-row-desc {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.set2-row-ctl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.set2-row input[type='range'] {
+  width: 150px;
+  accent-color: var(--accent);
+}
+/* 段控两选等宽对称 */
+.set2-body .seg button {
+  min-width: 58px;
+  text-align: center;
+}
+.set2-select {
+  min-width: 220px;
+  cursor: pointer;
+}
+
+/* LLM 连接卡 */
+.conn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.conn-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.conn-card.is-new {
+  border-style: dashed;
+  border-color: var(--accent-weak);
+}
+.conn-name {
+  font-weight: 500;
+}
+.conn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 9px;
+}
+.conn-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.conn-actions-sp {
+  flex: 1;
+}
+.conn-test {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+}
+.conn-test.ok {
+  color: var(--up);
+}
+.conn-test.err {
+  color: var(--down);
+}
+.set2-add {
+  align-self: flex-start;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+/* 数据信源块 */
+.src-block {
+  padding: 15px 2px;
+  border-top: 1px solid var(--border);
+}
+.set2-sec .src-block:first-of-type {
+  border-top: 0;
+}
+.src-head2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.src-name {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+.src-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.pay-badge {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.src-note2 {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.src-keyrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  max-width: 480px;
+}
+.src-keyrow .cfg-input {
+  flex: 1;
+}
+
 /* 看·K线下方模块拖动重排：手柄在模块标题**左侧**的留白里，hover 才浮现（stage 左 padding 28px，
    故 left:-22px 落在 gutter 内、不裁切）。仅手柄可拖，模块内交互不受影响。 */
 .kan-mod {

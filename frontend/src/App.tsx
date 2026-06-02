@@ -22,7 +22,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { KAN_MODULES, useUI, type View } from './store'
+import { KAN_MODULES, useUI, type SettingsPage, type View } from './store'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
 import FinancialsPanel from './features/analysis/FinancialsPanel'
@@ -41,11 +41,58 @@ const TABS: { v: View; label: string }[] = [
 
 const EASE = [0.22, 1, 0.36, 1] as const // easeOutExpo——柔和"落定"
 
-function SimplePanel({ label, children }: { label: string; children: ReactNode }) {
+const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
+  {
+    id: 'appearance',
+    label: '外观',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <line x1="4" y1="6" x2="16" y2="6" />
+        <circle cx="12" cy="6" r="2" fill="var(--surface)" />
+        <line x1="4" y1="14" x2="16" y2="14" />
+        <circle cx="7" cy="14" r="2" fill="var(--surface)" />
+      </svg>
+    ),
+  },
+  {
+    id: 'models',
+    label: '模型',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="6" y="6" width="8" height="8" rx="1.5" />
+        <path d="M8 6V3.5M12 6V3.5M8 14v2.5M12 14v2.5M6 8H3.5M6 12H3.5M14 8h2.5M14 12h2.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'sources',
+    label: '数据 / 信源',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <circle cx="10" cy="10" r="7" />
+        <path d="M3 10h14M10 3c2 2.2 2 11.8 0 14M10 3c-2 2.2-2 11.8 0 14" />
+      </svg>
+    ),
+  },
+]
+
+// 「设置」左栏导航（取代旧的装饰性 navrow，主人反馈"那栏没用上"）
+function SettingsNav() {
+  const page = useUI((s) => s.settingsPage)
+  const setPage = useUI((s) => s.setSettingsPage)
   return (
-    <aside className="panel">
-      <div className="lbl">{label}</div>
-      {children}
+    <aside className="panel set-nav">
+      <div className="lbl">设置</div>
+      {SETTINGS_NAV.map((n) => (
+        <button
+          key={n.id}
+          className={`set-navitem ${page === n.id ? 'active' : ''}`}
+          onClick={() => setPage(n.id)}
+        >
+          <span className="set-navicon">{n.icon}</span>
+          {n.label}
+        </button>
+      ))}
     </aside>
   )
 }
@@ -205,13 +252,7 @@ export default function App() {
         ) : view === 'zhi' ? (
           <NewsListPanel />
         ) : (
-          <SimplePanel label="设置">
-            {['排版', '主题与色彩', 'LLM 厂商', '数据 / 信源 API'].map((c) => (
-              <div key={c} className="navrow">
-                {c}
-              </div>
-            ))}
-          </SimplePanel>
+          <SettingsNav />
         )}
 
         <ResizeHandle />

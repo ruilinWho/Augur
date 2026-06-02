@@ -1,10 +1,15 @@
-"""运行时可配置项的本地存储：API key / base_url / LLM 角色路由——供「设置」页在 UI 里改。
+"""运行时可配置项的本地存储：LLM 连接列表 / 角色路由 / 数据信源 key——供「设置」页 UI 改。
 
-护栏（CLAUDE.md §11）：**密钥永不入库**。存到 gitignored 的 `data/config.local.json`
-（文件权限 0600），**绝不打日志**，GET 只回脱敏状态（末 4 位），POST 从不回传明文。
-加载时把 secrets 注入 `os.environ`，使 litellm/gateway 与各信源适配器在**不重启**下即时读到
-（它们都走 `os.getenv`）。`.env` 仍支持：进程启动时 .env 已在 env 里；UI 存的值会覆盖之
-（UI 优先，便于即时改）。单用户本地工具，读文件成本可忽略，故每次读盘取最新值。
+护栏（CLAUDE.md §11）：**密钥永不入库**。存 gitignored `data/config.local.json`（0600），
+**绝不打日志**，GET 只回脱敏（末 4 位），POST 从不回明文。
+
+LLM 模型 = **可动态增删的连接列表**：每个连接 `{id, name, base_url, api_key, model}`（一律按
+OpenAI 兼容，覆盖 DeepSeek / 中转站 / OpenRouter / 国产模型）。4 个角色
+chat/deep_research/summarize/cheap 各指到一个连接。首次加载若无连接，**自动从旧 `.env`
+（AUGUR_ROLE_* + 厂商 key）迁成连接**，不中断主人现有配置。
+
+数据信源 key（X 桥等）仍走 `secrets`：加载时注入 `os.environ`，使各适配器 `os.getenv`
+在不重启下即时可见。单用户本地工具，读文件成本可忽略，每次读盘取最新值。
 """
 
 from __future__ import annotations
@@ -12,10 +17,20 @@ from __future__ import annotations
 import json
 import os
 import threading
+from uuid import uuid4
 
 from .config import get_settings
 
 _lock = threading.Lock()
+ROLES = ("chat", "deep_research", "summarize", "cheap")
+
+# 旧固定厂商 → (key_env, base_env, 默认 base)；仅一次性迁移用
+_LEGACY_ENV = {
+    "anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
+    "openai": ("OPENAI_API_KEY", "OPENAI_BASE_URL", "https://api.openai.com/v1"),
+    "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+    "relay": ("RELAY_API_KEY", "RELAY_BASE_URL", ""),
+}
 
 
 def _path():
@@ -44,32 +59,68 @@ def _write(data: dict) -> None:
         pass
 
 
+def _hint(v: str) -> str:
+    """脱敏：末 4 位；从不回明文。"""
+    v = str(v or "")
+    return f"····{v[-4:]}" if len(v) >= 4 else ("已配置" if v else "")
+
+
+# ───────────────────────── 一次性迁移：旧 roles → 连接 ─────────────────────────
+def _seed_from_legacy(data: dict) -> bool:
+    """无 llm_connections 时，从旧 roles(provider:model)+厂商 env/secrets 迁成连接。写了→True。"""
+    if data.get("llm_connections") is not None:
+        return False
+    s = get_settings()
+    old_roles = data.get("roles") or {}
+    secrets = data.get("secrets") or {}
+    conns: list[dict] = []
+    role_map: dict[str, str] = {}
+    by_sig: dict[tuple, str] = {}
+    for role in ROLES:
+        spec = old_roles.get(role) or getattr(s, f"role_{role}", "")
+        if not spec or ":" not in spec:
+            continue
+        provider, _, model = (x.strip() for x in spec.partition(":"))
+        key_env, base_env, default_base = _LEGACY_ENV.get(
+            provider, (f"{provider.upper()}_API_KEY", f"{provider.upper()}_BASE_URL", "")
+        )
+        api_key = os.getenv(key_env) or secrets.get(key_env) or ""
+        base = os.getenv(base_env) or secrets.get(base_env) or default_base
+        sig = (base, model, api_key)
+        if sig in by_sig:
+            role_map[role] = by_sig[sig]
+            continue
+        cid = uuid4().hex[:8]
+        conns.append(
+            {
+                "id": cid,
+                "name": f"{provider} · {model}"[:48],
+                "base_url": base,
+                "api_key": api_key,
+                "model": model,
+            }
+        )
+        by_sig[sig] = cid
+        role_map[role] = cid
+    data["llm_connections"] = conns  # 即便为空也写，标记"已迁移"，避免每次启动重试
+    data["llm_roles"] = role_map
+    data.pop("roles", None)
+    return True
+
+
 def load() -> None:
-    """启动时调用：把已存 secrets 注入 os.environ（UI 优先于 .env，即时生效）。"""
-    with _lock:
-        for k, v in (_read().get("secrets") or {}).items():
-            if v:
-                os.environ[k] = str(v)
-
-
-def get_role(role: str) -> str | None:
-    """UI 设的角色路由（provider:model）；未设 → None（gateway 回退 settings.role_*）。"""
-    return (_read().get("roles") or {}).get(role) or None
-
-
-def set_role(role: str, spec: str) -> None:
+    """启动时：注入数据信源 secrets 到 os.environ；首次把旧 LLM 配置迁成连接。"""
     with _lock:
         data = _read()
-        roles = data.setdefault("roles", {})
-        if spec.strip():
-            roles[role] = spec.strip()
-        else:
-            roles.pop(role, None)
-        _write(data)
+        for k, v in (data.get("secrets") or {}).items():
+            if v:
+                os.environ[k] = str(v)
+        if _seed_from_legacy(data):
+            _write(data)
 
 
+# ───────────────────────── 数据信源 secrets（X 桥等）─────────────────────────
 def set_secret(name: str, value: str | None) -> None:
-    """写入/清除一个密钥（即时注入/移除 os.environ）。value 空 → 清除。"""
     with _lock:
         data = _read()
         secrets = data.setdefault("secrets", {})
@@ -91,6 +142,82 @@ def has_secret(name: str) -> bool:
 
 
 def secret_hint(name: str) -> str:
-    """脱敏提示：末 4 位，从不回传明文。空 → ''。"""
-    v = _raw_secret(name)
-    return f"····{v[-4:]}" if len(v) >= 4 else ("已配置" if v else "")
+    return _hint(_raw_secret(name))
+
+
+# ───────────────────────── LLM 连接（动态列表）─────────────────────────
+def list_connections() -> list[dict]:
+    """脱敏的连接列表（不含明文 key）。"""
+    out: list[dict] = []
+    for c in _read().get("llm_connections") or []:
+        out.append(
+            {
+                "id": c.get("id"),
+                "name": c.get("name", ""),
+                "base_url": c.get("base_url", ""),
+                "model": c.get("model", ""),
+                "key_configured": bool(c.get("api_key")),
+                "key_hint": _hint(c.get("api_key", "")),
+            }
+        )
+    return out
+
+
+def get_connection(cid: str | None) -> dict | None:
+    """完整连接（含 api_key）——仅 gateway 内部用。"""
+    if not cid:
+        return None
+    for c in _read().get("llm_connections") or []:
+        if c.get("id") == cid:
+            return c
+    return None
+
+
+def upsert_connection(payload: dict) -> str:
+    """新增/更新一个连接（api_key 留空＝不改已存的）。返回 id。"""
+    with _lock:
+        data = _read()
+        conns = data.setdefault("llm_connections", [])
+        cid = (payload.get("id") or "").strip()
+        cur = next((c for c in conns if c.get("id") == cid), None) if cid else None
+        if cur is None:
+            cid = uuid4().hex[:8]
+            cur = {"id": cid, "name": "", "base_url": "", "api_key": "", "model": ""}
+            conns.append(cur)
+        cur["name"] = (payload.get("name") or cur.get("name") or "未命名").strip()
+        if payload.get("base_url") is not None:
+            cur["base_url"] = str(payload["base_url"]).strip()
+        if payload.get("model") is not None:
+            cur["model"] = str(payload["model"]).strip()
+        if payload.get("api_key"):  # 留空＝不改
+            cur["api_key"] = str(payload["api_key"]).strip()
+        _write(data)
+        return cid
+
+
+def delete_connection(cid: str) -> None:
+    with _lock:
+        data = _read()
+        data["llm_connections"] = [
+            c for c in (data.get("llm_connections") or []) if c.get("id") != cid
+        ]
+        roles = data.get("llm_roles") or {}
+        for r in list(roles):
+            if roles[r] == cid:
+                roles.pop(r)
+        _write(data)
+
+
+def get_role_target(role: str) -> str | None:
+    return (_read().get("llm_roles") or {}).get(role)
+
+
+def set_role_target(role: str, cid: str | None) -> None:
+    with _lock:
+        data = _read()
+        roles = data.setdefault("llm_roles", {})
+        if cid:
+            roles[role] = cid
+        else:
+            roles.pop(role, None)
+        _write(data)

@@ -17,6 +17,6 @@ class ChatRequest(BaseModel):
 
 class RoleStatus(BaseModel):
     role: str
-    provider: str | None
-    model: str | None
+    connection_id: str | None = None
+    connection_name: str | None = None
     configured: bool

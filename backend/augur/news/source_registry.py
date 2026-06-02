@@ -21,6 +21,7 @@ SOURCES: list[dict] = [
         "category": "国际 · 精英二手",
         "access": "free_rss",
         "key_env": None,
+        "payment": "免费",
         "note": "彭博官方 RSS（technology/markets），已接入 feeds.yaml；未公开文档，带回退。",
     },
     {
@@ -29,8 +30,9 @@ SOURCES: list[dict] = [
         "category": "社媒一手",
         "access": "paid_api",
         "key_env": "TWITTERAPI_KEY",
+        "payment": "信用卡 / 加密(USDT)·无支付宝",
         "note": "经 TwitterAPI.io 桥拉官方号推文（OpenAI/NVIDIA/@sama…）。配 key 后启用；"
-        "权衡见 ADR-0006：桥会知道你轮询了哪些公开账号。",
+        "无支付宝/微信，国内走加密(USDT)或虚拟卡；权衡见 ADR-0006/0007。",
     },
     {
         "id": "cls",
@@ -39,6 +41,7 @@ SOURCES: list[dict] = [
         "access": "free_api",
         "key_env": None,
         "active": True,
+        "payment": "免费",
         "note": "科创电报，免费非官方 API（带 sign）；最佳中文科技实时源，已接入（cls.py）。",
     },
     {
@@ -48,6 +51,7 @@ SOURCES: list[dict] = [
         "access": "free_api",
         "key_env": None,
         "active": True,
+        "payment": "免费",
         "note": "免费关键词资讯 JSON（人工智能/半导体/算力…），已接入（eastmoney_news.py）。",
     },
 ]
@@ -80,6 +84,7 @@ def status_list() -> list[dict]:
                 "access": s["access"],
                 "key_env": key_env,
                 "note": s["note"],
+                "payment": s.get("payment", ""),  # 支付方式（中国用户视角，见 ADR-0007）
                 "configured": configured,
                 "status": status,
                 "hint": runtime_config.secret_hint(key_env) if key_env else "",

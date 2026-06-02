@@ -6,6 +6,7 @@ export type Market = 'ALL' | 'US' | 'HK' | 'CN' | 'KR'
 export type Theme = 'light' | 'dark'
 export type DisplayFont = 'serif' | 'sans'
 export type Convention = 'us' | 'cn' // us: 绿涨红跌；cn: 红涨绿跌
+export type SettingsPage = 'appearance' | 'models' | 'sources'
 
 export const PANEL_MIN = 208
 export const PANEL_MAX = 520
@@ -22,6 +23,7 @@ interface UIState {
   convention: Convention
   panelW: number // 左栏宽度（px），可拖拽调整
   kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
+  settingsPage: SettingsPage // 「设置」当前页（左栏导航选择，瞬时不持久化）
 
   setView: (v: View) => void
   select: (s: string) => void
@@ -33,6 +35,7 @@ interface UIState {
   setConvention: (c: Convention) => void
   setPanelW: (n: number) => void
   setKanOrder: (o: string[]) => void
+  setSettingsPage: (p: SettingsPage) => void
 }
 
 export const KAN_MODULES = ['financials', 'news', 'journal'] as const
@@ -50,6 +53,7 @@ export const useUI = create<UIState>()(
       convention: 'us',
       panelW: 268,
       kanOrder: [...KAN_MODULES],
+      settingsPage: 'appearance',
 
       setView: (view) => set({ view }),
       select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
@@ -62,6 +66,7 @@ export const useUI = create<UIState>()(
       setPanelW: (panelW) =>
         set({ panelW: Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(panelW))) }),
       setKanOrder: (kanOrder) => set({ kanOrder }),
+      setSettingsPage: (settingsPage) => set({ settingsPage }),
     }),
     {
       name: 'augur-ui',

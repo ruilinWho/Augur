@@ -1,103 +1,164 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useUI } from '../../store'
 import {
-  useSettingsConfig,
-  useSetRole,
+  useDeleteConnection,
+  useSetRoleTarget,
   useSetSecret,
-  type ProviderStatus,
+  useSettingsConfig,
+  useTestConnection,
+  useUpsertConnection,
+  type Connection,
+  type RoleTarget,
   type SourceStatus,
+  type TestResult,
 } from '../../api'
 
-// LLM 角色路由卡：provider:model 文本框 + 保存（空=回退 .env）
-function RoleCard({
-  role,
-  spec,
-  configured,
-  desc,
-}: {
-  role: string
-  spec: string
-  configured: boolean
-  desc: string
-}) {
-  const setRole = useSetRole()
-  const [val, setVal] = useState(spec)
-  const dirty = val.trim() !== spec
+// ── 通用：Anthropic 风格的「左标题+说明 / 右控件 + 分隔线」行 ──
+function Row({ label, desc, children }: { label: ReactNode; desc?: ReactNode; children: ReactNode }) {
   return (
-    <div className="scard">
-      <div className="scard-h">
-        <span className="scard-name">{role}</span>
-        <span className="badge" style={{ color: configured ? 'var(--up)' : 'var(--text-faint)' }}>
-          {configured ? '已配置' : '未配置'}
-        </span>
+    <div className="set2-row">
+      <div className="set2-row-l">
+        <div className="set2-row-lbl">{label}</div>
+        {desc != null && <div className="set2-row-desc">{desc}</div>}
       </div>
-      <div className="scard-d">{configured ? desc : '把该角色指到某厂商:模型'}</div>
-      <div className="scard-field">
-        <input
-          className="cfg-input mono"
-          value={val}
-          placeholder="provider:model"
-          onChange={(e) => setVal(e.target.value)}
-        />
-        <button
-          className="btn jsm"
-          disabled={!dirty || setRole.isPending}
-          onClick={() => setRole.mutate({ role, spec: val.trim() })}
-        >
-          保存
+      <div className="set2-row-ctl">{children}</div>
+    </div>
+  )
+}
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="set2-sec">
+      <h2 className="set2-sec-h">{title}</h2>
+      <div className="set2-rows">{children}</div>
+    </section>
+  )
+}
+function Seg<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { v: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="seg">
+      {options.map((o) => (
+        <button key={o.v} aria-pressed={value === o.v} onClick={() => onChange(o.v)}>
+          {o.label}
         </button>
-      </div>
+      ))}
     </div>
   )
 }
 
-// LLM 厂商卡：API key（密文）+ base_url（中转站）+ 保存/清除
-function ProviderCard({ p }: { p: ProviderStatus }) {
-  const setSecret = useSetSecret()
-  const [key, setKey] = useState('')
-  const [base, setBase] = useState(p.base_url)
-  const baseDirty = base.trim() !== p.base_url
-  const save = () => {
-    if (key.trim()) setSecret.mutate({ name: p.key_env, value: key.trim() })
-    if (baseDirty) setSecret.mutate({ name: p.base_env, value: base.trim() || null })
-    setKey('')
-  }
+// ───────────────────────── 外观 ─────────────────────────
+function AppearancePage() {
+  const {
+    theme,
+    textBase,
+    leading,
+    displayFont,
+    convention,
+    setTheme,
+    setTextBase,
+    setLeading,
+    setDisplayFont,
+    setConvention,
+  } = useUI()
   return (
-    <div className="scard">
-      <div className="scard-h">
-        <span className="scard-name">{p.id}</span>
-        <span style={{ color: p.key_configured ? 'var(--up)' : 'var(--text-faint)' }} className="badge">
-          {p.key_configured ? `key ${p.key_hint}` : '未配置 key'}
-        </span>
+    <>
+      <h1 className="set2-title">外观</h1>
+      <Section title="排版">
+        <Row label="正文字号" desc="全局基准字号，整页实时生效">
+          <input type="range" min={14} max={19} step={1} value={textBase} onChange={(e) => setTextBase(+e.target.value)} />
+          <span className="val">{textBase}px</span>
+        </Row>
+        <Row label="行距" desc="行与行的呼吸感">
+          <input type="range" min={1.4} max={1.9} step={0.02} value={leading} onChange={(e) => setLeading(+e.target.value)} />
+          <span className="val">{leading.toFixed(2)}</span>
+        </Row>
+        <Row label="英文标题字体" desc="默认 Source Serif 4 衬线（中文恒为苹方）">
+          <Seg
+            value={displayFont}
+            onChange={setDisplayFont}
+            options={[{ v: 'serif', label: '衬线' }, { v: 'sans', label: '无衬线' }]}
+          />
+        </Row>
+      </Section>
+      <Section title="主题与色彩">
+        <Row label="主题" desc="默认亮色，明暗皆暖">
+          <Seg value={theme} onChange={setTheme} options={[{ v: 'light', label: '☀ 亮' }, { v: 'dark', label: '☾ 暗' }]} />
+        </Row>
+        <Row label="涨跌色习惯" desc="蜡笔纸感色，按市场习惯切换">
+          <Seg
+            value={convention}
+            onChange={setConvention}
+            options={[{ v: 'us', label: '绿涨红跌' }, { v: 'cn', label: '红涨绿跌' }]}
+          />
+        </Row>
+      </Section>
+    </>
+  )
+}
+
+// ───────────────────────── 模型 ─────────────────────────
+function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: () => void }) {
+  const upsert = useUpsertConnection()
+  const del = useDeleteConnection()
+  const test = useTestConnection()
+  const [name, setName] = useState(conn?.name ?? '')
+  const [base, setBase] = useState(conn?.base_url ?? '')
+  const [model, setModel] = useState(conn?.model ?? '')
+  const [key, setKey] = useState('')
+  const [result, setResult] = useState<TestResult | null>(null)
+  const isNew = !conn
+  const canTest = !!base && !!model && (!isNew || !!key)
+
+  const save = async () => {
+    await upsert.mutateAsync({ id: conn?.id, name, base_url: base, model, api_key: key || null })
+    setKey('')
+    onDone?.()
+  }
+  const runTest = async () => {
+    setResult(null)
+    const payload =
+      conn && !key ? { connection_id: conn.id, base_url: base, model } : { base_url: base, api_key: key, model }
+    setResult(await test.mutateAsync(payload))
+  }
+
+  return (
+    <div className={`conn-card ${isNew ? 'is-new' : ''}`}>
+      <input className="cfg-input conn-name" placeholder="连接名称（如 DeepSeek / OhMyGPT 中转）" value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="conn-grid">
+        <input className="cfg-input mono" placeholder="base_url（如 https://api.deepseek.com）" value={base} onChange={(e) => setBase(e.target.value)} />
+        <input className="cfg-input mono" placeholder="model id（如 deepseek-chat）" value={model} onChange={(e) => setModel(e.target.value)} />
       </div>
       <input
         className="cfg-input"
         type="password"
         autoComplete="off"
+        placeholder={conn?.key_configured ? `API key（已配 ${conn.key_hint}，留空＝不改）` : '粘贴 API key'}
         value={key}
-        placeholder={p.key_configured ? 'API key（留空＝不改）' : '粘贴 API key'}
         onChange={(e) => setKey(e.target.value)}
       />
-      <input
-        className="cfg-input mono"
-        value={base}
-        placeholder="base_url（可选，自配中转站）"
-        onChange={(e) => setBase(e.target.value)}
-      />
-      <div className="scard-actions">
-        {p.key_configured && (
-          <button
-            className="btn btn-ghost jsm"
-            onClick={() => setSecret.mutate({ name: p.key_env, value: null })}
-          >
-            清除 key
+      <div className="conn-actions">
+        {result && (
+          <span className={`conn-test ${result.ok ? 'ok' : 'err'}`}>
+            {result.ok ? `✓ 连通 · ${result.latency_ms}ms · ${result.reply || 'ok'}` : `✗ ${result.error}`}
+          </span>
+        )}
+        <span className="conn-actions-sp" />
+        {!isNew && (
+          <button className="btn btn-ghost jsm" onClick={() => del.mutate(conn.id)}>
+            删除
           </button>
         )}
-        <button
-          className="btn jsm"
-          disabled={setSecret.isPending || (!key.trim() && !baseDirty)}
-          onClick={save}
-        >
+        <button className="btn jsm" onClick={runTest} disabled={test.isPending || !canTest}>
+          {test.isPending ? '测试中…' : '测试连接'}
+        </button>
+        <button className="btn btn-primary jsm" onClick={save} disabled={upsert.isPending || !name || !base || !model}>
           保存
         </button>
       </div>
@@ -105,44 +166,112 @@ function ProviderCard({ p }: { p: ProviderStatus }) {
   )
 }
 
-const TONE: Record<string, string> = {
+const ROLE_LABEL: Record<string, string> = {
+  chat: '对话',
+  deep_research: '深度研究',
+  summarize: '摘要 / 日报',
+  cheap: '便宜（翻译 / 筛选）',
+}
+const ROLE_DESC: Record<string, string> = {
+  chat: '前台问答',
+  deep_research: '个股深度研究（可用前沿模型）',
+  summarize: '趋势日报 / 投资机会蒸馏',
+  cheap: '标题翻译 / 相关性过滤（用便宜模型省钱）',
+}
+
+function RoleRow({ role, conns }: { role: RoleTarget; conns: Connection[] }) {
+  const setRole = useSetRoleTarget()
+  return (
+    <Row label={ROLE_LABEL[role.role] ?? role.role} desc={ROLE_DESC[role.role] ?? ''}>
+      <select
+        className="cfg-input set2-select"
+        value={role.connection_id ?? ''}
+        onChange={(e) => setRole.mutate({ role: role.role, connection_id: e.target.value || null })}
+      >
+        <option value="">— 未指定 —</option>
+        {conns.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <span className="badge" style={{ color: role.configured ? 'var(--up)' : 'var(--text-faint)' }}>
+        {role.configured ? '就绪' : '未配'}
+      </span>
+    </Row>
+  )
+}
+
+function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[] }) {
+  const [adding, setAdding] = useState(false)
+  return (
+    <>
+      <h1 className="set2-title">模型</h1>
+      <Section title="LLM 连接">
+        <div className="set2-note">
+          每个连接 = 名称 / base_url / api_key / model（一律 OpenAI 兼容，覆盖 DeepSeek、各类中转站、OpenRouter、国产模型）。改后即时生效、无需重启。
+        </div>
+        <div className="conn-list">
+          {conns.map((c) => (
+            <ConnectionCard key={c.id} conn={c} />
+          ))}
+          {adding ? (
+            <ConnectionCard conn={null} onDone={() => setAdding(false)} />
+          ) : (
+            <button className="btn set2-add" onClick={() => setAdding(true)}>
+              ＋ 添加连接
+            </button>
+          )}
+        </div>
+      </Section>
+      <Section title="角色路由">
+        <div className="set2-note">把每个用途指到一个连接——前沿模型跑对话/研究，便宜模型跑摘要/翻译/筛选以省钱。</div>
+        {roles.map((r) => (
+          <RoleRow key={r.role} role={r} conns={conns} />
+        ))}
+      </Section>
+    </>
+  )
+}
+
+// ───────────────────────── 数据 / 信源 ─────────────────────────
+const ACCESS_TONE: Record<string, string> = {
   free_rss: 'var(--up)',
   free_api: 'var(--accent)',
   paid_api: 'var(--text-muted)',
 }
 
-// 数据/新闻信源卡：状态徽标 +（付费源）API key
-function SourceCard({ s }: { s: SourceStatus }) {
+function SourceRow({ s }: { s: SourceStatus }) {
   const setSecret = useSetSecret()
   const [key, setKey] = useState('')
-  const tone = s.configured ? 'var(--up)' : TONE[s.access] ?? 'var(--text-faint)'
+  const tone = s.configured ? 'var(--up)' : ACCESS_TONE[s.access] ?? 'var(--text-faint)'
   return (
-    <div className="scard">
-      <div className="scard-h">
-        <span className="scard-name">
+    <div className="src-block">
+      <div className="src-head2">
+        <div className="src-name">
           {s.name} <span className="src-cat">{s.category}</span>
-        </span>
-        <span className="badge" style={{ color: tone }}>
-          {s.status}
-          {s.hint ? ` · ${s.hint}` : ''}
-        </span>
+        </div>
+        <div className="src-badges">
+          {s.payment && <span className="pay-badge">{s.payment}</span>}
+          <span className="badge" style={{ color: tone }}>
+            {s.status}
+            {s.hint ? ` · ${s.hint}` : ''}
+          </span>
+        </div>
       </div>
-      <div className="scard-d">{s.note}</div>
+      <div className="src-note2">{s.note}</div>
       {s.key_env && (
-        <div className="scard-field">
+        <div className="src-keyrow">
           <input
             className="cfg-input"
             type="password"
             autoComplete="off"
-            value={key}
             placeholder={s.configured ? 'key（留空＝不改）' : '粘贴 API key'}
+            value={key}
             onChange={(e) => setKey(e.target.value)}
           />
           {s.configured && (
-            <button
-              className="btn btn-ghost jsm"
-              onClick={() => setSecret.mutate({ name: s.key_env!, value: null })}
-            >
+            <button className="btn btn-ghost jsm" onClick={() => setSecret.mutate({ name: s.key_env!, value: null })}>
               清除
             </button>
           )}
@@ -162,112 +291,35 @@ function SourceCard({ s }: { s: SourceStatus }) {
   )
 }
 
-export default function SettingsView() {
-  const {
-    theme,
-    textBase,
-    leading,
-    displayFont,
-    convention,
-    setTheme,
-    setTextBase,
-    setLeading,
-    setDisplayFont,
-    setConvention,
-  } = useUI()
-  const cfg = useSettingsConfig()
-
+function SourcesPage({ sources }: { sources: SourceStatus[] }) {
   return (
-    <div className="set-wrap">
-      <div className="eyebrow">设置</div>
-      <h1 className="set-page-title" style={{ marginTop: 8 }}>偏好</h1>
-
-      <div className="set-card-h">排版 · 字号 / 行距 / 字体（整页实时生效）</div>
-      <div className="set-grid">
-        <div className="scard">
-          <div className="scard-h">
-            <span className="scard-name">正文字号</span>
-            <span className="val">{textBase}px</span>
-          </div>
-          <div className="scard-d">全局基准字号</div>
-          <input type="range" min={14} max={19} step={1} value={textBase} onChange={(e) => setTextBase(+e.target.value)} />
-        </div>
-        <div className="scard">
-          <div className="scard-h">
-            <span className="scard-name">行距</span>
-            <span className="val">{leading.toFixed(2)}</span>
-          </div>
-          <div className="scard-d">行与行的呼吸感</div>
-          <input type="range" min={1.4} max={1.9} step={0.02} value={leading} onChange={(e) => setLeading(+e.target.value)} />
-        </div>
-        <div className="scard">
-          <div className="scard-h">
-            <span className="scard-name">英文标题字体</span>
-          </div>
-          <div className="scard-d">默认 Source Serif 4 衬线（中文恒为苹方）</div>
-          <div className="seg">
-            <button aria-pressed={displayFont === 'serif'} onClick={() => setDisplayFont('serif')}>衬线</button>
-            <button aria-pressed={displayFont === 'sans'} onClick={() => setDisplayFont('sans')}>无衬线</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="set-card-h">主题与色彩</div>
-      <div className="set-grid">
-        <div className="scard">
-          <div className="scard-h">
-            <span className="scard-name">主题</span>
-          </div>
-          <div className="scard-d">默认亮色，明暗皆暖</div>
-          <div className="seg">
-            <button aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>☀ 亮</button>
-            <button aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>☾ 暗</button>
-          </div>
-        </div>
-        <div className="scard">
-          <div className="scard-h">
-            <span className="scard-name">涨跌色习惯</span>
-          </div>
-          <div className="scard-d">蜡笔纸感色，按市场习惯切换</div>
-          <div className="seg">
-            <button aria-pressed={convention === 'us'} onClick={() => setConvention('us')}>绿涨红跌</button>
-            <button aria-pressed={convention === 'cn'} onClick={() => setConvention('cn')}>红涨绿跌</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="set-card-h">LLM 角色路由（改后即时生效，无需重启）</div>
-      <div className="set-grid">
-        {cfg.data?.llm.roles.map((r) => (
-          <RoleCard
-            key={r.role}
-            role={r.role}
-            spec={r.spec}
-            configured={r.configured}
-            desc={r.provider ? `${r.provider} · ${r.model}` : ''}
-          />
+    <>
+      <h1 className="set2-title">数据 / 信源 API</h1>
+      <Section title="信源">
+        <div className="set2-note">按需配 key，逐步「一条龙」。普通 RSS 源在 resources/sources/feeds.yaml，这里只列需 key 或专用适配器的源。</div>
+        {sources.map((s) => (
+          <SourceRow key={s.id} s={s} />
         ))}
-      </div>
-
-      <div className="set-card-h">LLM 厂商 · key / base_url</div>
-      <div className="set-grid">
-        {cfg.data?.llm.providers.map((p) => (
-          <ProviderCard key={p.id} p={p} />
-        ))}
-      </div>
-
-      <div className="set-card-h">数据 / 新闻信源 · API（按需配 key，逐步「一条龙」）</div>
-      <div className="set-grid">
-        {cfg.data?.sources.map((s) => (
-          <SourceCard key={s.id} s={s} />
-        ))}
-        {!cfg.data && <div className="scard-d">加载信源配置…</div>}
-      </div>
-
+      </Section>
       <div className="hedge">
-        密钥仅存于本机 <span className="mono">data/config.local.json</span>（不入库、不外传、界面只显末位），
-        改动即时注入运行环境。也可继续用 <span className="mono">backend/.env</span>（见 .env.example）。
+        密钥仅存于本机 <span className="mono">data/config.local.json</span>（不入库、不外传、界面只显末位），改动即时生效。
+        付费源以中国用户支付方式标注（优先支付宝/微信可付，详见 ADR-0007）。
       </div>
+    </>
+  )
+}
+
+// 页面由左栏导航（App.tsx）经 store.settingsPage 选择；本组件只渲染选中页的内容。
+export default function SettingsView() {
+  const page = useUI((s) => s.settingsPage)
+  const cfg = useSettingsConfig()
+  return (
+    <div className="set2-body">
+      {page === 'appearance' && <AppearancePage />}
+      {page === 'models' && (
+        <ModelsPage conns={cfg.data?.llm.connections ?? []} roles={cfg.data?.llm.roles ?? []} />
+      )}
+      {page === 'sources' && <SourcesPage sources={cfg.data?.sources ?? []} />}
     </div>
   )
 }
