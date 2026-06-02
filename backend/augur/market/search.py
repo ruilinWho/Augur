@@ -31,6 +31,33 @@ def _norm(s: str) -> str:
     return _WS.sub(" ", str(s).strip().lower())
 
 
+# 英文公司/证券类型后缀（结尾整词）：Redwire Corp→Redwire、Planet Labs PBC→Planet Labs、
+# Apple Inc.→Apple、Alphabet Inc. Class C→Alphabet。仅作用结尾、需前置空格/逗号 → 不误伤
+# 词内（Costco/Cisco 安全）；CJK 名不含这些词 → 不受影响。展示用清洗名，搜索仍保留原名。
+_CORP_SUFFIX = re.compile(
+    r"[\s,]+(?:corp(?:oration)?|inc(?:orporated)?|company|co|limited|ltd|llc|"
+    r"l\.?p\.?|lp|plc|pbc|holdings?|group|n\.?v\.?|s\.?a\.?|ag|se)\.?$",
+    re.IGNORECASE,
+)
+_SHARE_SUFFIX = re.compile(
+    r"[\s,]+(?:class\s+[a-d]|(?:common|ordinary|capital|preferred)\s+(?:stock|shares?|units?)|"
+    r"depositary\s+(?:shares?|units?|receipts?)|american\s+depositary\s+shares?|"
+    r"sponsored\s+adr|adr|ads|reit)\.?$",
+    re.IGNORECASE,
+)
+
+
+def _clean_name(name: str) -> str:
+    """去掉英文公司/证券类型后缀让展示名简洁；迭代去多重后缀；结果空则回退原名。"""
+    s = (name or "").strip()
+    prev = None
+    while s and s != prev:
+        prev = s
+        s = _SHARE_SUFFIX.sub("", s).strip().rstrip(",").strip()
+        s = _CORP_SUFFIX.sub("", s).strip().rstrip(",").strip()
+    return s or (name or "").strip()
+
+
 @dataclass
 class _Rec:
     symbol: str
@@ -85,20 +112,23 @@ def build_index() -> int:
             if symbol in seen:
                 continue
             seen.add(symbol)
-            name = (row.name or "").strip() or row.code
+            orig = (row.name or "").strip() or row.code
             name_en = (getattr(row, "name_en", "") or "").strip()
+            disp = _clean_name(orig)  # 展示名去掉英文公司后缀（Redwire Corp→Redwire）
+            en_disp = _clean_name(name_en)
             extra = aliases.pop(symbol, None)
             cn = extra["cn"] if extra else ""
             alias_names = extra["names"] if extra else []
             # 次要显示：中文别名 > 英文名（且与主名不同）
-            sub = cn if (cn and cn != name) else (name_en if name_en and name_en != name else "")
-            names_l = {_norm(n) for n in (name, name_en, cn, *alias_names) if n}
+            sub = cn if (cn and cn != disp) else (en_disp if en_disp and en_disp != disp else "")
+            # 搜索名同时含原名(带后缀)与清洗名 → 敲 "redwire" 或 "redwire corp" 都命中
+            names_l = {_norm(n) for n in (orig, disp, name_en, cn, *alias_names) if n}
             recs.append(
                 _Rec(
                     symbol=symbol,
                     market=row.market,
                     code=row.code,
-                    name=name,
+                    name=disp,
                     sub=sub,
                     code_l=row.code.lower(),
                     names_l=[n for n in names_l if n],
@@ -251,12 +281,13 @@ def _map_em(item: dict) -> _Rec | None:
             return None
         code = code.zfill(5)
     pinyin = (item.get("PinYin") or "").strip().lower()
-    names_l = [_norm(name)] + ([pinyin] if pinyin else [])
+    disp = _clean_name(name)  # 美股展示名去后缀（东财 US 名也带 Corp/Inc）；原名留可搜
+    names_l = [_norm(name)] + ([_norm(disp)] if disp != name else []) + ([pinyin] if pinyin else [])
     return _Rec(
         symbol=f"{mkt}:{code}",
         market=mkt,
         code=code,
-        name=name,
+        name=disp,
         sub="",
         code_l=code.lower(),
         names_l=[n for n in names_l if n],
