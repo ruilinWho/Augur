@@ -1478,20 +1478,33 @@ input:focus:not(:focus-visible) {
 .hl:hover .hl-title {
   color: var(--accent);
 }
-.hl-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.hl-ago {
+  font-size: 0.7rem;
+  color: var(--text-faint);
   white-space: nowrap;
 }
-.hl-cat {
-  font-size: 0.66rem;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: var(--surface-2);
-  color: var(--text-faint);
+/* 今日要闻按主题分组 */
+.feed-group {
+  margin-top: 18px;
 }
-.hl-ago {
+.feed-group:first-child {
+  margin-top: 4px;
+}
+.fg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.fg-theme {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+}
+.fg-n {
   font-size: 0.7rem;
   color: var(--text-faint);
 }

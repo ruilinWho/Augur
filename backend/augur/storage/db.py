@@ -58,9 +58,12 @@ CREATE TABLE IF NOT EXISTS news_items (
     url          TEXT    NOT NULL UNIQUE,           -- 去重键
     summary      TEXT    NOT NULL DEFAULT '',
     lang         TEXT    NOT NULL DEFAULT '',        -- en/zh/ko…
-    category     TEXT    NOT NULL DEFAULT '',        -- markets/tech/world…
+    category     TEXT    NOT NULL DEFAULT '',        -- 信源粗类（也作 theme 分类回退输入）
     published_at TEXT,                               -- ISO8601（可空：部分源无时间）
-    fetched_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    fetched_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    theme        TEXT    NOT NULL DEFAULT '',        -- 主题主类（classify，见 classify.py）
+    topics       TEXT    NOT NULL DEFAULT '[]',       -- 细标签 JSON 数组（多值）
+    classified_by TEXT   NOT NULL DEFAULT ''         -- ''=未分类 / rule / llm
 );
 CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
 
@@ -86,10 +89,31 @@ def get_conn() -> sqlite3.Connection:
     return conn
 
 
+# 幂等迁移：给**已存在**的表补列（CREATE TABLE IF NOT EXISTS 不会改已建的表）。
+# 主人机器上 augur.db 已有数据，故新列必须靠 PRAGMA 探测 + ALTER 补，而非只改 SCHEMA 字符串。
+# 新增列时在此追加一行 (表, 列, 列定义)；与 SCHEMA 里的定义保持一致。
+_MIGRATIONS: list[tuple[str, str, str]] = [
+    ("news_items", "theme", "TEXT NOT NULL DEFAULT ''"),
+    ("news_items", "topics", "TEXT NOT NULL DEFAULT '[]'"),
+    ("news_items", "classified_by", "TEXT NOT NULL DEFAULT ''"),
+]
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, col, ddl in _MIGRATIONS:
+        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if col not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+    # 新列上的索引须在补列之后建（不能放进 SCHEMA：已存在的表 executescript 时还没这列）
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_news_theme ON news_items(theme)")
+    conn.commit()
+
+
 def init_db() -> None:
     conn = get_conn()
     try:
         conn.executescript(SCHEMA)
         conn.commit()
+        _migrate(conn)
     finally:
         conn.close()

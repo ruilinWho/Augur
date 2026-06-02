@@ -14,6 +14,8 @@ class NewsItem(BaseModel):
     lang: str = ""
     category: str = ""
     published_at: str | None = None
+    theme: str = ""  # 主题主类（ai/chips/robotics/space/tech/markets/crypto/world/other）
+    topics: list[str] = []  # 细标签（多值）
 
 
 class NewsReport(BaseModel):

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { useQueryClient } from '@tanstack/react-query'
 import Collapse from '../../components/Collapse'
@@ -6,6 +6,20 @@ import { streamReport, useNewsFeed, useNewsReport, type NewsItem } from '../../a
 import { useNews } from './store'
 
 const EASE = [0.22, 1, 0.36, 1] as const
+
+// 主题展示名与排序（前沿方向在前；与后端 service.THEME_ORDER 一致）
+const THEME_META: Record<string, string> = {
+  ai: '大模型 / AI',
+  chips: '芯片 / 半导体',
+  robotics: '机器人',
+  space: '航天',
+  tech: '科技',
+  markets: '行情 / 宏观',
+  crypto: '加密',
+  world: '国际',
+  other: '其他',
+}
+const THEME_ORDER = ['ai', 'chips', 'robotics', 'space', 'tech', 'markets', 'crypto', 'world', 'other']
 
 // ── 极简内联：**加粗** → <strong> ──
 function inline(text: string): ReactNode[] {
@@ -71,17 +85,12 @@ function ago(iso: string | null): string {
   return `${Math.round(h / 24)}天前`
 }
 
-const CAT_LABEL: Record<string, string> = { markets: '行情', tech: '科技', world: '国际' }
-
 function Headline({ item }: { item: NewsItem }) {
   return (
     <a className="hl" href={item.url} target="_blank" rel="noreferrer">
       <span className="hl-src">{item.source}</span>
       <span className="hl-title">{item.title}</span>
-      <span className="hl-meta">
-        {item.category && <span className={`hl-cat c-${item.category}`}>{CAT_LABEL[item.category] ?? item.category}</span>}
-        {ago(item.published_at) && <span className="hl-ago">{ago(item.published_at)}</span>}
-      </span>
+      {ago(item.published_at) && <span className="hl-ago">{ago(item.published_at)}</span>}
     </a>
   )
 }
@@ -115,6 +124,13 @@ export default function KnowView() {
 
   const data = report.data
   const streaming = genState === 'loading'
+
+  // 今日要闻按主题分组（前沿方向在前）
+  const grouped = useMemo(() => {
+    const m: Record<string, NewsItem[]> = {}
+    for (const it of feed.data ?? []) (m[it.theme || 'other'] ??= []).push(it)
+    return THEME_ORDER.filter((t) => m[t]?.length).map((t) => [t, m[t]] as const)
+  }, [feed.data])
 
   return (
     <motion.div
@@ -164,9 +180,19 @@ export default function KnowView() {
           <span className="feed-count">{feed.data?.length ?? 0} 条</span>
         </div>
         <Collapse open={feedOpen}>
-          <div className="hl-list">
-            {feed.data?.map((it) => (
-              <Headline key={it.id} item={it} />
+          <div className="feed-groups">
+            {grouped.map(([theme, items]) => (
+              <div key={theme} className="feed-group">
+                <div className="fg-head">
+                  <span className="fg-theme">{THEME_META[theme] ?? theme}</span>
+                  <span className="fg-n">{items.length}</span>
+                </div>
+                <div className="hl-list">
+                  {items.map((it) => (
+                    <Headline key={it.id} item={it} />
+                  ))}
+                </div>
+              </div>
             ))}
             {feed.data && feed.data.length === 0 && (
               <div className="faint" style={{ padding: '12px 2px' }}>

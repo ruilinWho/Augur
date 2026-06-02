@@ -373,6 +373,8 @@ const newsItemSchema = z.object({
   lang: z.string().default(''),
   category: z.string().default(''),
   published_at: z.string().nullable().default(null),
+  theme: z.string().default(''),
+  topics: z.array(z.string()).default([]),
 })
 const newsReportSchema = z.object({
   report_date: z.string(),

@@ -1,5 +1,5 @@
 import { useEffect, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { useUI, type View } from './store'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
@@ -122,27 +122,27 @@ export default function App() {
         <ResizeHandle />
 
         <main className="stage">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: EASE }}
-              style={{ minHeight: '100%' }}
-            >
-              {view === 'kan' && (
-                <>
-                  <KLineView />
-                  {selectedSymbol && <FinancialsPanel symbol={selectedSymbol} />}
-                  {selectedSymbol && <JournalPanel symbol={selectedSymbol} />}
-                </>
-              )}
-              {view === 'yan' && <Placeholder pillar="研" />}
-              {view === 'zhi' && <KnowView />}
-              {view === 'set' && <SettingsView />}
-            </motion.div>
-          </AnimatePresence>
+          {/* 视图切换：keyed motion.div 只做进场动画。刻意不用 AnimatePresence——
+              本项目 motion+React19 下其 exit 不触发，mode="wait" 会卡住旧视图、新视图永不挂载
+              （见 docs/memory/frontend-gotchas.md）。换 key 即重挂载 + 进场淡入，干净可靠。 */}
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: EASE }}
+            style={{ minHeight: '100%' }}
+          >
+            {view === 'kan' && (
+              <>
+                <KLineView />
+                {selectedSymbol && <FinancialsPanel symbol={selectedSymbol} />}
+                {selectedSymbol && <JournalPanel symbol={selectedSymbol} />}
+              </>
+            )}
+            {view === 'yan' && <Placeholder pillar="研" />}
+            {view === 'zhi' && <KnowView />}
+            {view === 'set' && <SettingsView />}
+          </motion.div>
         </main>
       </div>
     </div>

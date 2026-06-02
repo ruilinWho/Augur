@@ -7,6 +7,7 @@ CLAUDE.md §5：出站请求带超时/UA、容忍单源失败（限流是真的�
 from __future__ import annotations
 
 import calendar
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
@@ -15,7 +16,7 @@ import feedparser
 import httpx
 
 from ..storage import get_conn
-from . import sources
+from . import classify, sources
 
 _UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
@@ -60,15 +61,21 @@ def fetch_feed(feed: dict, cutoff: datetime | None = None) -> list[dict]:
         dt = _published_dt(e)
         if cutoff is not None and dt is not None and dt < cutoff:
             continue  # 太旧 → 跳过（归档源保护）
+        summary = _clean(str(e.get("summary", "")))
+        cat = feed.get("category", "")
+        theme, topics = classify.classify_rule(title, summary, cat)
         items.append(
             {
                 "source": feed["name"],
                 "title": title[:500],
                 "url": url,
-                "summary": _clean(str(e.get("summary", ""))),
+                "summary": summary,
                 "lang": feed.get("lang", ""),
-                "category": feed.get("category", ""),
+                "category": cat,
                 "published_at": dt.isoformat() if dt else None,
+                "theme": theme,
+                "topics": json.dumps(topics, ensure_ascii=False),
+                "classified_by": "rule",
             }
         )
     return items
@@ -82,8 +89,10 @@ def _store(items: list[dict]) -> int:
         before = conn.total_changes
         conn.executemany(
             "INSERT OR IGNORE INTO news_items "
-            "(source, title, url, summary, lang, category, published_at) "
-            "VALUES (:source, :title, :url, :summary, :lang, :category, :published_at)",
+            "(source, title, url, summary, lang, category, published_at, "
+            "theme, topics, classified_by) "
+            "VALUES (:source, :title, :url, :summary, :lang, :category, :published_at, "
+            ":theme, :topics, :classified_by)",
             items,
         )
         conn.commit()
@@ -106,6 +115,7 @@ def ingest_all() -> dict:
             except Exception:  # noqa: BLE001 — 单源失败不应中断整体
                 failures.append(futures[fut]["name"])
     inserted = _store(all_items)
+    classify.backfill_rules()  # 给历史未分类条目补规则分类（幂等、只扫未分类行）
     return {
         "fetched": len(all_items),
         "inserted": inserted,

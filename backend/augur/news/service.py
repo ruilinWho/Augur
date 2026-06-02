@@ -6,6 +6,7 @@ I/O（网络在 ingest、磁盘在 storage、LLM 在 gateway）挡在外层，�
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -17,6 +18,30 @@ from . import ingest
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
+# 主题展示名与排序（前沿方向在前；与 classify.VALID_THEMES / 前端一致）
+THEME_LABEL = {
+    "ai": "大模型 / AI",
+    "chips": "芯片 / 半导体",
+    "robotics": "机器人",
+    "space": "航天",
+    "tech": "科技",
+    "markets": "行情 / 宏观",
+    "crypto": "加密",
+    "world": "国际",
+    "other": "其他",
+}
+THEME_ORDER = ["ai", "chips", "robotics", "space", "tech", "markets", "crypto", "world", "other"]
+
+
+def _item_out(row) -> dict:
+    """row → dict，并把 topics(JSON 字符串) 反序列化为列表。"""
+    d = dict(row)
+    try:
+        d["topics"] = json.loads(d.get("topics") or "[]")
+    except (json.JSONDecodeError, TypeError):
+        d["topics"] = []
+    return d
+
 
 def _today() -> str:
     return datetime.now(ZoneInfo(get_settings().tz)).strftime("%Y-%m-%d")
@@ -27,18 +52,18 @@ def refresh() -> dict:
     return ingest.ingest_all()
 
 
-def recent_items(limit: int = 60, category: str | None = None) -> list[dict]:
-    """最近条目（按发布时间倒序，缺发布时间用抓取时间兜底）。"""
+def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:
+    """最近条目（按发布时间倒序，缺发布时间用抓取时间兜底）。可按 theme 过滤。"""
     conn = get_conn()
     try:
         sql = "SELECT * FROM news_items"
         args: list = []
-        if category:
-            sql += " WHERE category = ?"
-            args.append(category)
+        if theme:
+            sql += " WHERE theme = ?"
+            args.append(theme)
         sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
         args.append(limit)
-        return [dict(r) for r in conn.execute(sql, args).fetchall()]
+        return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
     finally:
         conn.close()
 
@@ -81,7 +106,18 @@ def _load_prompt(name: str) -> str:
 
 
 def _headlines_block(items: list[dict]) -> str:
-    return "\n".join(f"- [{it['source']}] {it['title']}" for it in items)
+    """按主题分组喂给 LLM（让日报在既定主题骨架内蒸馏，更稳、更省 token）。"""
+    by_theme: dict[str, list[dict]] = {}
+    for it in items:
+        by_theme.setdefault(it.get("theme") or "other", []).append(it)
+    lines: list[str] = []
+    for th in THEME_ORDER:
+        group = by_theme.get(th)
+        if not group:
+            continue
+        lines.append(f"\n## {THEME_LABEL.get(th, th)}")
+        lines.extend(f"- [{it['source']}] {it['title']}" for it in group)
+    return "\n".join(lines).strip()
 
 
 def _save_report(report_date: str, body: str, model: str, item_count: int) -> None:

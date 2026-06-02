@@ -1,0 +1,147 @@
+# 主题分类关键词（news/classify.py 用）——版本化、主人可编辑（加新词无需改码）。
+# 规则：对每条新闻的「标题 + 摘要」做大小写无关的子串匹配；命中的主题进 topics（多标签）。
+# theme（单值主类）取命中里**优先级最高**的（下面 themes 的书写顺序即优先级，前沿方向在前）；
+# 都没命中则回退到该信源在 feeds.yaml 里的 category，再不行就 other。
+# 用途：把泛 tech/markets/world 源里的前沿内容（如 CNBC 讲英伟达）正确归到 chips/ai。
+
+themes:
+  ai:
+    - AI
+    - artificial intelligence
+    - LLM
+    - large language model
+    - GPT
+    - ChatGPT
+    - OpenAI
+    - Anthropic
+    - Claude
+    - Gemini
+    - DeepMind
+    - Llama
+    - Mistral
+    - Hugging Face
+    - generative
+    - AGI
+    - machine learning
+    - neural network
+    - inference
+    - agent
+    - 大模型
+    - 人工智能
+    - 生成式
+    - 智能体
+    - 神经网络
+    - 深度学习
+    - 推理模型
+    - 多模态
+
+  chips:
+    - chip
+    - semiconductor
+    - GPU
+    - HBM
+    - wafer
+    - foundry
+    - lithography
+    - EUV
+    - node
+    - Nvidia
+    - NVDA
+    - TSMC
+    - ASML
+    - AMD
+    - Intel
+    - Arm
+    - Qualcomm
+    - Broadcom
+    - SK Hynix
+    - Samsung
+    - DRAM
+    - NAND
+    - packaging
+    - 芯片
+    - 半导体
+    - 晶圆
+    - 光刻
+    - 制程
+    - 存储芯片
+    - 台积电
+    - 英伟达
+    - 海力士
+    - 中芯
+    - 算力
+
+  robotics:
+    - robot
+    - humanoid
+    - robotics
+    - autonomous
+    - self-driving
+    - drone
+    - actuator
+    - Boston Dynamics
+    - Optimus
+    - 机器人
+    - 人形
+    - 具身
+    - 自动驾驶
+    - 无人机
+    - 机械臂
+
+  space:
+    - space
+    - rocket
+    - satellite
+    - launch
+    - orbit
+    - lunar
+    - Mars
+    - spacecraft
+    - SpaceX
+    - Starship
+    - NASA
+    - ESA
+    - 航天
+    - 卫星
+    - 火箭
+    - 太空
+    - 星舰
+    - 探月
+    - 发射
+
+  crypto:
+    - crypto
+    - bitcoin
+    - ethereum
+    - blockchain
+    - stablecoin
+    - Web3
+    - 加密
+    - 比特币
+    - 以太坊
+    - 区块链
+
+  markets:
+    - earnings
+    - revenue
+    - guidance
+    - IPO
+    - stocks
+    - shares
+    - Fed
+    - interest rate
+    - inflation
+    - tariff
+    - GDP
+    - bond
+    - 财报
+    - 营收
+    - 净利
+    - 股市
+    - 美联储
+    - 利率
+    - 通胀
+    - 关税
+    - 上市
+    - 涨停
+    - 跌停
