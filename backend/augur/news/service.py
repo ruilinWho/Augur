@@ -17,7 +17,7 @@ from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
 from ..watchlist import service as wl
-from . import edgar, ingest, relevance, translate
+from . import edgar, ingest, relevance, ticker_news, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -112,8 +112,8 @@ def _stock_terms(symbol: str) -> list[str]:
     return [t for t in terms if len(t) >= 2]
 
 
-def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
-    """与某标的相关的新闻（标题/中文标题里出现公司名）。按发布时间倒序。"""
+def _feed_matches(symbol: str, limit: int = 20) -> list[dict]:
+    """聚合流里按公司名（中文展示名 + 英文名）匹配到的相关条目（含中文翻译）。"""
     terms = _stock_terms(symbol)
     if not terms:
         return []
@@ -133,6 +133,48 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
         return [_item_out(r) for r in rows]
     finally:
         conn.close()
+
+
+def _norm_url(u: str) -> str:
+    return (u or "").split("?")[0].rstrip("/").lower()
+
+
+def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
+    """个股相关新闻：雅虎逐-ticker API（更准、英文）∪ 聚合流按公司名匹配（中文翻译），
+    url 去重、时间倒序。API 走 ticker_news（失败/空则只剩聚合流，优雅降级）。
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    nid = -1
+    for it in ticker_news.ticker_news(symbol, limit=limit):
+        u = _norm_url(it["url"])
+        if not u or u in seen:
+            continue
+        seen.add(u)
+        out.append(
+            {
+                "id": nid,  # API 条目无 DB id，给负数占位（前端只用作 key）
+                "source": it["source"],
+                "title": it["title"],
+                "url": it["url"],
+                "summary": "",
+                "lang": "en",
+                "category": "",
+                "published_at": it["published_at"],
+                "theme": "",
+                "topics": [],
+                "title_zh": None,
+            }
+        )
+        nid -= 1
+    for it in _feed_matches(symbol, limit):
+        u = _norm_url(it["url"])
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(it)
+    out.sort(key=lambda x: x.get("published_at") or "", reverse=True)
+    return out[:limit]
 
 
 def stock_official(symbol: str, limit: int = 15) -> list[dict]:
