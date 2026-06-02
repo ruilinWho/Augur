@@ -76,10 +76,13 @@ const KAN_RENDER: Record<string, (symbol: string) => ReactNode> = {
 }
 
 function GripDots() {
+  // 竖向 2×3 点阵，适合放在模块标题左侧的把手
   return (
-    <svg width="14" height="9" viewBox="0 0 14 9" aria-hidden="true">
-      {[1.5, 7, 12.5].flatMap((cx) =>
-        [2, 7].map((cy) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.1" fill="currentColor" />),
+    <svg width="8" height="16" viewBox="0 0 8 16" aria-hidden="true">
+      {[2.5, 5.5].flatMap((cx) =>
+        [3, 8, 13].map((cy) => (
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.05" fill="currentColor" />
+        )),
       )}
     </svg>
   )

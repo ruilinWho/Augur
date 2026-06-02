@@ -355,6 +355,17 @@ export function useDeleteSection() {
   })
 }
 
+// 重命名按 section id（市场无关，后端单实体 UPDATE）；onSuccess 失效**所有市场**的 sections
+// 查询（useInvalidateSections 按 ['sections'] 前缀）→ 切到别的市场也即时一致，避免"分叉"。
+export function useRenameSection() {
+  const invalidate = useInvalidateSections()
+  return useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      send(`/watchlist/sections/${id}`, 'PATCH', { name }),
+    onSuccess: invalidate,
+  })
+}
+
 export function useDeleteItem() {
   const invalidate = useInvalidateSections()
   return useMutation({

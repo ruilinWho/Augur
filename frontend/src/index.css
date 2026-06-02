@@ -736,36 +736,52 @@ body.resizing * {
   font-weight: 400;
   margin-left: 4px;
 }
+/* 分区名双击重命名的内联输入框 */
+.nm-edit {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  margin: -2px 0;
+  outline: none;
+}
 
-/* 看·K线下方模块拖动重排：手柄常驻在模块顶部中央（in-flow，不遮挡、不裁切）*/
+/* 看·K线下方模块拖动重排：手柄在模块标题**左侧**的留白里，hover 才浮现（stage 左 padding 28px，
+   故 left:-22px 落在 gutter 内、不裁切）。仅手柄可拖，模块内交互不受影响。 */
 .kan-mod {
   position: relative;
   margin-top: 14px;
 }
-.kan-mod > :last-child {
-  margin-top: 0; /* 间距由手柄区给，避免双重留白 */
-}
 .kan-grip {
+  position: absolute;
+  top: 13px;
+  left: -22px;
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 18px;
-  margin: 0 auto 5px;
+  width: 18px;
+  height: 24px;
   border: 0;
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text-muted);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
   cursor: grab;
-  opacity: 1;
-  transition: color 0.15s ease, background 0.15s ease;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
   touch-action: none;
 }
 .kan-mod:hover .kan-grip {
-  background: var(--surface-2);
-  color: var(--text);
+  opacity: 0.85;
 }
 .kan-grip:hover {
+  opacity: 1;
   color: var(--accent);
   background: var(--surface-2);
 }
@@ -775,6 +791,15 @@ body.resizing * {
 .kan-mod.dragging {
   border-radius: var(--radius);
   box-shadow: 0 10px 34px rgba(60, 40, 30, 0.13);
+}
+/* 设置卡片里的二选/多选段控：等宽、铺满卡片宽 → 两个选项也对称 */
+.scard .seg {
+  display: flex;
+  width: 100%;
+}
+.scard .seg button {
+  flex: 1;
+  text-align: center;
 }
 
 /* ───────────────────────── 占位（研/知）───────────────────────── */

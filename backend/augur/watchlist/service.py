@@ -20,6 +20,10 @@ class NotFound(ValueError):
     pass
 
 
+class Duplicate(ValueError):
+    """同层已有同名板块（重命名会造成"分叉"——两个同名分区）。"""
+
+
 def _item_out(row: sqlite3.Row) -> dict:
     return {
         "id": row["id"],
@@ -132,12 +136,23 @@ def create_section(name: str, parent_id: int | None = None) -> dict:
 
 
 def rename_section(section_id: int, name: str) -> None:
+    """按 id 重命名（市场无关，单实体）。拒绝空名 + 同层重名（防"分叉"出两个同名分区）。"""
+    name = name.strip()
+    if not name:
+        raise ValueError("板块名不能为空")
     conn = get_conn()
     try:
-        cur = conn.execute("UPDATE sections SET name = ? WHERE id = ?", (name.strip(), section_id))
-        conn.commit()
-        if cur.rowcount == 0:
+        row = conn.execute("SELECT parent_id FROM sections WHERE id = ?", (section_id,)).fetchone()
+        if row is None:
             raise NotFound(f"板块 {section_id} 不存在")
+        dup = conn.execute(
+            "SELECT 1 FROM sections WHERE name = ? AND parent_id IS ? AND id != ?",
+            (name, row["parent_id"], section_id),
+        ).fetchone()
+        if dup is not None:
+            raise Duplicate(f"同层已有同名板块「{name}」")
+        conn.execute("UPDATE sections SET name = ? WHERE id = ?", (name, section_id))
+        conn.commit()
     finally:
         conn.close()
 

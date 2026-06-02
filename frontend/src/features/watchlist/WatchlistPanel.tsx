@@ -29,6 +29,7 @@ import {
   useDeleteItem,
   useMoveItem,
   useQuote,
+  useRenameSection,
   useReorder,
   useSearch,
   useSections,
@@ -249,30 +250,87 @@ function SectionHeader({
   onDelete: () => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `sec:${section.id}` })
+  const rename = useRenameSection()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(section.name)
+  const clickT = useRef<number | null>(null)
   const stop = (fn: () => void) => (e: { stopPropagation: () => void }) => {
     e.stopPropagation()
     fn()
   }
+  // 单击折叠 / 双击改名 消歧：单击延后 190ms，若紧接双击则取消（避免改名时误折叠）
+  const handleClick = () => {
+    if (editing) return
+    if (clickT.current) window.clearTimeout(clickT.current)
+    clickT.current = window.setTimeout(() => {
+      clickT.current = null
+      onToggle()
+    }, 190)
+  }
+  const startEdit = () => {
+    if (clickT.current) {
+      window.clearTimeout(clickT.current)
+      clickT.current = null
+    }
+    setDraft(section.name)
+    setEditing(true)
+  }
+  const commit = () => {
+    setEditing(false)
+    const v = draft.trim()
+    if (v && v !== section.name) rename.mutate({ id: section.id, name: v })
+  }
+  useEffect(
+    () => () => {
+      if (clickT.current != null) window.clearTimeout(clickT.current)
+    },
+    [],
+  )
+
   return (
     <div
       ref={setNodeRef}
       className={`row${level} ${isOver ? 'drop-into' : ''}`}
-      onClick={onToggle}
+      onClick={handleClick}
       role="button"
     >
-      <span className="nm">{section.name}</span>
-      <span className="ct">{count}</span>
-      {onAddSub && (
-        <span className="add" title="加子板块" onClick={stop(onAddSub)}>
-          ⊞
-        </span>
+      {editing ? (
+        <input
+          className="nm-edit"
+          autoFocus
+          value={draft}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') commit()
+            else if (e.key === 'Escape') {
+              setEditing(false)
+              setDraft(section.name)
+            }
+          }}
+        />
+      ) : (
+        <>
+          <span className="nm" title="双击重命名" onDoubleClick={stop(startEdit)}>
+            {section.name}
+          </span>
+          <span className="ct">{count}</span>
+          {onAddSub && (
+            <span className="add" title="加子板块" onClick={stop(onAddSub)}>
+              ⊞
+            </span>
+          )}
+          <span className="add" title="加标的" onClick={stop(onAddStock)}>
+            ＋
+          </span>
+          <span className="del" title="删板块" onClick={stop(onDelete)}>
+            ×
+          </span>
+        </>
       )}
-      <span className="add" title="加标的" onClick={stop(onAddStock)}>
-        ＋
-      </span>
-      <span className="del" title="删板块" onClick={stop(onDelete)}>
-        ×
-      </span>
     </div>
   )
 }

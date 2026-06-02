@@ -40,6 +40,10 @@ async def rename_section(section_id: int, body: SectionRename) -> None:
         await run_in_threadpool(service.rename_section, section_id, body.name)
     except service.NotFound as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except service.Duplicate as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @router.delete("/sections/{section_id}", status_code=204)
