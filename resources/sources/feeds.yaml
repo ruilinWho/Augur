@@ -2,54 +2,129 @@
 # 每条一个 RSS/Atom 源；ingest 并发抓取、容忍单源失败、按发布时间过滤近期。
 #   lang:     en / zh / ko
 #   category: 既是信源粗类、也作主题分类(classify)的回退输入
-#             ai 大模型 · chips 芯片 · robotics 机器人 · space 航天 · tech 泛科技 · markets 行情 · world 国际
-# 全部经 httpx+feedparser 实测可抓（2026-06）。想加源：照抄一条改 4 个字段即可。
+#             ai 大模型 · chips 芯片 · robotics 机器人 · space 航天 · tech 泛科技
+#             · markets 行情 · macro 宏观/政策（美联储/经济数据/监管） · world 国际
+#
+# 取舍原则（2026-06 调研定稿，主人："顶级一手信源是整个系统的生死攸关"）：
+#   一手 > 二手。优先 央行/监管机构/官方编号数据/公司新闻室·IR/官方研究博客，
+#   其次才是精英二手（WSJ/FT/The Information/SemiAnalysis…）。
+#   公司**个股**级一手（SEC EDGAR 财报/8-K、IR、官方 X）走 news/edgar.py 一条龙，不在此清单。
+#   arXiv 论文流为「论文 lane」，量太大会淹没日报，暂不并入主清单（见 roadmap 待办）。
+# 全部经 httpx+feedparser 实测（2026-06）；少数 .gov（BLS 等）会按 IP 风控，
+#   本机住宅 IP 可达即保留（ingest 容忍单源失败，不会因偶发 403 删源）。
+# 想加源：照抄一条改 4 个字段即可。
 
 feeds:
-  # ── 大模型 / AI ──
+  # ════════════════ 大模型 / AI（一手实验室在前）════════════════
+  # —— 一手：官方实验室 / 研究博客 / 新闻室 ——
   - { name: "OpenAI News", url: "https://openai.com/news/rss.xml", lang: en, category: ai }
-  - { name: "Google DeepMind News", url: "https://deepmind.google/blog/rss.xml", lang: en, category: ai }
   - { name: "Anthropic News·镜像", url: "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml", lang: en, category: ai }
+  - { name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml", lang: en, category: ai }
+  - { name: "Google AI (The Keyword)", url: "https://blog.google/technology/ai/rss/", lang: en, category: ai }
+  - { name: "Google Research", url: "https://research.google/blog/rss/", lang: en, category: ai }
+  - { name: "Microsoft Research", url: "https://www.microsoft.com/en-us/research/feed/", lang: en, category: ai }
+  - { name: "Meta · Newsroom", url: "https://about.fb.com/news/feed/", lang: en, category: ai }
+  - { name: "Meta · Engineering", url: "https://engineering.fb.com/feed/", lang: en, category: ai }
+  - { name: "NVIDIA Blog", url: "https://blogs.nvidia.com/feed/", lang: en, category: ai }
+  - { name: "NVIDIA 技术博客", url: "https://developer.nvidia.com/blog/feed/", lang: en, category: ai }
+  - { name: "Apple ML Research", url: "https://machinelearning.apple.com/rss.xml", lang: en, category: ai }
+  - { name: "AWS ML Blog", url: "https://aws.amazon.com/blogs/machine-learning/feed/", lang: en, category: ai }
   - { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", lang: en, category: ai }
-  - { name: "The Decoder", url: "https://the-decoder.com/feed/", lang: en, category: ai }
+  - { name: "Mistral·镜像", url: "https://raw.githubusercontent.com/0xSMW/rss-feeds/main/feeds/feed_mistral_news.xml", lang: en, category: ai }
+  - { name: "Berkeley BAIR", url: "https://bair.berkeley.edu/blog/feed.xml", lang: en, category: ai }
+  # —— 精英二手 / 行业 ——
   - { name: "Import AI(Jack Clark)", url: "https://importai.substack.com/feed", lang: en, category: ai }
+  - { name: "The Decoder", url: "https://the-decoder.com/feed/", lang: en, category: ai }
+  - { name: "IEEE Spectrum · AI", url: "https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss", lang: en, category: ai }
+  - { name: "Ars Technica · AI", url: "https://arstechnica.com/ai/feed/", lang: en, category: ai }
+  - { name: "The Verge · AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", lang: en, category: ai }
+  - { name: "TechCrunch · AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/", lang: en, category: ai }
   - { name: "量子位 QbitAI", url: "https://www.qbitai.com/feed", lang: zh, category: ai }
   - { name: "雷锋网 (Leiphone) · AI", url: "https://www.leiphone.com/feed/categoryRss/name/ai", lang: zh, category: ai }
-  - { name: "WIRED Business", url: "https://www.wired.com/feed/category/business/latest/rss", lang: en, category: ai }
 
-  # ── 芯片 / 半导体 ──
+  # ════════════════ 芯片 / 半导体（官方新闻室·IR 在前）════════════════
+  - { name: "NVIDIA Newsroom", url: "https://nvidianews.nvidia.com/releases.xml", lang: en, category: chips }
+  - { name: "Intel Newsroom", url: "https://newsroom.intel.com/feed", lang: en, category: chips }
+  - { name: "AMD · IR 新闻", url: "https://ir.amd.com/rss/news-releases.xml", lang: en, category: chips }
+  - { name: "Micron · IR 新闻", url: "https://investors.micron.com/rss/news-releases.xml", lang: en, category: chips }
+  - { name: "Broadcom · IR 新闻", url: "https://investors.broadcom.com/rss/news-releases.xml", lang: en, category: chips }
+  - { name: "Arm Newsroom", url: "https://newsroom.arm.com/feed", lang: en, category: chips }
+  - { name: "SK hynix Newsroom", url: "https://news.skhynix.com/feed/", lang: en, category: chips }
+  # —— 精英二手 / 行业 ——
   - { name: "SemiAnalysis (Dylan Patel)", url: "https://semianalysis.com/feed/", lang: en, category: chips }
   - { name: "Semiconductor Engineering", url: "https://semiengineering.com/feed/", lang: en, category: chips }
   - { name: "EE Times", url: "https://www.eetimes.com/feed/", lang: en, category: chips }
   - { name: "DIGITIMES Asia", url: "https://www.digitimes.com/rss/daily.xml", lang: en, category: chips }
   - { name: "The Elec (韩国半导体专门)", url: "https://www.thelec.net/rss/allArticle.xml", lang: en, category: chips }
   - { name: "Tom's Hardware", url: "https://www.tomshardware.com/feeds.xml", lang: en, category: chips }
-  - { name: "IEEE Spectrum — Semiconductors", url: "https://spectrum.ieee.org/feeds/topic/semiconductors.rss", lang: en, category: chips }
+  - { name: "IEEE Spectrum · 半导体", url: "https://spectrum.ieee.org/feeds/topic/semiconductors.rss", lang: en, category: chips }
 
-  # ── 机器人 / 具身 ──
-  - { name: "IEEE Spectrum Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", lang: en, category: robotics }
+  # ════════════════ 机器人 / 具身 ════════════════
+  - { name: "Boston Dynamics", url: "https://bostondynamics.com/feed/", lang: en, category: robotics }  # 官方 RSS，偶有空窗
+  - { name: "The Robot Report", url: "https://www.therobotreport.com/feed/", lang: en, category: robotics }  # Cloudflare：本机住宅 IP 可达，数据中心 IP 被挡
+  - { name: "IEEE Spectrum · Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", lang: en, category: robotics }
   - { name: "Robohub", url: "https://robohub.org/feed/", lang: en, category: robotics }
   - { name: "Humanoids Daily", url: "https://www.humanoidsdaily.com/feed.xml", lang: en, category: robotics }
 
-  # ── 航天 ──
+  # ════════════════ 航天（官方机构在前）════════════════
+  - { name: "NASA · 新闻稿", url: "https://www.nasa.gov/news-release/feed/", lang: en, category: space }
+  - { name: "NASA · 突发", url: "https://www.nasa.gov/rss/dyn/breaking_news.rss", lang: en, category: space }
+  - { name: "NASA · 科学", url: "https://science.nasa.gov/feed/", lang: en, category: space }
+  - { name: "NASA JPL · 新闻", url: "https://www.jpl.nasa.gov/feeds/news/", lang: en, category: space }
+  - { name: "ESA · Top News", url: "https://www.esa.int/rssfeed/TopNews", lang: en, category: space }
+  - { name: "ESA · 航天运输", url: "https://www.esa.int/rssfeed/Our_Activities/Space_Transportation", lang: en, category: space }
+  - { name: "Rocket Lab · IR 新闻", url: "https://investors.rocketlabusa.com/rss/news-releases.xml", lang: en, category: space }
+  - { name: "IEEE Spectrum · 航空航天", url: "https://spectrum.ieee.org/feeds/topic/aerospace.rss", lang: en, category: space }
+  # —— 精英二手 / 行业 ——
   - { name: "SpaceNews", url: "https://spacenews.com/feed/", lang: en, category: space }
   - { name: "Payload", url: "https://payloadspace.com/feed/", lang: en, category: space }
-  - { name: "Ars Technica — Space", url: "https://arstechnica.com/space/feed/", lang: en, category: space }
-  - { name: "NASA Breaking News", url: "https://www.nasa.gov/rss/dyn/breaking_news.rss", lang: en, category: space }
-  - { name: "ESA Top News", url: "https://www.esa.int/rssfeed/TopNews", lang: en, category: space }
+  - { name: "Ars Technica · Space", url: "https://arstechnica.com/space/feed/", lang: en, category: space }
   - { name: "Space.com", url: "https://www.space.com/feeds.xml", lang: en, category: space }
 
-  # ── 科技综合 ──
+  # ════════════════ 科技综合 ════════════════
+  - { name: "The Information", url: "https://www.theinformation.com/feed", lang: en, category: tech }  # Cloudflare：本机住宅 IP 可达；标题/链接入流，正文需订阅
+  - { name: "Stratechery (Ben Thompson)", url: "https://stratechery.com/feed/", lang: en, category: tech }
+  - { name: "MIT Technology Review", url: "https://www.technologyreview.com/feed/", lang: en, category: tech }
+  - { name: "Microsoft Blog", url: "https://blogs.microsoft.com/feed/", lang: en, category: tech }
+  - { name: "Google · The Keyword", url: "https://blog.google/rss/", lang: en, category: tech }
+  - { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
+  - { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", lang: en, category: tech }
+  - { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: en, category: tech }
+  - { name: "CNBC · Technology", url: "https://www.cnbc.com/id/19854910/device/rss/rss.html", lang: en, category: tech }
   - { name: "36氪 (36Kr)", url: "https://36kr.com/feed", lang: zh, category: tech }
   - { name: "钛媒体 TMTPost", url: "https://www.tmtpost.com/feed", lang: zh, category: tech }
   - { name: "IT之家 (ITHome)", url: "https://www.ithome.com/rss/", lang: zh, category: tech }
   - { name: "TechNode", url: "https://technode.com/feed/", lang: en, category: tech }
   - { name: "KrASIA (36Kr Global)", url: "https://console.kr-asia.com/feed", lang: en, category: tech }
-  - { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
-  - { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", lang: en, category: tech }
-  - { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: en, category: tech }
-  - { name: "CNBC Technology", url: "https://www.cnbc.com/id/19854910/device/rss/rss.html", lang: en, category: tech }
 
-  # ── 行情 / 宏观 ──
+  # ════════════════ 行情（精英二手·desk 级）════════════════
+  - { name: "WSJ · Markets", url: "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain", lang: en, category: markets }
+  - { name: "MarketWatch · 头条", url: "https://feeds.content.dowjones.io/public/rss/mw_topstories", lang: en, category: markets }
+  - { name: "FT · Markets", url: "https://www.ft.com/markets?format=rss", lang: en, category: markets }
+  - { name: "CNBC · 美股头条", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", lang: en, category: markets }
   - { name: "华尔街见闻 (WallStreetCN)", url: "https://dedicated.wallstreetcn.com/rss.xml", lang: zh, category: markets }
-  - { name: "CNBC 美股头条", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", lang: en, category: markets }
+
+  # ════════════════ 宏观 / 政策（美联储·官方数据·监管，全一手）════════════════
+  # —— 美联储 ——
+  - { name: "美联储 · 新闻稿", url: "https://www.federalreserve.gov/feeds/press_all.xml", lang: en, category: macro }
+  - { name: "美联储 · 货币政策(FOMC)", url: "https://www.federalreserve.gov/feeds/press_monetary.xml", lang: en, category: macro }
+  - { name: "美联储 · 演讲", url: "https://www.federalreserve.gov/feeds/speeches.xml", lang: en, category: macro }
+  - { name: "美联储 · 国会证词", url: "https://www.federalreserve.gov/feeds/testimony.xml", lang: en, category: macro }
+  - { name: "美联储 · 主席 Powell", url: "https://www.federalreserve.gov/feeds/s_t_powell.xml", lang: en, category: macro }
+  - { name: "美联储 · FEDS Notes", url: "https://www.federalreserve.gov/feeds/feds_notes.xml", lang: en, category: macro }
+  - { name: "纽约联储 · Liberty Street", url: "https://libertystreeteconomics.newyorkfed.org/feed/", lang: en, category: macro }
+  - { name: "亚特兰大联储 · Macroblog", url: "https://www.atlantafed.org/rss/macroblog", lang: en, category: macro }
+  - { name: "旧金山联储 · 研究", url: "https://www.frbsf.org/research-and-insights/feed/", lang: en, category: macro }
+  - { name: "达拉斯联储 · 动态", url: "https://www.dallasfed.org/rss/updates.xml", lang: en, category: macro }
+  - { name: "芝加哥联储 · 数据发布", url: "https://www.chicagofed.org/forms/rss/DataReleases", lang: en, category: macro }
+  # —— 官方经济数据 ——
+  - { name: "BEA · 经济分析局(GDP/PCE)", url: "https://apps.bea.gov/rss/rss.xml", lang: en, category: macro }
+  - { name: "Census · 经济指标", url: "https://www.census.gov/economic-indicators/indicator.xml", lang: en, category: macro }
+  - { name: "BLS · 主要指标最新值", url: "https://www.bls.gov/feed/bls_latest.rss", lang: en, category: macro }
+  - { name: "BLS · 就业报告(NFP)", url: "https://www.bls.gov/feed/empsit.rss", lang: en, category: macro }
+  - { name: "BLS · CPI 通胀", url: "https://www.bls.gov/feed/cpi.rss", lang: en, category: macro }
+  - { name: "美国财政部 · 国债拍卖", url: "https://www.treasurydirect.gov/TA_WS/securities/auctioned?format=rss", lang: en, category: macro }
+  # —— 监管（与科技/市场相关）——
+  - { name: "SEC · 新闻稿", url: "https://www.sec.gov/news/pressreleases.rss", lang: en, category: macro }
+  - { name: "FTC · 新闻稿", url: "https://www.ftc.gov/feeds/press-release.xml", lang: en, category: macro }
+  - { name: "DOJ 反垄断局 · 新闻稿", url: "https://www.justice.gov/news/rss?type%5B0%5D=press_release&field_component=376&require_all=0", lang: en, category: macro }

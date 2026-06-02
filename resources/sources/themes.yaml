@@ -121,6 +121,52 @@ themes:
     - 以太坊
     - 区块链
 
+  # 宏观 / 政策：美联储、官方经济数据、监管机构。放在 markets 之前，
+  # 让 "Fed/CPI/反垄断" 类优先归宏观；含公司名时仍先被 ai/chips 等前沿主题截走（多标签兼得）。
+  macro:
+    - Fed
+    - Federal Reserve
+    - FOMC
+    - Powell
+    - rate cut
+    - rate hike
+    - interest rate
+    - rate decision
+    - basis points
+    - inflation
+    - CPI
+    - PPI
+    - GDP
+    - payrolls
+    - nonfarm
+    - unemployment
+    - jobless
+    - Treasury
+    - Treasuries
+    - bond
+    - bonds
+    - yield
+    - tariff
+    - recession
+    - antitrust
+    - regulator
+    - regulators
+    - regulation
+    - SEC
+    - FTC
+    - DOJ
+    - 美联储
+    - 利率
+    - 加息
+    - 降息
+    - 通胀
+    - 关税
+    - 国债
+    - 衰退
+    - 反垄断
+    - 监管
+    - 宏观
+
   markets:
     - earnings
     - revenue
@@ -128,20 +174,13 @@ themes:
     - IPO
     - stocks
     - shares
-    - Fed
-    - interest rate
-    - inflation
-    - tariff
-    - GDP
-    - bond
+    - buyback
+    - dividend
+    - valuation
     - 财报
     - 营收
     - 净利
     - 股市
-    - 美联储
-    - 利率
-    - 通胀
-    - 关税
     - 上市
     - 涨停
     - 跌停

@@ -28,12 +28,24 @@ THEME_LABEL = {
     "robotics": "机器人",
     "space": "航天",
     "tech": "科技",
-    "markets": "行情 / 宏观",
+    "markets": "行情",
+    "macro": "宏观 / 政策",
     "crypto": "加密",
     "world": "国际",
     "other": "其他",
 }
-THEME_ORDER = ["ai", "chips", "robotics", "space", "tech", "markets", "crypto", "world", "other"]
+THEME_ORDER = [
+    "ai",
+    "chips",
+    "robotics",
+    "space",
+    "tech",
+    "markets",
+    "macro",
+    "crypto",
+    "world",
+    "other",
+]
 
 
 def _item_out(row) -> dict:
@@ -365,9 +377,7 @@ def generate_opportunities(report_date: str | None = None, role: str = "summariz
     if not items:
         raise ValueError("暂无新闻条目，请先刷新（POST /news/refresh）")
     block, by_n = _items_block(items)
-    prompt = (
-        _load_prompt("news_opportunities").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
-    )
+    prompt = _load_prompt("news_opportunities").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)
     raw = gateway.complete(
         [{"role": "user", "content": prompt}],

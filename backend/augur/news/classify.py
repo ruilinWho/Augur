@@ -22,7 +22,18 @@ from ..config import get_settings
 from ..storage import get_conn
 
 # 兜底回退用的合法主题集合（与 db.py 注释、service.THEME_ORDER、前端保持一致）
-VALID_THEMES = {"ai", "chips", "robotics", "space", "tech", "markets", "crypto", "world", "other"}
+VALID_THEMES = {
+    "ai",
+    "chips",
+    "robotics",
+    "space",
+    "tech",
+    "markets",
+    "macro",
+    "crypto",
+    "world",
+    "other",
+}
 
 
 @lru_cache

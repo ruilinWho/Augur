@@ -75,8 +75,8 @@
 ## M3 · 新闻聚合 + 趋势日报 + 投资机会 🟡（推进中）
 
 详见 [ADR-0005](decisions/0005-news-classification-translation-opportunities.md)。
-- ✅ **信源**：`feeds.yaml` **41 个前沿顶级源**（AI/芯片/航天/机器人/科技/中/韩；workflow 并行发现 + httpx/feedparser 实测 43/45 可抓）。`ingest.py` **并发**抓取 + 近 30 天过滤 + url 去重；`news_items`/`news_reports`/`news_opportunities` 表 + 幂等迁移。
-- ✅ **主题分类**：`classify.py`+`themes.yaml`（9 主题，规则法、ASCII 词边界匹配、CJK 子串），ingest store-time 打标 + backfill；日报/要闻按主题分组。
+- ✅ **信源（一手优先，~90 源）**：`feeds.yaml` 扩到 **~90 个一手为主的顶级源**——**央行/监管/官方经济数据/公司新闻室·IR/官方研究博客 > 精英二手**（美联储全家 FOMC/Powell/演讲/FEDS Notes + 地区联储、BEA/Census/BLS、SEC/FTC/DOJ反垄断、Treasury 拍卖；OpenAI/DeepMind/Google Research/MSR/Meta/NVIDIA/Apple ML 等官方实验室；Intel/AMD/Micron/Broadcom/Arm/SK hynix 芯片新闻室·IR；NASA/JPL/ESA/Rocket Lab；WSJ/FT/The Information/SemiAnalysis 二手）。workflow 4 路并行调研 + httpx/feedparser 硬验证 **90/93 实测可抓**（个别 Cloudflare 源数据中心 IP 被挡、住宅 IP 可达）。`ingest.py` **并发**抓取 + 近 30 天过滤 + url 去重；`news_items`/`news_reports`/`news_opportunities` 表 + 幂等迁移。arXiv 论文流量太大暂列「论文 lane」待办。
+- ✅ **主题分类**：`classify.py`+`themes.yaml`（**10 主题**含新增 **macro 宏观/政策**＝美联储/经济数据/监管；规则法、ASCII 词边界匹配、CJK 子串），ingest store-time 打标 + backfill；日报/要闻按主题分组。
 - ✅ **标题翻译**：`translate.py`（en/ko→zh，cheap 角色批量编号清单 + JSON mode，缓存 `title_zh`，隐私优先不用 DeepL/Google）。
 - ✅ **趋势日报**：`generate_report_stream`（summarize，按主题分组喂 prompt，SSE 流式落库，一天一份覆盖）。
 - ✅ **今日投资机会**：两阶段防幻觉——LLM 给「公司名+市场+code_guess」→ `market.search` 接地真实 `MARKET:CODE`（弱模糊判未解析）+ 交叉自选高亮；`GET/POST /news/opportunities`，前端机会卡（chip 跳「看」、已关注陶土高亮、非投资建议脚注）。

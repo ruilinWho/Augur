@@ -15,12 +15,13 @@ const THEME_META: Record<string, string> = {
   robotics: '机器人',
   space: '航天',
   tech: '科技',
-  markets: '行情 / 宏观',
+  markets: '行情',
+  macro: '宏观 / 政策',
   crypto: '加密',
   world: '国际',
   other: '其他',
 }
-const THEME_ORDER = ['ai', 'chips', 'robotics', 'space', 'tech', 'markets', 'crypto', 'world', 'other']
+const THEME_ORDER = ['ai', 'chips', 'robotics', 'space', 'tech', 'markets', 'macro', 'crypto', 'world', 'other']
 
 // ── 极简内联：**加粗** → <strong> ──
 function inline(text: string): ReactNode[] {
