@@ -1,0 +1,28 @@
+# 新闻信源清单（CLAUDE.md §1「知」/ M3）——版本化、主人可编辑。
+# 每条一个 RSS/Atom 源；ingest 容忍单源失败（超时/404 跳过，不影响其余）。
+#   lang:     en / zh / ko
+#   category: markets（行情/宏观）· tech（科技/半导体/AI）· world（国际要闻）
+# 想加源：照抄一条改 name/url/lang/category 即可。挑稳定的官方 RSS，别堆太多以免拖慢/触发限流。
+
+feeds:
+  # ── 行情 · 宏观 ───────────────────────────────────────────
+  - { name: CNBC, url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", lang: en, category: markets }
+  - { name: CNBC 市场, url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258", lang: en, category: markets }
+  - { name: Yahoo Finance, url: "https://finance.yahoo.com/news/rssindex", lang: en, category: markets }
+  - { name: MarketWatch, url: "http://feeds.marketwatch.com/marketwatch/topstories/", lang: en, category: markets }
+
+  # ── 科技 · 半导体 · AI ────────────────────────────────────
+  - { name: The Verge, url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
+  - { name: Ars Technica, url: "https://feeds.arstechnica.com/arstechnica/index", lang: en, category: tech }
+  - { name: Hacker News, url: "https://hnrss.org/frontpage", lang: en, category: tech }
+  - { name: TechCrunch, url: "https://techcrunch.com/feed/", lang: en, category: tech }
+
+  # ── 国际要闻 ──────────────────────────────────────────────
+  - { name: BBC World, url: "https://feeds.bbci.co.uk/news/world/rss.xml", lang: en, category: world }
+  - { name: NPR News, url: "https://feeds.npr.org/1001/rss.xml", lang: en, category: world }
+
+  # ── 中文源 ────────────────────────────────────────────────
+  - { name: 36氪, url: "https://36kr.com/feed", lang: zh, category: tech }
+
+  # ── 韩国 ──────────────────────────────────────────────────
+  - { name: Korea Herald, url: "http://www.koreaherald.com/rss/020000000000.xml", lang: ko, category: markets }

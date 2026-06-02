@@ -225,7 +225,7 @@ cd frontend && pnpm dev
 
 ## 12. 当前状态与下一步
 
-- **现在：** M1 + M1.5 + M1.6 ✅，**M2 起步中**。M1.6 = 全市场检索加股、拖拽换区、可调栏宽、判断日记、个股显示中文名（详见 §7/§8）。**M2 已落地**：**LLM 网关接通**（`.env` 配 DeepSeek + OhMyGPT 中转，`config.py` load_dotenv，四角色实测可用，/llm/chat 流式验证）、**基本面**（yfinance）：快照指标条（市值/P-E/净利率）置于 **K 线上方**；K 线下方 **财报分析** 历史趋势表（营收/增长/净利/净利率/EPS/FCF，**季度（默认）/ 年度可切**、最新在右、横向可滚，关键行默认显示、「更多指标」展开，带财报链接；同比口径）。**自选分区去重**：同层同名板块幂等（重复创建返回既有，根治"两个大模型"）。真机截图验证、零控制台错、构建通过。
-- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /health`）。LLM 需 `backend/.env`（见 `.env.example`，**密钥永不入库**）。
-- **下一步（M2 续）：** `research/` 深度研究编排（多轮：行情+基本面+新闻+网络 → 综合 → 引用）；财报分析接更结构化的财报数据。
+- **现在：** M1 + M1.5 + M1.6 + M2 ✅，**M3「知」起步中**。M1.6 = 全市场检索加股、拖拽换区、可调栏宽、判断日记、个股显示中文名（详见 §7/§8）。**M2**：**LLM 网关接通**（`.env` 配 DeepSeek + OhMyGPT 中转，`config.py` load_dotenv，四角色实测可用，/llm/chat 流式验证）、**基本面**（yfinance）：快照指标条（市值/P-E/净利率）置于 **K 线上方**；K 线下方 **财报分析** 历史趋势表（营收/增长/净利/净利率/EPS/FCF，**季度（默认）/ 年度可切**、最新在右、横向可滚，关键行默认显示、「更多指标」展开，带财报链接；同比口径）。**自选分区去重**：同层同名幂等。**折叠组件**：统一 `components/Collapse.tsx`（grid `0fr↔1fr`，避开 Tailwind `.collapse` 撞名 + motion 失效坑——见 [docs/memory/frontend-gotchas.md](docs/memory/frontend-gotchas.md)），无折叠小三角。**M3 起步**：`news/` RSS 摄取（feedparser，源清单 `resources/sources/feeds.yaml`，12 源/240 条实测，按 url 去重落 SQLite）→ LLM（summarize 角色）蒸馏 **趋势日报**（SSE 流式、落库、一天一份、覆盖重生成、提示词 `resources/prompts/news_digest.md`）；**APScheduler 每日 07:30** 自动抓取+生成；前端**「知」Tab** = 日报列表（左）＋日报正文（轻量 Markdown 渲染）＋今日要闻流（信源/分类/相对时间）。真机截图验证、零控制台错、ruff+tsc+build 全过。
+- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /news /health`）。LLM 需 `backend/.env`（见 `.env.example`，**密钥永不入库**）。
+- **下一步：** M3 续——日报按**自选分区**聚合（板块相关新闻）、源清单扩充与质量过滤、信源健康度；M2 续——`research/` 深度研究编排（多轮：行情+基本面+新闻+网络 → 综合 → 引用）。
 - 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。

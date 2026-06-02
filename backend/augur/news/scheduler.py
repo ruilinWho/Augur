@@ -1,0 +1,68 @@
+"""每日新闻任务（APScheduler）：抓取信源 + （若 LLM 就绪）生成趋势日报。
+
+后台线程调度（BackgroundScheduler）——任务是阻塞 I/O，跑在独立线程不挡事件循环。
+失败只记日志、绝不让 app 启动/运行崩掉。时区取 settings.tz。
+"""
+
+from __future__ import annotations
+
+import logging
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+from ..config import get_settings
+from ..llm import gateway
+from . import service
+
+log = logging.getLogger("augur.news")
+_scheduler: BackgroundScheduler | None = None
+
+
+def _daily_job() -> None:
+    try:
+        res = service.refresh()
+        log.info("news ingest: %s", res)
+    except Exception:  # noqa: BLE001
+        log.exception("news ingest failed")
+    # 仅当 summarize 角色就绪时才生成日报（未配置 LLM → 静默跳过，不报错）
+    try:
+        gateway.check_ready("summarize")
+    except gateway.LLMNotConfigured:
+        return
+    try:
+        for _ in service.generate_report_stream():  # 消费流以触发落库
+            pass
+        log.info("news daily report generated")
+    except Exception:  # noqa: BLE001
+        log.exception("news report generation failed")
+
+
+def start() -> None:
+    """启动每日任务（幂等）。app lifespan 调用，失败不阻断启动。"""
+    global _scheduler
+    if _scheduler is not None:
+        return
+    try:
+        tz = get_settings().tz
+        sched = BackgroundScheduler(timezone=tz)
+        # 每天本地 07:30：抓取 +（若已配置）生成日报
+        sched.add_job(
+            _daily_job,
+            CronTrigger(hour=7, minute=30, timezone=tz),
+            id="news_daily",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+        sched.start()
+        _scheduler = sched
+        log.info("news scheduler started (daily 07:30 %s)", tz)
+    except Exception:  # noqa: BLE001
+        log.exception("news scheduler failed to start")
+
+
+def stop() -> None:
+    global _scheduler
+    if _scheduler is not None:
+        _scheduler.shutdown(wait=False)
+        _scheduler = None

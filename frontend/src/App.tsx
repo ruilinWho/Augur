@@ -6,6 +6,8 @@ import KLineView from './features/kline/KLineView'
 import FinancialsPanel from './features/analysis/FinancialsPanel'
 import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
+import NewsListPanel from './features/news/NewsListPanel'
+import KnowView from './features/news/KnowView'
 import Placeholder from './features/misc/Placeholder'
 
 const TABS: { v: View; label: string }[] = [
@@ -106,9 +108,7 @@ export default function App() {
         {view === 'kan' || view === 'yan' ? (
           <WatchlistPanel />
         ) : view === 'zhi' ? (
-          <SimplePanel label="趋势日报">
-            <div className="navrow" style={{ opacity: 0.6 }}>日报列表（M3 接入）</div>
-          </SimplePanel>
+          <NewsListPanel />
         ) : (
           <SimplePanel label="设置">
             {['排版', '主题与色彩', '数据与市场', 'LLM 厂商'].map((c) => (
@@ -139,7 +139,7 @@ export default function App() {
                 </>
               )}
               {view === 'yan' && <Placeholder pillar="研" />}
-              {view === 'zhi' && <Placeholder pillar="知" />}
+              {view === 'zhi' && <KnowView />}
               {view === 'set' && <SettingsView />}
             </motion.div>
           </AnimatePresence>

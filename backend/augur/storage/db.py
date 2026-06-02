@@ -49,6 +49,30 @@ CREATE TABLE IF NOT EXISTS journal_entries (
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_journal_symbol ON journal_entries(symbol, entry_date DESC);
+
+-- 新闻摄取（CLAUDE.md §1「知」/ M3）：从 RSS/API 拉来的条目，按 url 去重
+CREATE TABLE IF NOT EXISTS news_items (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    source       TEXT    NOT NULL,                  -- 信源名（feeds.yaml 的 name）
+    title        TEXT    NOT NULL,
+    url          TEXT    NOT NULL UNIQUE,           -- 去重键
+    summary      TEXT    NOT NULL DEFAULT '',
+    lang         TEXT    NOT NULL DEFAULT '',        -- en/zh/ko…
+    category     TEXT    NOT NULL DEFAULT '',        -- markets/tech/world…
+    published_at TEXT,                               -- ISO8601（可空：部分源无时间）
+    fetched_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
+
+-- 趋势日报（M3）：LLM 把当日新闻蒸馏成一份日报，一天一份（重生成则覆盖）
+CREATE TABLE IF NOT EXISTS news_reports (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_date  TEXT    NOT NULL UNIQUE,           -- 'YYYY-MM-DD'
+    body         TEXT    NOT NULL DEFAULT '',
+    model        TEXT    NOT NULL DEFAULT '',
+    item_count   INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 

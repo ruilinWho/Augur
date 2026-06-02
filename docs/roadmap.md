@@ -72,12 +72,14 @@
 - ⚪ `research/` 编排器：规划 → 收集（行情+基本面+新闻+网络/Deep Research）→ 综合 → 引用；`POST /research/stock` SSE；报告持久化。
 - ⚪ 财报分析升级：接更结构化的财报（akshare/yfinance financials）、多轮、带引用。
 
-## M3 · 新闻聚合 + 趋势日报 ⚪
+## M3 · 新闻聚合 + 趋势日报 🟡（起步）
 
-- ⚪ `resources/sources/*.yaml` 信源注册表（精选全球顶级源）
-- ⚪ `news/` 摄取（RSS/API）+ 去重 + 主题聚类
-- ⚪ APScheduler 每日任务 → LLM 趋势日报
-- ⚪ 新闻 UI：每日日报、主题聚类、信源管理；可按自选分区过滤
+- ✅ `resources/sources/feeds.yaml` 信源清单（12 源：行情/科技/国际/中文/韩，主人可编辑）。
+- ✅ `news/` 摄取：`ingest.py`（feedparser via httpx，超时/UA/容忍单源失败）+ 去重（url UNIQUE）+ `news_items`/`news_reports` 表。
+- ✅ 趋势日报：`service.generate_report_stream`（summarize 角色，提示词 `resources/prompts/news_digest.md`，只基于当日标题、标注信源、暴露不确定性），SSE 流式 + 落库（一天一份，覆盖重生成）。
+- ✅ APScheduler 每日 07:30：抓取 +（若 LLM 就绪）生成日报（`news/scheduler.py`，BackgroundScheduler，失败不阻断启动）。
+- ✅ 「知」UI：日报列表（左）＋日报正文（轻量 Markdown 渲染 + 重新生成流式）＋今日要闻流（信源/分类/相对时间，链接原文）；手动「刷新信源」。端点 `/news/feed|refresh|reports|report|report/generate`。
+- ⚪ 主题聚类、按**自选分区**过滤（板块相关新闻）、信源管理/健康度、源清单扩充与质量过滤。
 
 ## M4 · 原生打包 + 打磨 ⚪
 

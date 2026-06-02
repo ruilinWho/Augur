@@ -362,3 +362,124 @@ export function useDeleteJournal(symbol: string) {
     onSuccess: () => invalidate(symbol),
   })
 }
+
+// ───────────────────────── 新闻 · 趋势日报（「知」）─────────────────────────
+const newsItemSchema = z.object({
+  id: z.number(),
+  source: z.string(),
+  title: z.string(),
+  url: z.string(),
+  summary: z.string().default(''),
+  lang: z.string().default(''),
+  category: z.string().default(''),
+  published_at: z.string().nullable().default(null),
+})
+const newsReportSchema = z.object({
+  report_date: z.string(),
+  body: z.string(),
+  model: z.string().default(''),
+  item_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+})
+const reportMetaSchema = z.object({
+  report_date: z.string(),
+  item_count: z.number().default(0),
+  model: z.string().default(''),
+  created_at: z.string().nullable().default(null),
+  preview: z.string().default(''),
+})
+const refreshResultSchema = z.object({
+  fetched: z.number(),
+  inserted: z.number(),
+  sources_ok: z.number(),
+  sources_failed: z.number(),
+  failures: z.array(z.string()).default([]),
+})
+export type NewsItem = z.infer<typeof newsItemSchema>
+export type NewsReport = z.infer<typeof newsReportSchema>
+export type ReportMeta = z.infer<typeof reportMetaSchema>
+export type RefreshResult = z.infer<typeof refreshResultSchema>
+
+export function useNewsFeed(limit = 60, category?: string) {
+  return useQuery({
+    queryKey: ['news-feed', limit, category ?? 'all'],
+    queryFn: async () =>
+      z
+        .array(newsItemSchema)
+        .parse(
+          await getJSON(`/news/feed?limit=${limit}${category ? `&category=${category}` : ''}`),
+        ),
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useNewsReports() {
+  return useQuery({
+    queryKey: ['news-reports'],
+    queryFn: async () => z.array(reportMetaSchema).parse(await getJSON('/news/reports')),
+  })
+}
+
+export function useNewsReport(date: string | null) {
+  return useQuery({
+    queryKey: ['news-report', date ?? 'latest'],
+    // 最新一份用 ?date 省略；某天用具体日期。404（暂无日报）→ 返回 null 而非抛错。
+    queryFn: async () => {
+      try {
+        return newsReportSchema.parse(
+          await getJSON(`/news/report${date ? `?date=${date}` : ''}`),
+        )
+      } catch (e) {
+        if ((e as Error).message.includes('暂无日报')) return null
+        throw e
+      }
+    },
+  })
+}
+
+export function useRefreshNews() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => refreshResultSchema.parse(await send('/news/refresh', 'POST')),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['news-feed'] }),
+  })
+}
+
+// 生成趋势日报（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
+export async function streamReport(
+  date: string | null,
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const r = await fetch(`/news/report/generate${date ? `?date=${date}` : ''}`, {
+    method: 'POST',
+    signal,
+  })
+  if (!r.ok || !r.body) {
+    const d = (await r.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(d.detail ?? `HTTP ${r.status}`)
+  }
+  const reader = r.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    const parts = buf.split('\n\n')
+    buf = parts.pop() ?? ''
+    for (const part of parts) {
+      const line = part.trim()
+      if (!line.startsWith('data:')) continue
+      const payload = line.slice(5).trim()
+      if (payload === '[DONE]') return
+      try {
+        const obj = JSON.parse(payload) as { delta?: string; error?: string }
+        if (obj.error) throw new Error(obj.error)
+        if (obj.delta) onDelta(obj.delta)
+      } catch {
+        /* 半行/非 JSON，忽略 */
+      }
+    }
+  }
+}
