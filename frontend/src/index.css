@@ -652,15 +652,60 @@ body.resizing * {
   width: 44px;
   text-align: right;
 }
-/* 设置 · API 配置（密钥/角色/信源输入）*/
-.set-row.row-top {
-  align-items: flex-start;
+/* 设置 · 卡片网格（填满舞台宽度、按钮内联，不再钉死窄列）*/
+.set-wrap {
+  max-width: 1280px;
 }
-.ctl-col {
+.set-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.scard {
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  width: 320px;
+  gap: 9px;
+  padding: 15px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.scard-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.scard-name {
+  font-size: 0.92rem;
+  color: var(--text);
+  font-weight: 500;
+}
+.scard-d {
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  line-height: 1.5;
+  margin-top: -3px;
+}
+.scard-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.scard-field .cfg-input {
+  flex: 1;
+  min-width: 0;
+}
+.scard-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 1px;
+}
+.scard input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
 }
 .cfg-input {
   font: inherit;
@@ -669,9 +714,9 @@ body.resizing * {
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 .cfg-input.mono {
   font-family: var(--font-mono);
@@ -683,25 +728,49 @@ body.resizing * {
 .cfg-input:focus-visible {
   outline: none;
   border-color: var(--accent);
-}
-.cfg-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-.cfg-sub {
-  margin: 18px 0 2px;
-  font-size: 0.72rem;
-  color: var(--text-faint);
-  letter-spacing: 0.04em;
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
+  background: var(--surface);
 }
 .src-cat {
   font-size: 0.7rem;
   color: var(--text-faint);
   font-weight: 400;
   margin-left: 4px;
+}
+
+/* 看·K线下方模块拖动重排：手柄在模块顶部中央，hover 浮现 */
+.kan-mod {
+  position: relative;
+}
+.kan-grip {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  padding: 3px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.16s ease, color 0.16s ease;
+  touch-action: none;
+}
+.kan-mod:hover .kan-grip {
+  opacity: 0.45;
+}
+.kan-grip:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+.kan-grip:active {
+  cursor: grabbing;
+}
+.kan-mod.dragging {
+  border-radius: var(--radius);
+  box-shadow: 0 10px 34px rgba(60, 40, 30, 0.13);
 }
 
 /* ───────────────────────── 占位（研/知）───────────────────────── */

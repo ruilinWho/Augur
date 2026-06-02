@@ -21,6 +21,7 @@ interface UIState {
   displayFont: DisplayFont
   convention: Convention
   panelW: number // 左栏宽度（px），可拖拽调整
+  kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
 
   setView: (v: View) => void
   select: (s: string) => void
@@ -31,7 +32,10 @@ interface UIState {
   setDisplayFont: (f: DisplayFont) => void
   setConvention: (c: Convention) => void
   setPanelW: (n: number) => void
+  setKanOrder: (o: string[]) => void
 }
+
+export const KAN_MODULES = ['financials', 'news', 'journal'] as const
 
 export const useUI = create<UIState>()(
   persist(
@@ -45,6 +49,7 @@ export const useUI = create<UIState>()(
       displayFont: 'serif',
       convention: 'us',
       panelW: 268,
+      kanOrder: [...KAN_MODULES],
 
       setView: (view) => set({ view }),
       select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
@@ -56,6 +61,7 @@ export const useUI = create<UIState>()(
       setConvention: (convention) => set({ convention }),
       setPanelW: (panelW) =>
         set({ panelW: Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(panelW))) }),
+      setKanOrder: (kanOrder) => set({ kanOrder }),
     }),
     {
       name: 'augur-ui',
@@ -67,6 +73,7 @@ export const useUI = create<UIState>()(
         convention: s.convention,
         market: s.market,
         panelW: s.panelW,
+        kanOrder: s.kanOrder,
       }),
     },
   ),

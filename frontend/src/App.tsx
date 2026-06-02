@@ -1,6 +1,28 @@
-import { useEffect, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 import { motion } from 'motion/react'
-import { useUI, type View } from './store'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { KAN_MODULES, useUI, type View } from './store'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
 import FinancialsPanel from './features/analysis/FinancialsPanel'
@@ -44,6 +66,75 @@ function ResizeHandle() {
     window.addEventListener('pointerup', up)
   }
   return <div className="resize-handle" onPointerDown={onPointerDown} title="拖动调整栏宽" />
+}
+
+// 看·K线下方模块：拖动手柄重排（持久化）。仅手柄可拖，模块内部交互不受影响。
+const KAN_RENDER: Record<string, (symbol: string) => ReactNode> = {
+  financials: (s) => <FinancialsPanel symbol={s} />,
+  news: (s) => <StockNews symbol={s} />,
+  journal: (s) => <JournalPanel symbol={s} />,
+}
+
+function GripDots() {
+  return (
+    <svg width="14" height="9" viewBox="0 0 14 9" aria-hidden="true">
+      {[1.5, 7, 12.5].flatMap((cx) =>
+        [2, 7].map((cy) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.1" fill="currentColor" />),
+      )}
+    </svg>
+  )
+}
+
+function SortableModule({ id, symbol }: { id: string; symbol: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`kan-mod ${isDragging ? 'dragging' : ''}`}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.75 : 1,
+        zIndex: isDragging ? 5 : undefined,
+      }}
+    >
+      <button className="kan-grip" {...attributes} {...listeners} aria-label="拖动排序" title="拖动调整顺序">
+        <GripDots />
+      </button>
+      {KAN_RENDER[id]?.(symbol)}
+    </div>
+  )
+}
+
+function KanStack({ symbol }: { symbol: string }) {
+  const stored = useUI((s) => s.kanOrder)
+  const setKanOrder = useUI((s) => s.setKanOrder)
+  // 与已知模块对账（持久化里可能残留旧 id，如已移除的 SEC）
+  const order = useMemo(() => {
+    const known = stored.filter((x) => (KAN_MODULES as readonly string[]).includes(x))
+    const missing = KAN_MODULES.filter((x) => !known.includes(x))
+    return [...known, ...missing]
+  }, [stored])
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldI = order.indexOf(String(active.id))
+    const newI = order.indexOf(String(over.id))
+    if (oldI >= 0 && newI >= 0) setKanOrder(arrayMove(order, oldI, newI))
+  }
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={order} strategy={verticalListSortingStrategy}>
+        {order.map((id) => (
+          <SortableModule key={id} id={id} symbol={symbol} />
+        ))}
+      </SortableContext>
+    </DndContext>
+  )
 }
 
 export default function App() {
@@ -136,9 +227,7 @@ export default function App() {
             {view === 'kan' && (
               <>
                 <KLineView />
-                {selectedSymbol && <FinancialsPanel symbol={selectedSymbol} />}
-                {selectedSymbol && <StockNews symbol={selectedSymbol} />}
-                {selectedSymbol && <JournalPanel symbol={selectedSymbol} />}
+                {selectedSymbol && <KanStack symbol={selectedSymbol} />}
               </>
             )}
             {view === 'yan' && <Placeholder pillar="研" />}
