@@ -54,6 +54,7 @@ class RefreshResult(BaseModel):
     sources_failed: int
     failures: list[str] = []  # 失败的信源名
     translated: int = 0  # 本次翻译成中文的标题数
+    filtered: dict = {}  # 投资相关性过滤：{judged, dropped}
 
 
 # ───────────────────────── 今日投资机会（接地后对外形状）─────────────────────────

@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS news_items (
     theme        TEXT    NOT NULL DEFAULT '',        -- 主题主类（classify，见 classify.py）
     topics       TEXT    NOT NULL DEFAULT '[]',       -- 细标签 JSON 数组（多值）
     classified_by TEXT   NOT NULL DEFAULT '',         -- ''=未分类 / rule / llm
-    title_zh     TEXT                                 -- 中文标题（cheap 翻译缓存；NULL=未翻）
+    title_zh     TEXT,                                -- 中文标题（cheap 翻译缓存；NULL=未翻）
+    relevance    INTEGER NOT NULL DEFAULT 0  -- 0未判/1保留/2丢弃 见 relevance.py
 );
 CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
 
@@ -115,6 +116,7 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "topics", "TEXT NOT NULL DEFAULT '[]'"),
     ("news_items", "classified_by", "TEXT NOT NULL DEFAULT ''"),
     ("news_items", "title_zh", "TEXT"),
+    ("news_items", "relevance", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

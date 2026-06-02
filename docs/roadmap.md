@@ -81,7 +81,7 @@
 - ✅ **趋势日报**：`generate_report_stream`（summarize，按主题分组喂 prompt，SSE 流式落库，一天一份覆盖）。
 - ✅ **今日投资机会**：两阶段防幻觉——LLM 给「公司名+市场+code_guess」→ `market.search` 接地真实 `MARKET:CODE`（弱模糊判未解析）+ 交叉自选高亮；`GET/POST /news/opportunities`，前端机会卡（chip 跳「看」、已关注陶土高亮、非投资建议脚注）。
 - ✅ APScheduler 每日 07:30：抓取+翻译+日报（`scheduler.py`，失败不阻断）。「知」UI：日报列表＋正文＋今日机会＋按主题分组要闻流。
-- ✅ **噪音过滤** `filter.py`：滤掉纯盘面/价格波动（"X 行情"、"涨X%"、指数收盘综述），但含基本面/宏观/风险信号则保留（规则法、摄取时滤）。
+- ✅ **噪音过滤（两层）**：① `filter.py` 规则滤纯盘面/价格波动（摄取时，留基本面/宏观/风险）；② `relevance.py` **cheap 小模型批量判投资相关性**（主人反馈仍有无关新闻 → 不心疼 token 用小模型筛；`relevance` 列 0未判/1留/2弃，feed/日报/机会取 `relevance≠2`、未判仍显＝优雅降级，refresh 时跑、失败不阻断）。真机实测 240 判/56 弃：准滤 MarketWatch 退休理财鸡汤、消费手机/游戏/车、纯流向数据，留 HBM 涨价/算力/并购/政策。
 - ✅ **信源精简**：韩源砍到 1（The Elec），聚焦美股 + 国内源；`_prune_removed_sources` 让库随 feeds.yaml 自愈。
 - ✅ **个股「相关资讯」**：看 K 线页加一段，从聚合新闻里按公司名（中文展示名+英文名）筛出相关条目、链原文（`GET /news/for`）。
 - ✅ **个股一手「一条龙」起步（SEC EDGAR）**：`edgar.py` 美股 ticker→CIK（官方 `company_tickers.json` 缓存 7 天）→ `data.sec.gov` submissions JSON → 高信号表单白名单（8-K/10-Q/10-K/20-F/6-K/S-1/424B/13D/13G/DEF 14A，**不收 Form 4 噪音**）；表单 + 8-K 事项码给**确定性中文标签**（零 token 不幻觉）；可配 SEC UA + ≤10 req/s + 6h 缓存 + 失败降级。`GET /news/official` → K 线页**「官方文件 · SEC」**段（陶土等宽 form 徽标 + 中文标签 + 申报日 + 直链）。真机验证 RKLB/NVDA/AAPL/TSLA/AMD 全中。详见 [ADR-0006](decisions/0006-first-hand-sources-edgar-x.md)。

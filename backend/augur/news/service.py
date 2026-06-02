@@ -17,7 +17,7 @@ from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
 from ..watchlist import service as wl
-from . import edgar, ingest, translate
+from . import edgar, ingest, relevance, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -63,12 +63,16 @@ def _today() -> str:
 
 
 def refresh() -> dict:
-    """抓取所有信源并落库，随后批量翻译新标题（cheap 角色，失败降级不阻断）。"""
+    """抓取→翻译→投资相关性过滤（均 cheap 角色，失败降级不阻断）。"""
     result = ingest.ingest_all()
     try:
         result["translated"] = translate.translate_pending()
     except Exception:  # noqa: BLE001
         result["translated"] = 0
+    try:
+        result["filtered"] = relevance.judge_pending()  # cheap LLM 滤掉与投资无关的
+    except Exception:  # noqa: BLE001
+        result["filtered"] = {"judged": 0, "dropped": 0}
     return result
 
 
@@ -76,10 +80,11 @@ def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:
     """最近条目（按发布时间倒序，缺发布时间用抓取时间兜底）。可按 theme 过滤。"""
     conn = get_conn()
     try:
-        sql = "SELECT * FROM news_items"
+        # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
+        sql = "SELECT * FROM news_items WHERE relevance != 2"
         args: list = []
         if theme:
-            sql += " WHERE theme = ?"
+            sql += " AND theme = ?"
             args.append(theme)
         sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
         args.append(limit)
@@ -121,7 +126,7 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
             args += [like, like]
         args.append(limit)
         rows = conn.execute(
-            f"SELECT * FROM news_items WHERE {clause} "
+            f"SELECT * FROM news_items WHERE ({clause}) AND relevance != 2 "
             "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
             args,
         ).fetchall()
