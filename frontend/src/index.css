@@ -1333,9 +1333,9 @@ input:focus:not(:focus-visible) {
   overflow: hidden;
 }
 
-/* 主舞台 */
+/* 主舞台：充满舞台宽度（与「看」一致，不再钉死 768） */
 .know {
-  max-width: 768px;
+  width: 100%;
 }
 .know-head {
   display: flex;
