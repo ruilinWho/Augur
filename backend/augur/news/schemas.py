@@ -19,6 +19,16 @@ class NewsItem(BaseModel):
     title_zh: str | None = None  # 中文标题（cheap 翻译；None=未翻，前端回退原文）
 
 
+class Filing(BaseModel):
+    """个股官方一手文件（SEC EDGAR 申报）。标题/事项已给中文标签。"""
+
+    form: str  # 8-K / 10-Q / 10-K / DEF 14A …
+    title: str  # 「重大事件（8-K） · 经营成果与财务状况（财报）」
+    url: str
+    summary: str = ""  # 8-K 事项中文（如有）
+    filed_at: str | None = None  # 'YYYY-MM-DD'
+
+
 class NewsReport(BaseModel):
     report_date: str  # 'YYYY-MM-DD'
     body: str

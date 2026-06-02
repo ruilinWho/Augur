@@ -17,7 +17,7 @@ from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
 from ..watchlist import service as wl
-from . import ingest, translate
+from . import edgar, ingest, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -128,6 +128,14 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
         return [_item_out(r) for r in rows]
     finally:
         conn.close()
+
+
+def stock_official(symbol: str, limit: int = 15) -> list[dict]:
+    """某标的的官方一手文件（美股＝SEC EDGAR 申报；其他市场暂空）。
+
+    "一条龙"骨架：未来在此并入官方 IR/新闻室 RSS、官方 X（凭桥接 key 启用）。
+    """
+    return edgar.filings_for(symbol, limit)
 
 
 def get_report(report_date: str | None = None) -> dict | None:

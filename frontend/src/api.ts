@@ -398,10 +398,18 @@ const refreshResultSchema = z.object({
   sources_failed: z.number(),
   failures: z.array(z.string()).default([]),
 })
+const filingSchema = z.object({
+  form: z.string(),
+  title: z.string(),
+  url: z.string(),
+  summary: z.string().default(''),
+  filed_at: z.string().nullable().default(null),
+})
 export type NewsItem = z.infer<typeof newsItemSchema>
 export type NewsReport = z.infer<typeof newsReportSchema>
 export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
+export type Filing = z.infer<typeof filingSchema>
 
 export function useNewsFeed(limit = 60, category?: string) {
   return useQuery({
@@ -425,6 +433,19 @@ export function useNewsForSymbol(symbol: string | null) {
         .array(newsItemSchema)
         .parse(await getJSON(`/news/for?symbol=${encodeURIComponent(symbol!)}&limit=20`)),
     staleTime: 5 * 60_000,
+  })
+}
+
+// 个股官方一手文件（美股 SEC EDGAR 申报）。仅美股启用；其他市场后端返回空表。
+export function useStockOfficial(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol && symbol.startsWith('US:'),
+    queryKey: ['news-official', symbol],
+    queryFn: async () =>
+      z
+        .array(filingSchema)
+        .parse(await getJSON(`/news/official?symbol=${encodeURIComponent(symbol!)}&limit=15`)),
+    staleTime: 30 * 60_000,
   })
 }
 

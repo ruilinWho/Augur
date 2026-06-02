@@ -10,7 +10,14 @@ from fastapi.responses import StreamingResponse
 
 from ..llm import gateway
 from . import service
-from .schemas import NewsItem, NewsReport, OpportunitiesResponse, RefreshResult, ReportMeta
+from .schemas import (
+    Filing,
+    NewsItem,
+    NewsReport,
+    OpportunitiesResponse,
+    RefreshResult,
+    ReportMeta,
+)
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -31,6 +38,12 @@ async def refresh() -> dict:
 async def news_for(symbol: str, limit: int = 20) -> list[dict]:
     """与某标的（MARKET:CODE）相关的新闻（标题里出现公司名）。"""
     return await run_in_threadpool(service.news_for_symbol, symbol, limit)
+
+
+@router.get("/official", response_model=list[Filing])
+async def official(symbol: str, limit: int = 15) -> list[dict]:
+    """某标的的官方一手文件（美股＝SEC EDGAR 申报；6h 缓存，失败降级空表）。"""
+    return await run_in_threadpool(service.stock_official, symbol, limit)
 
 
 @router.get("/reports", response_model=list[ReportMeta])
