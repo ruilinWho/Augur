@@ -432,6 +432,11 @@ body.resizing * {
 .row1 .nm {
   font-weight: 600;
   font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .row1 .ct {
   margin-left: auto;
@@ -459,6 +464,11 @@ body.resizing * {
 .row2 .nm {
   font-weight: 500;
   font-size: 0.8rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .row2 .ct {
   margin-left: auto;
@@ -522,7 +532,8 @@ body.resizing * {
   opacity: 0;
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 1rem;
+  line-height: 1;
   padding: 0 2px;
 }
 .row1:hover .del,
@@ -536,9 +547,12 @@ body.resizing * {
 }
 .add {
   opacity: 0;
+  display: inline-flex;
+  align-items: center;
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 1rem;
+  line-height: 1;
   padding: 0 3px;
 }
 .row1:hover .add,
@@ -858,6 +872,16 @@ body.resizing * {
   min-width: 220px;
   cursor: pointer;
 }
+.role-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: none;
+}
+.role-dot.ok {
+  background: var(--up);
+}
 
 /* LLM 连接卡 */
 .conn-list {
@@ -970,7 +994,7 @@ body.resizing * {
 }
 .kan-grip {
   position: absolute;
-  top: 13px;
+  top: 3px;
   left: -22px;
   z-index: 4;
   display: flex;

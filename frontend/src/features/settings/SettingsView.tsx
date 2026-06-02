@@ -71,15 +71,15 @@ function AppearancePage() {
     <>
       <h1 className="set2-title">外观</h1>
       <Section title="排版">
-        <Row label="正文字号" desc="全局基准字号，整页实时生效">
+        <Row label="正文字号">
           <input type="range" min={14} max={19} step={1} value={textBase} onChange={(e) => setTextBase(+e.target.value)} />
           <span className="val">{textBase}px</span>
         </Row>
-        <Row label="行距" desc="行与行的呼吸感">
+        <Row label="行距">
           <input type="range" min={1.4} max={1.9} step={0.02} value={leading} onChange={(e) => setLeading(+e.target.value)} />
           <span className="val">{leading.toFixed(2)}</span>
         </Row>
-        <Row label="英文标题字体" desc="默认 Source Serif 4 衬线（中文恒为苹方）">
+        <Row label="英文标题字体" desc="中文恒为苹方">
           <Seg
             value={displayFont}
             onChange={setDisplayFont}
@@ -88,10 +88,10 @@ function AppearancePage() {
         </Row>
       </Section>
       <Section title="主题与色彩">
-        <Row label="主题" desc="默认亮色，明暗皆暖">
+        <Row label="主题">
           <Seg value={theme} onChange={setTheme} options={[{ v: 'light', label: '☀ 亮' }, { v: 'dark', label: '☾ 暗' }]} />
         </Row>
-        <Row label="涨跌色习惯" desc="蜡笔纸感色，按市场习惯切换">
+        <Row label="涨跌色习惯">
           <Seg
             value={convention}
             onChange={setConvention}
@@ -172,17 +172,11 @@ const ROLE_LABEL: Record<string, string> = {
   summarize: '摘要 / 日报',
   cheap: '便宜（翻译 / 筛选）',
 }
-const ROLE_DESC: Record<string, string> = {
-  chat: '前台问答',
-  deep_research: '个股深度研究（可用前沿模型）',
-  summarize: '趋势日报 / 投资机会蒸馏',
-  cheap: '标题翻译 / 相关性过滤（用便宜模型省钱）',
-}
-
 function RoleRow({ role, conns }: { role: RoleTarget; conns: Connection[] }) {
   const setRole = useSetRoleTarget()
   return (
-    <Row label={ROLE_LABEL[role.role] ?? role.role} desc={ROLE_DESC[role.role] ?? ''}>
+    <Row label={ROLE_LABEL[role.role] ?? role.role}>
+      <span className={`role-dot ${role.configured ? 'ok' : ''}`} title={role.configured ? '就绪' : '未配'} />
       <select
         className="cfg-input set2-select"
         value={role.connection_id ?? ''}
@@ -195,9 +189,6 @@ function RoleRow({ role, conns }: { role: RoleTarget; conns: Connection[] }) {
           </option>
         ))}
       </select>
-      <span className="badge" style={{ color: role.configured ? 'var(--up)' : 'var(--text-faint)' }}>
-        {role.configured ? '就绪' : '未配'}
-      </span>
     </Row>
   )
 }
@@ -208,9 +199,6 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
     <>
       <h1 className="set2-title">模型</h1>
       <Section title="LLM 连接">
-        <div className="set2-note">
-          每个连接 = 名称 / base_url / api_key / model（一律 OpenAI 兼容，覆盖 DeepSeek、各类中转站、OpenRouter、国产模型）。改后即时生效、无需重启。
-        </div>
         <div className="conn-list">
           {conns.map((c) => (
             <ConnectionCard key={c.id} conn={c} />
@@ -225,7 +213,6 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
         </div>
       </Section>
       <Section title="角色路由">
-        <div className="set2-note">把每个用途指到一个连接——前沿模型跑对话/研究，便宜模型跑摘要/翻译/筛选以省钱。</div>
         {roles.map((r) => (
           <RoleRow key={r.role} role={r} conns={conns} />
         ))}
@@ -296,15 +283,10 @@ function SourcesPage({ sources }: { sources: SourceStatus[] }) {
     <>
       <h1 className="set2-title">数据 / 信源 API</h1>
       <Section title="信源">
-        <div className="set2-note">按需配 key，逐步「一条龙」。普通 RSS 源在 resources/sources/feeds.yaml，这里只列需 key 或专用适配器的源。</div>
         {sources.map((s) => (
           <SourceRow key={s.id} s={s} />
         ))}
       </Section>
-      <div className="hedge">
-        密钥仅存于本机 <span className="mono">data/config.local.json</span>（不入库、不外传、界面只显末位），改动即时生效。
-        付费源以中国用户支付方式标注（优先支付宝/微信可付，详见 ADR-0007）。
-      </div>
     </>
   )
 }

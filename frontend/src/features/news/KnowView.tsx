@@ -143,14 +143,7 @@ export default function KnowView() {
       transition={{ duration: 0.26, ease: EASE }}
     >
       <div className="know-head">
-        <div>
-          <h2>{data ? `${fmtDate(data.report_date)} · 趋势日报` : '趋势日报'}</h2>
-          {data && (
-            <div className="know-sub faint">
-              蒸馏自 {data.item_count} 条新闻 · {data.model}
-            </div>
-          )}
-        </div>
+        <h2>{data ? `${fmtDate(data.report_date)} · 趋势日报` : '趋势日报'}</h2>
         <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
           {streaming ? '生成中…' : data ? '重新生成' : '✨ 生成今日日报'}
         </button>
@@ -163,16 +156,13 @@ export default function KnowView() {
       ) : data ? (
         <div className="report-card">
           <Digest body={data.body} />
-          <div className="report-foot faint">
-            研究辅助，非投资建议 · 蒸馏自所列信源标题，可能有误，请回看原文核实。
-          </div>
+          <div className="report-foot faint">非投资建议</div>
         </div>
       ) : report.isLoading ? (
         <div className="report-card faint">加载日报…</div>
       ) : (
         <div className="know-empty">
           <div className="ke-title">还没有今日日报</div>
-          <div className="faint">点右上「生成今日日报」，由 LLM 蒸馏当下全球要闻为一份趋势速览。</div>
         </div>
       )}
 
@@ -200,7 +190,7 @@ export default function KnowView() {
             ))}
             {feed.data && feed.data.length === 0 && (
               <div className="faint" style={{ padding: '12px 2px' }}>
-                还没有新闻。左侧「刷新信源」抓取最新内容。
+                还没有新闻
               </div>
             )}
           </div>

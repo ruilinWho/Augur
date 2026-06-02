@@ -228,10 +228,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <button className="app-search" onClick={() => setView('kan')} title="搜索（即将上线）">
-          <span>⌕ 搜索标的、板块</span>
-          <kbd className="kbd">⌘K</kbd>
-        </button>
         <button
           className={`gear ${view === 'set' ? 'active' : ''}`}
           title="设置"
