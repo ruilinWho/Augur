@@ -17,7 +17,11 @@
   2. `<motion.div animate={{ height: open ? 'auto' : 0 }}>` —— 切到 `open=false` 时高度不动，仍 `height:auto`。
   （`open` 状态本身是对的——`data-open` 翻转正常；纯粹是 motion 没把高度动画跑起来。）
 - **最终方案＝纯 CSS `grid-template-rows: 0fr ↔ 1fr`**（`.collapsible` + 内层 `overflow:hidden; min-height:0`）。
-  最稳：即便浏览器不插值 `fr`，`0fr` 也能真折叠到 0。三处折叠（财报/判断日记/自选分区）统一走它。
+  最稳：即便浏览器不插值 `fr`，`0fr` 也能真折叠到 0。折叠处（财报/判断日记/自选分区/今日机会/今日要闻）统一走它。
+- **同一个坑也咬过视图切换**：`App.tsx` 主舞台一度用 `<AnimatePresence mode="wait">` 包 `motion.div key={view}`。
+  因 exit 不触发，旧视图（如「看」的 K 线）**永远退不出去 → 新视图（「知」）永不挂载**（左栏切了、舞台没切，极迷惑）。
+  改成**裸 keyed `motion.div`（只 initial/animate 进场、不要 exit/AnimatePresence）**：换 key 即重挂载 + 淡入，干净可靠。
+  **教训：本项目里凡是依赖 motion `exit` 的（AnimatePresence/mode="wait"）都不可靠，一律避开。**
 
 ## 调试折叠这类"状态对、画面不对"的问题
 - 先确认 React 状态：给容器临时加 `data-open={String(open)}`，点一下读属性——能快速区分"点击没生效"还是"动画/样式没生效"。

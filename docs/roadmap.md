@@ -72,14 +72,16 @@
 - ⚪ `research/` 编排器：规划 → 收集（行情+基本面+新闻+网络/Deep Research）→ 综合 → 引用；`POST /research/stock` SSE；报告持久化。
 - ⚪ 财报分析升级：接更结构化的财报（akshare/yfinance financials）、多轮、带引用。
 
-## M3 · 新闻聚合 + 趋势日报 🟡（起步）
+## M3 · 新闻聚合 + 趋势日报 + 投资机会 🟡（推进中）
 
-- ✅ `resources/sources/feeds.yaml` 信源清单（12 源：行情/科技/国际/中文/韩，主人可编辑）。
-- ✅ `news/` 摄取：`ingest.py`（feedparser via httpx，超时/UA/容忍单源失败）+ 去重（url UNIQUE）+ `news_items`/`news_reports` 表。
-- ✅ 趋势日报：`service.generate_report_stream`（summarize 角色，提示词 `resources/prompts/news_digest.md`，只基于当日标题、标注信源、暴露不确定性），SSE 流式 + 落库（一天一份，覆盖重生成）。
-- ✅ APScheduler 每日 07:30：抓取 +（若 LLM 就绪）生成日报（`news/scheduler.py`，BackgroundScheduler，失败不阻断启动）。
-- ✅ 「知」UI：日报列表（左）＋日报正文（轻量 Markdown 渲染 + 重新生成流式）＋今日要闻流（信源/分类/相对时间，链接原文）；手动「刷新信源」。端点 `/news/feed|refresh|reports|report|report/generate`。
-- ⚪ 主题聚类、按**自选分区**过滤（板块相关新闻）、信源管理/健康度、源清单扩充与质量过滤。
+详见 [ADR-0005](decisions/0005-news-classification-translation-opportunities.md)。
+- ✅ **信源**：`feeds.yaml` **41 个前沿顶级源**（AI/芯片/航天/机器人/科技/中/韩；workflow 并行发现 + httpx/feedparser 实测 43/45 可抓）。`ingest.py` **并发**抓取 + 近 30 天过滤 + url 去重；`news_items`/`news_reports`/`news_opportunities` 表 + 幂等迁移。
+- ✅ **主题分类**：`classify.py`+`themes.yaml`（9 主题，规则法、ASCII 词边界匹配、CJK 子串），ingest store-time 打标 + backfill；日报/要闻按主题分组。
+- ✅ **标题翻译**：`translate.py`（en/ko→zh，cheap 角色批量编号清单 + JSON mode，缓存 `title_zh`，隐私优先不用 DeepL/Google）。
+- ✅ **趋势日报**：`generate_report_stream`（summarize，按主题分组喂 prompt，SSE 流式落库，一天一份覆盖）。
+- ✅ **今日投资机会**：两阶段防幻觉——LLM 给「公司名+市场+code_guess」→ `market.search` 接地真实 `MARKET:CODE`（弱模糊判未解析）+ 交叉自选高亮；`GET/POST /news/opportunities`，前端机会卡（chip 跳「看」、已关注陶土高亮、非投资建议脚注）。
+- ✅ APScheduler 每日 07:30：抓取+翻译+日报（`scheduler.py`，失败不阻断）。「知」UI：日报列表＋正文＋今日机会＋按主题分组要闻流。
+- ⚪ 机会接地阈值真机抽查调优、机会去重（双重上市）、按**自选分区**聚合、信源健康度、LLM 兜底分类。
 
 ## M4 · 原生打包 + 打磨 ⚪
 
