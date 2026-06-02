@@ -17,6 +17,7 @@ import httpx
 
 from ..storage import get_conn
 from . import classify, sources
+from . import filter as noise_filter
 
 _UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
@@ -58,6 +59,8 @@ def fetch_feed(feed: dict, cutoff: datetime | None = None) -> list[dict]:
         title = _clean(str(e.get("title", "")))
         if not url or not title:
             continue
+        if noise_filter.is_noise(title):
+            continue  # 纯盘面/价格波动噪音 → 不落库
         dt = _published_dt(e)
         if cutoff is not None and dt is not None and dt < cutoff:
             continue  # 太旧 → 跳过（归档源保护）
@@ -101,9 +104,24 @@ def _store(items: list[dict]) -> int:
         conn.close()
 
 
+def _prune_removed_sources(feed_names: set[str]) -> int:
+    """删除已不在 feeds.yaml 里的信源的历史条目（主人移除某源后自愈，库与源清单一致）。"""
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT DISTINCT source FROM news_items").fetchall()
+        gone = [(r["source"],) for r in rows if r["source"] not in feed_names]
+        if gone:
+            conn.executemany("DELETE FROM news_items WHERE source = ?", gone)
+            conn.commit()
+        return len(gone)
+    finally:
+        conn.close()
+
+
 def ingest_all() -> dict:
     """并发遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
     feeds = sources.load_feeds()
+    _prune_removed_sources({f["name"] for f in feeds})  # 清掉已移除信源的旧条目
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
     failures: list[str] = []

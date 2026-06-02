@@ -76,6 +76,48 @@ def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:
         conn.close()
 
 
+def _stock_terms(symbol: str) -> list[str]:
+    """某标的的匹配词：中文展示名 + 英文名(首词)。用于在新闻标题里找相关资讯。"""
+    terms: set[str] = set()
+    market, _, code = symbol.partition(":")
+    dn = search.display_name(symbol)
+    if dn and len(dn) >= 2 and dn != code:
+        terms.add(dn)
+    hits = search.search(code, market=market, limit=1)
+    if hits:
+        for v in (hits[0].get("name"), hits[0].get("sub")):
+            v = (v or "").strip()
+            if len(v) >= 2:
+                terms.add(v)
+                tok = re.split(r"[\s,，]", v)[0]  # NVIDIA Corporation → NVIDIA
+                if tok.isascii() and len(tok) >= 3:
+                    terms.add(tok)
+    return [t for t in terms if len(t) >= 2]
+
+
+def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
+    """与某标的相关的新闻（标题/中文标题里出现公司名）。按发布时间倒序。"""
+    terms = _stock_terms(symbol)
+    if not terms:
+        return []
+    conn = get_conn()
+    try:
+        clause = " OR ".join(["title LIKE ? OR title_zh LIKE ?"] * len(terms))
+        args: list = []
+        for t in terms:
+            like = f"%{t}%"
+            args += [like, like]
+        args.append(limit)
+        rows = conn.execute(
+            f"SELECT * FROM news_items WHERE {clause} "
+            "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
+            args,
+        ).fetchall()
+        return [_item_out(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def get_report(report_date: str | None = None) -> dict | None:
     """取某日（默认最新一份）日报全文。"""
     conn = get_conn()

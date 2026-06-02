@@ -8,6 +8,7 @@ import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
 import NewsListPanel from './features/news/NewsListPanel'
 import KnowView from './features/news/KnowView'
+import StockNews from './features/news/StockNews'
 import Placeholder from './features/misc/Placeholder'
 
 const TABS: { v: View; label: string }[] = [
@@ -136,6 +137,7 @@ export default function App() {
               <>
                 <KLineView />
                 {selectedSymbol && <FinancialsPanel symbol={selectedSymbol} />}
+                {selectedSymbol && <StockNews symbol={selectedSymbol} />}
                 {selectedSymbol && <JournalPanel symbol={selectedSymbol} />}
               </>
             )}

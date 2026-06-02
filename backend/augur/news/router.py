@@ -27,6 +27,12 @@ async def refresh() -> dict:
     return await run_in_threadpool(service.refresh)
 
 
+@router.get("/for", response_model=list[NewsItem])
+async def news_for(symbol: str, limit: int = 20) -> list[dict]:
+    """与某标的（MARKET:CODE）相关的新闻（标题里出现公司名）。"""
+    return await run_in_threadpool(service.news_for_symbol, symbol, limit)
+
+
 @router.get("/reports", response_model=list[ReportMeta])
 async def reports(limit: int = 30) -> list[dict]:
     """日报列表（按日期倒序，带预览）。"""

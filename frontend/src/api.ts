@@ -416,6 +416,18 @@ export function useNewsFeed(limit = 60, category?: string) {
   })
 }
 
+export function useNewsForSymbol(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['news-for', symbol],
+    queryFn: async () =>
+      z
+        .array(newsItemSchema)
+        .parse(await getJSON(`/news/for?symbol=${encodeURIComponent(symbol!)}&limit=20`)),
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useNewsReports() {
   return useQuery({
     queryKey: ['news-reports'],

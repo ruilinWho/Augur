@@ -988,6 +988,9 @@ input:focus:not(:focus-visible) {
 .financials {
   margin-top: 26px;
 }
+.stock-news {
+  margin-top: 26px;
+}
 .sec-head {
   display: flex;
   align-items: center;

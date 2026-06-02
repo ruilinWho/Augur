@@ -25,13 +25,11 @@ feeds:
   - { name: "The Elec (韩国半导体专门)", url: "https://www.thelec.net/rss/allArticle.xml", lang: en, category: chips }
   - { name: "Tom's Hardware", url: "https://www.tomshardware.com/feeds.xml", lang: en, category: chips }
   - { name: "IEEE Spectrum — Semiconductors", url: "https://spectrum.ieee.org/feeds/topic/semiconductors.rss", lang: en, category: chips }
-  - { name: "電子新聞 Etnews (오늘의뉴스)", url: "https://rss.etnews.com/Section901.xml", lang: ko, category: chips }
 
   # ── 机器人 / 具身 ──
   - { name: "IEEE Spectrum Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", lang: en, category: robotics }
   - { name: "Robohub", url: "https://robohub.org/feed/", lang: en, category: robotics }
   - { name: "Humanoids Daily", url: "https://www.humanoidsdaily.com/feed.xml", lang: en, category: robotics }
-  - { name: "로봇신문 (The Robot News)", url: "https://www.irobotnews.com/rss/allArticle.xml", lang: ko, category: robotics }
 
   # ── 航天 ──
   - { name: "SpaceNews", url: "https://spacenews.com/feed/", lang: en, category: space }
@@ -47,7 +45,6 @@ feeds:
   - { name: "IT之家 (ITHome)", url: "https://www.ithome.com/rss/", lang: zh, category: tech }
   - { name: "TechNode", url: "https://technode.com/feed/", lang: en, category: tech }
   - { name: "KrASIA (36Kr Global)", url: "https://console.kr-asia.com/feed", lang: en, category: tech }
-  - { name: "ZDNet Korea", url: "https://feeds.feedburner.com/zdkorea", lang: ko, category: tech }
   - { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
   - { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", lang: en, category: tech }
   - { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: en, category: tech }
@@ -55,8 +52,4 @@ feeds:
 
   # ── 行情 / 宏观 ──
   - { name: "华尔街见闻 (WallStreetCN)", url: "https://dedicated.wallstreetcn.com/rss.xml", lang: zh, category: markets }
-  - { name: "Korea Herald · Business", url: "https://www.koreaherald.com/rss/kh_Business", lang: en, category: markets }
   - { name: "CNBC 美股头条", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", lang: en, category: markets }
-
-  # ── 国际要闻 ──
-  - { name: "연합뉴스 英文 (Yonhap All News)", url: "https://en.yna.co.kr/RSS/news.xml", lang: en, category: world }
