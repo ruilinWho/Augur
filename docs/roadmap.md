@@ -85,8 +85,9 @@
 - ✅ **信源精简**：韩源砍到 1（The Elec），聚焦美股 + 国内源；`_prune_removed_sources` 让库随 feeds.yaml 自愈。
 - ✅ **个股「相关资讯」**：看 K 线页加一段，从聚合新闻里按公司名（中文展示名+英文名）筛出相关条目、链原文（`GET /news/for`）。
 - ✅ **个股一手「一条龙」起步（SEC EDGAR）**：`edgar.py` 美股 ticker→CIK（官方 `company_tickers.json` 缓存 7 天）→ `data.sec.gov` submissions JSON → 高信号表单白名单（8-K/10-Q/10-K/20-F/6-K/S-1/424B/13D/13G/DEF 14A，**不收 Form 4 噪音**）；表单 + 8-K 事项码给**确定性中文标签**（零 token 不幻觉）；可配 SEC UA + ≤10 req/s + 6h 缓存 + 失败降级。`GET /news/official` → K 线页**「官方文件 · SEC」**段（陶土等宽 form 徽标 + 中文标签 + 申报日 + 直链）。真机验证 RKLB/NVDA/AAPL/TSLA/AMD 全中。详见 [ADR-0006](decisions/0006-first-hand-sources-edgar-x.md)。
-- 🟡 **X 官方号接入（待主人定夺）**：调研定论——关键账号只活在 X，Bluesky/Mastodon 几近空；官方 API 官僚、Nitter 已死；**推荐商业桥 TwitterAPI.io**（无需主人 X 账号、~$0.15/1k 推）作主力，权衡＝桥会知道轮询了哪些账号（§5）。需主人定 桥/隐私/key，再建可换桥 `XBridgeAdapter`。见 ADR-0006 第 3 节。
-- ⚪ 个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、按**自选分区**聚合、信源健康度。
+- 🟡 **X 官方号——准备就绪（待主人配 key）**：调研定论 关键账号只活在 X、官方 API 官僚、Nitter 已死；选定**商业桥 TwitterAPI.io**（无需主人 X 账号、约 $几/月、隐私权衡＝桥知道轮询了哪些公开账号）。已在「设置 · 信源 API」留可换桥槽（配 `TWITTERAPI_KEY` 即启用），`XBridgeAdapter` 待接。见 ADR-0006 第 3 节。
+- ✅ **设置 · API 配置中枢 + 顶级源核查**：`runtime_config`（gitignored `data/config.local.json`、注入 env 即时生效、脱敏回显、写入名 guard）+ `/settings` + 「设置」页（LLM key/base/角色路由 + 数据信源 key 皆可 UI 改、无需重启）+ `news/source_registry.py`。**Bloomberg 科技/市场**免费官方 RSS 已接入；核查主人朋友清单后**按其意见移除太贵源**（Reuters/LSEG、万得 Wind、同花顺 iFinD、东财 Choice），留免费 Bloomberg/财联社/东财 + 极廉 X。详见 [ADR-0007](decisions/0007-api-config-and-source-feasibility.md)。
+- ⚪ 接 **财联社/东财/华尔街见闻-tmt 免费科技适配器**、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、按**自选分区**聚合、信源健康度。
 
 ## M4 · 原生打包 + 打磨 ⚪
 

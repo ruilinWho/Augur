@@ -1,5 +1,171 @@
+import { useState } from 'react'
 import { useUI } from '../../store'
-import { useRoles } from '../../api'
+import {
+  useSettingsConfig,
+  useSetRole,
+  useSetSecret,
+  type ProviderStatus,
+  type SourceStatus,
+} from '../../api'
+
+// LLM 角色路由行：provider:model 文本框 + 保存（空=回退 .env）
+function RoleRow({
+  role,
+  spec,
+  configured,
+  desc,
+}: {
+  role: string
+  spec: string
+  configured: boolean
+  desc: string
+}) {
+  const setRole = useSetRole()
+  const [val, setVal] = useState(spec)
+  const dirty = val.trim() !== spec
+  return (
+    <div className="set-row row-top">
+      <div>
+        <div className="k">{role}</div>
+        <div className="d">{configured ? desc : '未配置'}</div>
+      </div>
+      <div className="ctl ctl-col">
+        <input
+          className="cfg-input mono"
+          value={val}
+          placeholder="provider:model（如 deepseek:deepseek-chat）"
+          onChange={(e) => setVal(e.target.value)}
+        />
+        <div className="cfg-actions">
+          <button
+            className="btn jsm"
+            disabled={!dirty || setRole.isPending}
+            onClick={() => setRole.mutate({ role, spec: val.trim() })}
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// LLM 厂商行：API key（密文，留空不改）+ base_url（中转站）+ 保存/清除
+function ProviderRow({ p }: { p: ProviderStatus }) {
+  const setSecret = useSetSecret()
+  const [key, setKey] = useState('')
+  const [base, setBase] = useState(p.base_url)
+  const baseDirty = base.trim() !== p.base_url
+  const save = () => {
+    if (key.trim()) setSecret.mutate({ name: p.key_env, value: key.trim() })
+    if (baseDirty) setSecret.mutate({ name: p.base_env, value: base.trim() || null })
+    setKey('')
+  }
+  return (
+    <div className="set-row row-top">
+      <div>
+        <div className="k">{p.id}</div>
+        <div className="d">{p.key_configured ? `key ${p.key_hint}` : '未配置 key'}</div>
+      </div>
+      <div className="ctl ctl-col">
+        <input
+          className="cfg-input"
+          type="password"
+          autoComplete="off"
+          value={key}
+          placeholder={p.key_configured ? 'API key（留空＝不改）' : '粘贴 API key'}
+          onChange={(e) => setKey(e.target.value)}
+        />
+        <input
+          className="cfg-input mono"
+          value={base}
+          placeholder="base_url（可选，自配中转站）"
+          onChange={(e) => setBase(e.target.value)}
+        />
+        <div className="cfg-actions">
+          {p.key_configured && (
+            <button
+              className="btn btn-ghost jsm"
+              onClick={() => setSecret.mutate({ name: p.key_env, value: null })}
+            >
+              清除 key
+            </button>
+          )}
+          <button
+            className="btn jsm"
+            disabled={setSecret.isPending || (!key.trim() && !baseDirty)}
+            onClick={save}
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const TONE: Record<string, string> = {
+  free_rss: 'var(--up)',
+  free_api: 'var(--accent)',
+  paid_api: 'var(--text-muted)',
+  paid_terminal: 'var(--text-faint)',
+  unavailable: 'var(--text-faint)',
+}
+
+// 数据/新闻信源行：状态徽标 +（付费源）API key 输入
+function SourceRow({ s }: { s: SourceStatus }) {
+  const setSecret = useSetSecret()
+  const [key, setKey] = useState('')
+  const tone = s.configured ? 'var(--up)' : TONE[s.access] ?? 'var(--text-faint)'
+  return (
+    <div className="set-row row-top">
+      <div style={{ maxWidth: 380 }}>
+        <div className="k">
+          {s.name} <span className="src-cat">{s.category}</span>
+        </div>
+        <div className="d">{s.note}</div>
+      </div>
+      <div className="ctl ctl-col">
+        <span className="badge" style={{ color: tone }}>
+          {s.status}
+          {s.hint ? ` · ${s.hint}` : ''}
+        </span>
+        {s.key_env && (
+          <>
+            <input
+              className="cfg-input"
+              type="password"
+              autoComplete="off"
+              value={key}
+              placeholder={s.configured ? 'key（留空＝不改）' : '粘贴 API key'}
+              onChange={(e) => setKey(e.target.value)}
+            />
+            <div className="cfg-actions">
+              {s.configured && (
+                <button
+                  className="btn btn-ghost jsm"
+                  onClick={() => setSecret.mutate({ name: s.key_env!, value: null })}
+                >
+                  清除
+                </button>
+              )}
+              <button
+                className="btn jsm"
+                disabled={!key.trim() || setSecret.isPending}
+                onClick={() => {
+                  setSecret.mutate({ name: s.key_env!, value: key.trim() })
+                  setKey('')
+                }}
+              >
+                保存
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function SettingsView() {
   const {
@@ -14,7 +180,7 @@ export default function SettingsView() {
     setDisplayFont,
     setConvention,
   } = useUI()
-  const roles = useRoles()
+  const cfg = useSettingsConfig()
 
   return (
     <div>
@@ -85,24 +251,34 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <div className="set-card-h">LLM 厂商 · 角色路由</div>
+      <div className="set-card-h">LLM 厂商 · 角色路由（改后即时生效，无需重启）</div>
       <div className="set-card">
-        {roles.data?.map((r) => (
-          <div className="set-row" key={r.role}>
-            <div>
-              <div className="k">{r.role}</div>
-              <div className="d">{r.provider ? `${r.provider} · ${r.model}` : '未配置角色'}</div>
-            </div>
-            <div className="ctl">
-              <span className="badge" style={{ color: r.configured ? 'var(--up)' : 'var(--text-faint)' }}>
-                {r.configured ? '已配置' : '未配置'}
-              </span>
-            </div>
-          </div>
+        {cfg.data?.llm.roles.map((r) => (
+          <RoleRow
+            key={r.role}
+            role={r.role}
+            spec={r.spec}
+            configured={r.configured}
+            desc={r.provider ? `${r.provider} · ${r.model}` : ''}
+          />
+        ))}
+        <div className="cfg-sub">厂商 key / base_url</div>
+        {cfg.data?.llm.providers.map((p) => (
+          <ProviderRow key={p.id} p={p} />
         ))}
       </div>
+
+      <div className="set-card-h">数据 / 新闻信源 · API（按需配 key，逐步「一条龙」）</div>
+      <div className="set-card">
+        {cfg.data?.sources.map((s) => (
+          <SourceRow key={s.id} s={s} />
+        ))}
+        {!cfg.data && <div className="d">加载信源配置…</div>}
+      </div>
+
       <div className="hedge" style={{ maxWidth: 680 }}>
-        在 <span className="mono">backend/.env</span> 配置厂商 key / base_url 与 <span className="mono">AUGUR_ROLE_*</span> 角色路由（见 .env.example），重启后端生效。
+        密钥仅存于本机 <span className="mono">data/config.local.json</span>（不入库、不外传、界面只显末位），
+        改动即时注入运行环境。也可继续用 <span className="mono">backend/.env</span>（见 .env.example）。
       </div>
     </div>
   )

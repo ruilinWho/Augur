@@ -15,6 +15,7 @@ export default defineConfig({
       '/llm': backend,
       '/journal': backend,
       '/news': backend,
+      '/settings': backend,
       '/health': backend,
     },
   },

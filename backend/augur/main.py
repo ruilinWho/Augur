@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import runtime_config
 from .journal import router as journal_router
 from .llm import router as llm_router
 from .market import listings
@@ -19,6 +20,7 @@ from .market import router as market_router
 from .market import search as search_mod
 from .news import router as news_router
 from .news import scheduler as news_scheduler
+from .settings_router import router as settings_router
 from .storage import init_db
 from .watchlist import router as watchlist_router
 
@@ -32,6 +34,7 @@ def _warm_listings() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    runtime_config.load()  # 把 UI 存的 API key 注入 os.environ（gateway/适配器即时可见）
     init_db()
     threading.Thread(target=_warm_listings, name="warm-listings", daemon=True).start()
     news_scheduler.start()  # 每日抓取 +（若 LLM 就绪）生成趋势日报
@@ -54,6 +57,7 @@ app.include_router(watchlist_router)
 app.include_router(llm_router)
 app.include_router(journal_router)
 app.include_router(news_router)
+app.include_router(settings_router)
 
 
 @app.get("/health")

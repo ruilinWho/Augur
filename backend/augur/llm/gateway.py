@@ -12,6 +12,7 @@ from collections.abc import Iterator
 
 import litellm
 
+from .. import runtime_config
 from ..config import get_settings
 
 litellm.drop_params = True  # 忽略个别厂商不支持的参数
@@ -59,7 +60,7 @@ def resolve_role(role: str) -> tuple[str, str]:
     attr = _ROLE_ATTR.get(role)
     if attr is None:
         raise LLMNotConfigured(f"未知角色 {role!r}")
-    spec = getattr(get_settings(), attr, "")
+    spec = runtime_config.get_role(role) or getattr(get_settings(), attr, "")
     if not spec or ":" not in spec:
         raise LLMNotConfigured(
             f"角色 {role!r} 未配置（设 AUGUR_ROLE_{role.upper()}=provider:model）"
@@ -104,15 +105,40 @@ def check_ready(role: str) -> None:
 
 
 def roles_status() -> list[dict]:
-    """各角色的配置状态（无需 key 即可调用，用于设置页展示）。"""
+    """各角色的配置状态（无需 key 即可调用，用于设置页展示）。UI 存的路由优先于 .env。"""
     settings = get_settings()
     out: list[dict] = []
     for role, attr in _ROLE_ATTR.items():
-        spec = getattr(settings, attr, "")
+        spec = runtime_config.get_role(role) or getattr(settings, attr, "")
         provider = model = None
         configured = False
         if spec and ":" in spec:
             provider, _, model = (p.strip() for p in spec.partition(":"))
             configured = bool(os.getenv(_provider_cfg(provider)["key_env"]))
-        out.append({"role": role, "provider": provider, "model": model, "configured": configured})
+        out.append(
+            {
+                "role": role,
+                "spec": spec or "",
+                "provider": provider,
+                "model": model,
+                "configured": configured,
+            }
+        )
+    return out
+
+
+def providers_status() -> list[dict]:
+    """已知厂商的 key/base 配置状态（key 只回布尔/脱敏；base_url 非密、可回显）。"""
+    out: list[dict] = []
+    for name, cfg in PROVIDERS.items():
+        out.append(
+            {
+                "id": name,
+                "key_env": cfg["key_env"],
+                "base_env": cfg["base_env"],
+                "key_configured": bool(os.getenv(cfg["key_env"])),
+                "key_hint": runtime_config.secret_hint(cfg["key_env"]),
+                "base_url": os.getenv(cfg["base_env"]) or "",
+            }
+        )
     return out

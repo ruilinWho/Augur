@@ -248,6 +248,67 @@ export function useRoles() {
   })
 }
 
+// ───────────────────────── 设置 · API 配置（LLM + 数据信源）─────────────────────────
+const roleStatusSchema = z.object({
+  role: z.string(),
+  spec: z.string().default(''),
+  provider: z.string().nullable().default(null),
+  model: z.string().nullable().default(null),
+  configured: z.boolean(),
+})
+const providerStatusSchema = z.object({
+  id: z.string(),
+  key_env: z.string(),
+  base_env: z.string(),
+  key_configured: z.boolean(),
+  key_hint: z.string().default(''),
+  base_url: z.string().default(''),
+})
+const sourceStatusSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  access: z.string(),
+  key_env: z.string().nullable().default(null),
+  note: z.string().default(''),
+  configured: z.boolean(),
+  status: z.string(),
+  hint: z.string().default(''),
+})
+const settingsConfigSchema = z.object({
+  llm: z.object({
+    roles: z.array(roleStatusSchema),
+    providers: z.array(providerStatusSchema),
+  }),
+  sources: z.array(sourceStatusSchema),
+})
+export type ProviderStatus = z.infer<typeof providerStatusSchema>
+export type SourceStatus = z.infer<typeof sourceStatusSchema>
+
+export function useSettingsConfig() {
+  return useQuery({
+    queryKey: ['settings-config'],
+    queryFn: async () => settingsConfigSchema.parse(await getJSON('/settings/config')),
+    staleTime: 30_000,
+  })
+}
+
+export function useSetSecret() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { name: string; value: string | null }) => send('/settings/secret', 'POST', v),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-config'] }),
+  })
+}
+
+export function useSetRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { role: string; spec: string }) => send('/settings/role', 'POST', v),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-config'] }),
+  })
+}
+
 export function useSearch(query: string, market: string) {
   const q = query.trim()
   return useQuery({

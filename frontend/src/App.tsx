@@ -112,7 +112,7 @@ export default function App() {
           <NewsListPanel />
         ) : (
           <SimplePanel label="设置">
-            {['排版', '主题与色彩', '数据与市场', 'LLM 厂商'].map((c) => (
+            {['排版', '主题与色彩', 'LLM 厂商', '数据 / 信源 API'].map((c) => (
               <div key={c} className="navrow">
                 {c}
               </div>

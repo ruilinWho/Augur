@@ -652,6 +652,57 @@ body.resizing * {
   width: 44px;
   text-align: right;
 }
+/* 设置 · API 配置（密钥/角色/信源输入）*/
+.set-row.row-top {
+  align-items: flex-start;
+}
+.ctl-col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 320px;
+}
+.cfg-input {
+  font: inherit;
+  font-size: 0.84rem;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.15s ease;
+}
+.cfg-input.mono {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.cfg-input::placeholder {
+  color: var(--text-faint);
+}
+.cfg-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+.cfg-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.cfg-sub {
+  margin: 18px 0 2px;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.src-cat {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  font-weight: 400;
+  margin-left: 4px;
+}
 
 /* ───────────────────────── 占位（研/知）───────────────────────── */
 .placeholder {
