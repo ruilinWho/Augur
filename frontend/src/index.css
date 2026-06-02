@@ -737,33 +737,37 @@ body.resizing * {
   margin-left: 4px;
 }
 
-/* 看·K线下方模块拖动重排：手柄在模块顶部中央，hover 浮现 */
+/* 看·K线下方模块拖动重排：手柄常驻在模块顶部中央（in-flow，不遮挡、不裁切）*/
 .kan-mod {
   position: relative;
+  margin-top: 14px;
+}
+.kan-mod > :last-child {
+  margin-top: 0; /* 间距由手柄区给，避免双重留白 */
 }
 .kan-grip {
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
   display: flex;
   align-items: center;
-  padding: 3px 14px;
+  justify-content: center;
+  width: 46px;
+  height: 18px;
+  margin: 0 auto 5px;
   border: 0;
-  background: transparent;
-  color: var(--text-faint);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-muted);
   cursor: grab;
-  opacity: 0;
-  transition: opacity 0.16s ease, color 0.16s ease;
+  opacity: 1;
+  transition: color 0.15s ease, background 0.15s ease;
   touch-action: none;
 }
 .kan-mod:hover .kan-grip {
-  opacity: 0.45;
+  background: var(--surface-2);
+  color: var(--text);
 }
 .kan-grip:hover {
-  opacity: 1;
   color: var(--accent);
+  background: var(--surface-2);
 }
 .kan-grip:active {
   cursor: grabbing;
