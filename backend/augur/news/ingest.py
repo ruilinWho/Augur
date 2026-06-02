@@ -1,14 +1,15 @@
-"""RSS/Atom 摄取：拉取信源 → 归一化 → 落库（按 url 去重）。
+"""RSS/Atom 摄取：并发拉取信源 → 归一化 → 落库（按 url 去重）。
 
-CLAUDE.md §5：出站请求带超时/UA、容忍单源失败（限流是真的）。串行抓取，简单稳妥；
-单源 12s 超时、最多取前 N 条。feedparser 解析 RSS+Atom。
+CLAUDE.md §5：出站请求带超时/UA、容忍单源失败（限流是真的）。**并发**抓取（线程池），
+单源 12s 超时、每源取前 N 条、按发布时间过滤近期（挡住归档源倒灌旧闻）。feedparser 解析 RSS+Atom。
 """
 
 from __future__ import annotations
 
 import calendar
 import re
-from datetime import UTC, datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime, timedelta
 
 import feedparser
 import httpx
@@ -18,17 +19,19 @@ from . import sources
 
 _UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
-_PER_FEED_MAX = 30  # 每源最多取前 N 条，避免超大 feed 占满
+_PER_FEED_MAX = 30  # 每源最多取前 N 条，避免超大/归档 feed 占满
+_MAX_WORKERS = 12  # 并发抓取的线程数（≈源数，但有上限以尊重本机与限流）
+_RECENCY_DAYS = 30  # 只收近 N 天的条目（无日期的保留）；挡归档源倒灌历史
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 
 
-def _parse_time(entry: dict) -> str | None:
+def _published_dt(entry: dict) -> datetime | None:
     t = entry.get("published_parsed") or entry.get("updated_parsed")
     if not t:
         return None
     try:
-        return datetime.fromtimestamp(calendar.timegm(t), tz=UTC).isoformat()
+        return datetime.fromtimestamp(calendar.timegm(t), tz=UTC)
     except (ValueError, OverflowError, TypeError):
         return None
 
@@ -38,8 +41,11 @@ def _clean(s: str) -> str:
     return s[:400]
 
 
-def fetch_feed(feed: dict) -> list[dict]:
-    """拉单源 → 归一化条目（不落库）。网络/解析失败抛异常，由上层捕获。"""
+def fetch_feed(feed: dict, cutoff: datetime | None = None) -> list[dict]:
+    """拉单源 → 归一化条目（不落库）。网络/解析失败抛异常，由上层捕获。
+
+    cutoff：丢弃早于此时间的条目（无发布时间的保留）。
+    """
     headers = {"User-Agent": _UA}
     with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as client:
         resp = client.get(feed["url"])
@@ -51,6 +57,9 @@ def fetch_feed(feed: dict) -> list[dict]:
         title = _clean(str(e.get("title", "")))
         if not url or not title:
             continue
+        dt = _published_dt(e)
+        if cutoff is not None and dt is not None and dt < cutoff:
+            continue  # 太旧 → 跳过（归档源保护）
         items.append(
             {
                 "source": feed["name"],
@@ -59,7 +68,7 @@ def fetch_feed(feed: dict) -> list[dict]:
                 "summary": _clean(str(e.get("summary", ""))),
                 "lang": feed.get("lang", ""),
                 "category": feed.get("category", ""),
-                "published_at": _parse_time(e),
+                "published_at": dt.isoformat() if dt else None,
             }
         )
     return items
@@ -84,22 +93,23 @@ def _store(items: list[dict]) -> int:
 
 
 def ingest_all() -> dict:
-    """遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
+    """并发遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
     feeds = sources.load_feeds()
+    cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
-    ok = 0
     failures: list[str] = []
-    for f in feeds:
-        try:
-            all_items.extend(fetch_feed(f))
-            ok += 1
-        except Exception:  # noqa: BLE001 — 单源失败不应中断整体
-            failures.append(f["name"])
+    with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as ex:
+        futures = {ex.submit(fetch_feed, f, cutoff): f for f in feeds}
+        for fut in as_completed(futures):
+            try:
+                all_items.extend(fut.result())
+            except Exception:  # noqa: BLE001 — 单源失败不应中断整体
+                failures.append(futures[fut]["name"])
     inserted = _store(all_items)
     return {
         "fetched": len(all_items),
         "inserted": inserted,
-        "sources_ok": ok,
+        "sources_ok": len(feeds) - len(failures),
         "sources_failed": len(failures),
         "failures": failures,
     }

@@ -90,6 +90,14 @@ def stream_chat(messages: list[dict], role: str = "chat") -> Iterator[str]:
             yield delta
 
 
+def complete(messages: list[dict], role: str = "summarize", **extra) -> str:
+    """非流式补全：返回完整文本。用于批量翻译、投资机会识别等需要整段结果的内部调用。"""
+    kwargs = _build_kwargs(role)
+    kwargs.update(extra)
+    resp = litellm.completion(messages=messages, stream=False, **kwargs)
+    return resp.choices[0].message.content or ""
+
+
 def check_ready(role: str) -> None:
     """校验角色可用（已配置 + 有 key），否则抛 LLMNotConfigured（流式前先调）。"""
     _build_kwargs(role)

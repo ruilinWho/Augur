@@ -1,28 +1,62 @@
 # 新闻信源清单（CLAUDE.md §1「知」/ M3）——版本化、主人可编辑。
-# 每条一个 RSS/Atom 源；ingest 容忍单源失败（超时/404 跳过，不影响其余）。
+# 每条一个 RSS/Atom 源；ingest 并发抓取、容忍单源失败、按发布时间过滤近期。
 #   lang:     en / zh / ko
-#   category: markets（行情/宏观）· tech（科技/半导体/AI）· world（国际要闻）
-# 想加源：照抄一条改 name/url/lang/category 即可。挑稳定的官方 RSS，别堆太多以免拖慢/触发限流。
+#   category: 既是信源粗类、也作主题分类(classify)的回退输入
+#             ai 大模型 · chips 芯片 · robotics 机器人 · space 航天 · tech 泛科技 · markets 行情 · world 国际
+# 全部经 httpx+feedparser 实测可抓（2026-06）。想加源：照抄一条改 4 个字段即可。
 
 feeds:
-  # ── 行情 · 宏观 ───────────────────────────────────────────
-  - { name: CNBC, url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", lang: en, category: markets }
-  - { name: CNBC 市场, url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258", lang: en, category: markets }
-  - { name: Yahoo Finance, url: "https://finance.yahoo.com/news/rssindex", lang: en, category: markets }
-  - { name: MarketWatch, url: "http://feeds.marketwatch.com/marketwatch/topstories/", lang: en, category: markets }
+  # ── 大模型 / AI ──
+  - { name: "OpenAI News", url: "https://openai.com/news/rss.xml", lang: en, category: ai }
+  - { name: "Google DeepMind News", url: "https://deepmind.google/blog/rss.xml", lang: en, category: ai }
+  - { name: "Anthropic News·镜像", url: "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml", lang: en, category: ai }
+  - { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", lang: en, category: ai }
+  - { name: "The Decoder", url: "https://the-decoder.com/feed/", lang: en, category: ai }
+  - { name: "Import AI(Jack Clark)", url: "https://importai.substack.com/feed", lang: en, category: ai }
+  - { name: "量子位 QbitAI", url: "https://www.qbitai.com/feed", lang: zh, category: ai }
+  - { name: "雷锋网 (Leiphone) · AI", url: "https://www.leiphone.com/feed/categoryRss/name/ai", lang: zh, category: ai }
+  - { name: "WIRED Business", url: "https://www.wired.com/feed/category/business/latest/rss", lang: en, category: ai }
 
-  # ── 科技 · 半导体 · AI ────────────────────────────────────
-  - { name: The Verge, url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
-  - { name: Ars Technica, url: "https://feeds.arstechnica.com/arstechnica/index", lang: en, category: tech }
-  - { name: Hacker News, url: "https://hnrss.org/frontpage", lang: en, category: tech }
-  - { name: TechCrunch, url: "https://techcrunch.com/feed/", lang: en, category: tech }
+  # ── 芯片 / 半导体 ──
+  - { name: "SemiAnalysis (Dylan Patel)", url: "https://semianalysis.com/feed/", lang: en, category: chips }
+  - { name: "Semiconductor Engineering", url: "https://semiengineering.com/feed/", lang: en, category: chips }
+  - { name: "EE Times", url: "https://www.eetimes.com/feed/", lang: en, category: chips }
+  - { name: "DIGITIMES Asia", url: "https://www.digitimes.com/rss/daily.xml", lang: en, category: chips }
+  - { name: "The Elec (韩国半导体专门)", url: "https://www.thelec.net/rss/allArticle.xml", lang: en, category: chips }
+  - { name: "Tom's Hardware", url: "https://www.tomshardware.com/feeds.xml", lang: en, category: chips }
+  - { name: "IEEE Spectrum — Semiconductors", url: "https://spectrum.ieee.org/feeds/topic/semiconductors.rss", lang: en, category: chips }
+  - { name: "電子新聞 Etnews (오늘의뉴스)", url: "https://rss.etnews.com/Section901.xml", lang: ko, category: chips }
 
-  # ── 国际要闻 ──────────────────────────────────────────────
-  - { name: BBC World, url: "https://feeds.bbci.co.uk/news/world/rss.xml", lang: en, category: world }
-  - { name: NPR News, url: "https://feeds.npr.org/1001/rss.xml", lang: en, category: world }
+  # ── 机器人 / 具身 ──
+  - { name: "IEEE Spectrum Robotics", url: "https://spectrum.ieee.org/feeds/topic/robotics.rss", lang: en, category: robotics }
+  - { name: "Robohub", url: "https://robohub.org/feed/", lang: en, category: robotics }
+  - { name: "Humanoids Daily", url: "https://www.humanoidsdaily.com/feed.xml", lang: en, category: robotics }
+  - { name: "로봇신문 (The Robot News)", url: "https://www.irobotnews.com/rss/allArticle.xml", lang: ko, category: robotics }
 
-  # ── 中文源 ────────────────────────────────────────────────
-  - { name: 36氪, url: "https://36kr.com/feed", lang: zh, category: tech }
+  # ── 航天 ──
+  - { name: "SpaceNews", url: "https://spacenews.com/feed/", lang: en, category: space }
+  - { name: "Payload", url: "https://payloadspace.com/feed/", lang: en, category: space }
+  - { name: "Ars Technica — Space", url: "https://arstechnica.com/space/feed/", lang: en, category: space }
+  - { name: "NASA Breaking News", url: "https://www.nasa.gov/rss/dyn/breaking_news.rss", lang: en, category: space }
+  - { name: "ESA Top News", url: "https://www.esa.int/rssfeed/TopNews", lang: en, category: space }
+  - { name: "Space.com", url: "https://www.space.com/feeds.xml", lang: en, category: space }
 
-  # ── 韩国 ──────────────────────────────────────────────────
-  - { name: Korea Herald, url: "http://www.koreaherald.com/rss/020000000000.xml", lang: ko, category: markets }
+  # ── 科技综合 ──
+  - { name: "36氪 (36Kr)", url: "https://36kr.com/feed", lang: zh, category: tech }
+  - { name: "钛媒体 TMTPost", url: "https://www.tmtpost.com/feed", lang: zh, category: tech }
+  - { name: "IT之家 (ITHome)", url: "https://www.ithome.com/rss/", lang: zh, category: tech }
+  - { name: "TechNode", url: "https://technode.com/feed/", lang: en, category: tech }
+  - { name: "KrASIA (36Kr Global)", url: "https://console.kr-asia.com/feed", lang: en, category: tech }
+  - { name: "ZDNet Korea", url: "https://feeds.feedburner.com/zdkorea", lang: ko, category: tech }
+  - { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: en, category: tech }
+  - { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", lang: en, category: tech }
+  - { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: en, category: tech }
+  - { name: "CNBC Technology", url: "https://www.cnbc.com/id/19854910/device/rss/rss.html", lang: en, category: tech }
+
+  # ── 行情 / 宏观 ──
+  - { name: "华尔街见闻 (WallStreetCN)", url: "https://dedicated.wallstreetcn.com/rss.xml", lang: zh, category: markets }
+  - { name: "Korea Herald · Business", url: "https://www.koreaherald.com/rss/kh_Business", lang: en, category: markets }
+  - { name: "CNBC 美股头条", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", lang: en, category: markets }
+
+  # ── 国际要闻 ──
+  - { name: "연합뉴스 英文 (Yonhap All News)", url: "https://en.yna.co.kr/RSS/news.xml", lang: en, category: world }
