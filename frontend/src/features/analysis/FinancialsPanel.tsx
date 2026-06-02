@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import Collapse from '../../components/Collapse'
 import { useFinancials, useFundamentals, type FinPeriod } from '../../api'
 import { fmtMoney, fmtNum, fmtPct, fmtPctPlain } from '../../format'
-
-const EASE = [0.22, 1, 0.36, 1] as const
 
 type RowDef = {
   key: Exclude<keyof FinPeriod, 'period'> // 仅数值列
@@ -21,24 +19,6 @@ const ROWS: RowDef[] = [
   { key: 'eps_growth', label: 'EPS 同比', kind: 'pct', growth: true, extra: true },
   { key: 'fcf', label: '自由现金流', kind: 'money', extra: true },
 ]
-
-function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
-  return (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: EASE }}
-          style={{ overflow: 'hidden' }}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
 
 function cellText(p: FinPeriod, row: RowDef, cur: string): string {
   const v = p[row.key]
@@ -69,7 +49,6 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
   return (
     <section className="financials">
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
-        <span className="chev">{open ? '▾' : '▸'}</span>
         <h3>财报分析</h3>
         <div className="fin-toggle" onClick={(e) => e.stopPropagation()}>
           <button className={period === 'quarter' ? 'on' : ''} onClick={() => setPeriod('quarter')}>
@@ -127,7 +106,7 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
             </div>
             <div className="fin-actions">
               <button className="btn-ghost more-btn" onClick={() => setShowExtra((s) => !s)}>
-                {showExtra ? '收起 ▴' : '更多指标 ▾'}
+                {showExtra ? '收起' : '更多指标'}
               </button>
             </div>
           </>

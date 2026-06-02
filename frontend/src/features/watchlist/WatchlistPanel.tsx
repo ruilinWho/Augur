@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'motion/react'
+import Collapse from '../../components/Collapse'
 import {
   DndContext,
   DragOverlay,
@@ -227,25 +228,6 @@ function StockRow({ item }: { item: Item }) {
   )
 }
 
-// 折叠动画容器
-function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
-  return (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: EASE }}
-          style={{ overflow: 'hidden' }}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
 // 板块标题行：整行点击折叠；右侧操作按钮 stopPropagation；本身是拖拽落点
 function SectionHeader({
   section,
@@ -278,7 +260,6 @@ function SectionHeader({
       onClick={onToggle}
       role="button"
     >
-      <span className="chev">{open ? '▾' : '▸'}</span>
       <span className="nm">{section.name}</span>
       <span className="ct">{count}</span>
       {onAddSub && (

@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { useState } from 'react'
+import { motion } from 'motion/react'
+import Collapse from '../../components/Collapse'
 import {
   useCreateJournal,
   useDeleteJournal,
@@ -26,24 +27,6 @@ function agoLabel(dateStr: string): string {
   if (days < 30) return `${days} 天前`
   if (days < 365) return `${Math.round(days / 30)} 个月前`
   return `${(days / 365).toFixed(1)} 年前`
-}
-
-function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
-  return (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: EASE }}
-          style={{ overflow: 'hidden' }}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
 }
 
 function Editor({
@@ -114,7 +97,6 @@ function EntryCard({
       transition={{ duration: 0.22, ease: EASE }}
     >
       <header className="jentry-head" onClick={onToggle}>
-        <span className="chev">{collapsed ? '▸' : '▾'}</span>
         <time className="jdate mono">{entry.entry_date}</time>
         <span className="jago faint">{agoLabel(entry.entry_date)}</span>
         <span className="jactions">
@@ -140,6 +122,7 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
   const del = useDeleteJournal(symbol)
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
+  const [open, setOpen] = useState(true)
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
 
   const toggle = (id: number) =>
@@ -152,56 +135,65 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
 
   return (
     <section className="journal">
-      <div className="journal-head">
+      <div className="journal-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>判断日记</h3>
         {!adding && (
-          <button className="btn btn-primary jsm" onClick={() => setAdding(true)}>
+          <button
+            className="btn btn-primary jsm"
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(true)
+              setAdding(true)
+            }}
+          >
             ＋ 写判断
           </button>
         )}
       </div>
 
-      {adding && (
-        <Editor
-          initialDate={todayISO()}
-          initialBody=""
-          onCancel={() => setAdding(false)}
-          onSave={(entry_date, body) => {
-            create.mutate({ symbol, entry_date, body })
-            setAdding(false)
-          }}
-        />
-      )}
-
-      {!isLoading && entries && entries.length === 0 && !adding && (
-        <div className="journal-empty">还没有判断记录</div>
-      )}
-
-      <div className="journal-list">
-        {entries?.map((e) =>
-          editId === e.id ? (
-            <Editor
-              key={e.id}
-              initialDate={e.entry_date}
-              initialBody={e.body}
-              onCancel={() => setEditId(null)}
-              onSave={(entry_date, body) => {
-                update.mutate({ id: e.id, entry_date, body })
-                setEditId(null)
-              }}
-            />
-          ) : (
-            <EntryCard
-              key={e.id}
-              entry={e}
-              collapsed={collapsed.has(e.id)}
-              onToggle={() => toggle(e.id)}
-              onEdit={() => setEditId(e.id)}
-              onDelete={() => del.mutate(e.id)}
-            />
-          ),
+      <Collapse open={open}>
+        {adding && (
+          <Editor
+            initialDate={todayISO()}
+            initialBody=""
+            onCancel={() => setAdding(false)}
+            onSave={(entry_date, body) => {
+              create.mutate({ symbol, entry_date, body })
+              setAdding(false)
+            }}
+          />
         )}
-      </div>
+
+        {!isLoading && entries && entries.length === 0 && !adding && (
+          <div className="journal-empty">还没有判断记录</div>
+        )}
+
+        <div className="journal-list">
+          {entries?.map((e) =>
+            editId === e.id ? (
+              <Editor
+                key={e.id}
+                initialDate={e.entry_date}
+                initialBody={e.body}
+                onCancel={() => setEditId(null)}
+                onSave={(entry_date, body) => {
+                  update.mutate({ id: e.id, entry_date, body })
+                  setEditId(null)
+                }}
+              />
+            ) : (
+              <EntryCard
+                key={e.id}
+                entry={e}
+                collapsed={collapsed.has(e.id)}
+                onToggle={() => toggle(e.id)}
+                onEdit={() => setEditId(e.id)}
+                onDelete={() => del.mutate(e.id)}
+              />
+            ),
+          )}
+        </div>
+      </Collapse>
     </section>
   )
 }

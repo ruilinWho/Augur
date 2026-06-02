@@ -429,11 +429,6 @@ body.resizing * {
 .row1:hover {
   background: var(--surface-2);
 }
-.row1 .chev {
-  color: var(--text-faint);
-  font-size: 0.64rem;
-  width: 9px;
-}
 .row1 .nm {
   font-weight: 600;
   font-size: 0.9rem;
@@ -460,11 +455,6 @@ body.resizing * {
 }
 .row2:hover {
   background: var(--surface-2);
-}
-.row2 .chev {
-  color: var(--text-faint);
-  font-size: 0.58rem;
-  width: 8px;
 }
 .row2 .nm {
   font-weight: 500;
@@ -980,6 +970,21 @@ input:focus:not(:focus-visible) {
 }
 
 /* ───────────────────────── 财报分析（K 线下方·可折叠·后接 LLM）───────────────────────── */
+/* 可折叠容器（grid 0fr↔1fr，见 components/Collapse.tsx）。
+   ⚠️ 不能叫 .collapse —— 会撞 Tailwind 内置 .collapse（visibility:collapse）把内容藏掉。 */
+.collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.collapsible[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.collapsible > .collapsible-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .financials {
   margin-top: 26px;
 }
@@ -995,10 +1000,6 @@ input:focus:not(:focus-visible) {
 .sec-head h3 {
   font-family: var(--font-display);
   transition: color 0.15s ease;
-}
-.sec-head .chev {
-  color: var(--text-faint);
-  font-size: 0.7rem;
 }
 .sec-head:hover h3 {
   color: var(--accent);
@@ -1138,9 +1139,15 @@ input:focus:not(:focus-visible) {
   align-items: center;
   gap: 12px;
   margin-bottom: 14px;
+  cursor: pointer;
+  user-select: none;
 }
 .journal-head h3 {
   font-family: var(--font-display);
+  transition: color 0.15s ease;
+}
+.journal-head:hover h3 {
+  color: var(--accent);
 }
 .journal-head .btn {
   margin-left: auto;
@@ -1182,10 +1189,6 @@ input:focus:not(:focus-visible) {
 .jentry-head:hover {
   background: var(--surface-2);
 }
-.jentry-head .chev {
-  color: var(--text-faint);
-  font-size: 0.66rem;
-}
 .jdate {
   font-size: 0.92rem;
   color: var(--text);
@@ -1224,7 +1227,7 @@ input:focus:not(:focus-visible) {
   color: var(--down);
 }
 .jbody {
-  padding: 2px 16px 15px 33px;
+  padding: 2px 16px 15px 16px;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--text-muted);
