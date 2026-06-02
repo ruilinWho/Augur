@@ -31,8 +31,8 @@
 | 源 | 科技频道 | 可接入路径 | 裁决 |
 |---|---|---|---|
 | **Bloomberg** | ✅ Technology | **免费官方 RSS** `feeds.bloomberg.com/technology/news.rss`（+ markets/economics），实测 30 条/源、新鲜 | ✅ **已接入** feeds.yaml（精英二手，未公开文档→带回退） |
-| **财联社 CLS** | ✅ 科创(1111) + 电报 | 免费非官方 API：`/v3/depth/home/assembled/1111` + `/v1/roll/get_roll_list`，需 `sign=MD5(SHA1(sorted_qs))`、`appName=CailianpressWeb`（旧 `nodeapi/telegraphList` 已死） | ✅ **最佳中文科技源**，免费适配器待接 |
-| **东方财富（免费）** | ✅ 关键词 | 免费 `search-api-web.eastmoney.com/search/jsonp`（人工智能/半导体/算力…），与现有东财检索同源 | ✅ 免费适配器待接 |
+| **财联社 CLS** | ✅ 科创(1111) + 电报 | 免费非官方 API：`/v3/depth/home/assembled/1111`，需 `sign=MD5(SHA1(sorted_qs))`、`appName=CailianpressWeb`（旧 `nodeapi/telegraphList` 已死） | ✅ **已接入** `cls.py`（最佳中文科技源） |
+| **东方财富（免费）** | ✅ 关键词 | 免费 `search-api-web.eastmoney.com/search/jsonp`（人工智能/半导体/算力…），与现有东财检索同源 | ✅ **已接入** `eastmoney_news.py` |
 | **华尔街见闻** | ✅ `tmt-channel` | 已接 RSS；可加 `information-flow?channel=tmt-channel` 焦点科技 lane | ✅ 已有，待加焦点 lane |
 | **Reuters** | ✅ Technology | **无免费 RSS**；仅 LSEG/Refinitiv 企业合约（`api.refinitiv.com`，五位数/年、销售开通） | ❌ **太贵，移除**（Google News RSS 仅个人用/跳转链，不作主源） |
 | **同花顺 iFinD（付费）** | 偏数据 | 付费 quantapi（约 Wind 5–7 折） | ❌ **太贵，移除** |
@@ -48,7 +48,7 @@
 
 - 主人有了统一的「设置 · API」中枢：现在配 LLM key/路由即时生效；将来买 X（及其他廉价源）key 一填即用。
 - 信源策略仍「一手优先、免费为主」；昂贵专业终端不绑死本工具。
-- 待办：接 财联社 / 东财 / 华尔街见闻-tmt 免费科技适配器（归一进 `news_items`）；macOS Keychain 存 key 留 M4。
+- **财联社 / 东财免费科技适配器已接入**（`cls.py` / `eastmoney_news.py`，非 RSS、并入 `ingest_all`、prune 豁免、归一进 `news_items`）。待办：华尔街见闻-tmt 焦点 lane；macOS Keychain 存 key 留 M4。
 
 ## 备选与放弃
 

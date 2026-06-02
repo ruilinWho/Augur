@@ -38,7 +38,8 @@ SOURCES: list[dict] = [
         "category": "中文 · 科技 newswire",
         "access": "free_api",
         "key_env": None,
-        "note": "科创电报，免费非官方 API（带 sign）；最佳中文科技实时源，适配器待接。",
+        "active": True,
+        "note": "科创电报，免费非官方 API（带 sign）；最佳中文科技实时源，已接入（cls.py）。",
     },
     {
         "id": "eastmoney_news",
@@ -46,7 +47,8 @@ SOURCES: list[dict] = [
         "category": "中文 · 科技",
         "access": "free_api",
         "key_env": None,
-        "note": "免费关键词资讯 JSON（人工智能/半导体/算力…）；与现有东财检索同源，适配器待接。",
+        "active": True,
+        "note": "免费关键词资讯 JSON（人工智能/半导体/算力…），已接入（eastmoney_news.py）。",
     },
 ]
 # 已按主人意见**移除太贵的数据源**（仅保留免费/极廉）：
@@ -63,7 +65,8 @@ def status_list() -> list[dict]:
         if s["access"] == "free_rss":
             status, configured = "已接入", True
         elif s["access"] == "free_api":
-            status, configured = "免费 · 待接入", False
+            configured = bool(s.get("active"))
+            status = "已接入" if configured else "免费 · 待接入"
         elif s["access"] == "unavailable":
             status, configured = "不可用", False
         else:  # paid_api：看 key

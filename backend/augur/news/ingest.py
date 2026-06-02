@@ -16,8 +16,11 @@ import feedparser
 import httpx
 
 from ..storage import get_conn
-from . import classify, sources
+from . import classify, cls, eastmoney_news, sources
 from . import filter as noise_filter
+
+# 非 RSS 专用适配器（中文科技源）：source 名 → 抓取函数。其 source 名在 prune 时要豁免。
+_ADAPTERS = {"财联社": cls.fetch_cls, "东方财富": eastmoney_news.fetch_eastmoney}
 
 _UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
@@ -121,23 +124,27 @@ def _prune_removed_sources(feed_names: set[str]) -> int:
 def ingest_all() -> dict:
     """并发遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
     feeds = sources.load_feeds()
-    _prune_removed_sources({f["name"] for f in feeds})  # 清掉已移除信源的旧条目
+    # prune 时豁免专用适配器 source，否则其条目（不在 feeds.yaml）会被当"已移除源"删掉
+    _prune_removed_sources({f["name"] for f in feeds} | set(_ADAPTERS))
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
     failures: list[str] = []
     with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as ex:
-        futures = {ex.submit(fetch_feed, f, cutoff): f for f in feeds}
+        futures: dict = {ex.submit(fetch_feed, f, cutoff): f["name"] for f in feeds}
+        for name, fn in _ADAPTERS.items():  # 中文科技适配器并发同抓
+            futures[ex.submit(fn, cutoff)] = name
         for fut in as_completed(futures):
             try:
                 all_items.extend(fut.result())
             except Exception:  # noqa: BLE001 — 单源失败不应中断整体
-                failures.append(futures[fut]["name"])
+                failures.append(futures[fut])
     inserted = _store(all_items)
     classify.backfill_rules()  # 给历史未分类条目补规则分类（幂等、只扫未分类行）
+    total = len(feeds) + len(_ADAPTERS)
     return {
         "fetched": len(all_items),
         "inserted": inserted,
-        "sources_ok": len(feeds) - len(failures),
+        "sources_ok": total - len(failures),
         "sources_failed": len(failures),
         "failures": failures,
     }

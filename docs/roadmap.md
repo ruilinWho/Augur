@@ -88,7 +88,8 @@
 - 🟡 **X 官方号——准备就绪（待主人配 key）**：调研定论 关键账号只活在 X、官方 API 官僚、Nitter 已死；选定**商业桥 TwitterAPI.io**（无需主人 X 账号、约 $几/月、隐私权衡＝桥知道轮询了哪些公开账号）。已在「设置 · 信源 API」留可换桥槽（配 `TWITTERAPI_KEY` 即启用），`XBridgeAdapter` 待接。见 ADR-0006 第 3 节。
 - ✅ **设置 · API 配置中枢 + 顶级源核查**：`runtime_config`（gitignored `data/config.local.json`、注入 env 即时生效、脱敏回显、写入名 guard）+ `/settings` + 「设置」页（LLM key/base/角色路由 + 数据信源 key 皆可 UI 改、无需重启）+ `news/source_registry.py`。**Bloomberg 科技/市场**免费官方 RSS 已接入；核查主人朋友清单后**按其意见移除太贵源**（Reuters/LSEG、万得 Wind、同花顺 iFinD、东财 Choice），留免费 Bloomberg/财联社/东财 + 极廉 X。详见 [ADR-0007](decisions/0007-api-config-and-source-feasibility.md)。
 - ✅ **前端打磨（主人反馈）**：① 看·K 线下方模块（财报/相关资讯/判断日记）**可拖拽重排**（dnd-kit + 持久化 `kanOrder`，手柄顶部居中 hover 浮现，仅手柄可拖、模块内交互不受影响）；② 移除「官方文件·SEC」UI 段（一般不看；`edgar.py` 后端保留）；③ **设置页重做为卡片网格**（填满舞台宽度、按钮内联，修「没拉伸/按钮换行/不美观」）。真机验证、零控制台错。
-- ⚪ 接 **财联社/东财/华尔街见闻-tmt 免费科技适配器**、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、按**自选分区**聚合、信源健康度。
+- ✅ **免费中文科技源接入**：`cls.py`（财联社科创电报 `depth/assembled/1111`，sign=MD5(SHA1(sorted_qs))、appName=CailianpressWeb；旧 nodeapi 路径已死）+ `eastmoney_news.py`（东财 `search-api-web` JSONP，按 人工智能/半导体/算力/机器人/大模型/芯片 关键词检索）。非 RSS 适配器并发并入 `ingest_all`，`source` 名（财联社/东方财富）经 `_prune_removed_sources` **豁免**（否则不在 feeds.yaml 会被误删）；复用 classify + 噪音过滤、中文免翻。真机验证：财联社 25 + 东财 42 条、二次 ingest 不被 prune 删。
+- ⚪ 华尔街见闻-tmt 焦点科技 lane、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、按**自选分区**聚合、信源健康度。
 
 ## M4 · 原生打包 + 打磨 ⚪
 
