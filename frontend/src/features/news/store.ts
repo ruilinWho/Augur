@@ -5,7 +5,7 @@ import { create } from 'zustand'
 //   · 个股 → 二级 stockSym（选中的标的）
 //   · 资讯 → 二级 infoDate（日期，null=今天）+ 三级 infoSection（总结/新闻/推特…）
 //   · 总览 → 无二级
-export type NewsPrimary = 'overview' | 'stocks' | 'info'
+export type NewsPrimary = 'info' | 'stocks'
 // 资讯第三层：日的「总结」+ 构成它的原始信源（新闻/推特，未来可加 reddit/雪球…）
 export type InfoSection = 'summary' | 'news' | 'twitter'
 
@@ -21,7 +21,7 @@ interface NewsState {
 }
 
 export const useNews = create<NewsState>((set) => ({
-  primary: 'overview',
+  primary: 'info',
   stockSym: null,
   infoDate: null,
   infoSection: 'summary',

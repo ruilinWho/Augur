@@ -214,9 +214,8 @@ export default function App() {
   const newsPrimary = useNews((s) => s.primary)
   const { theme, textBase, leading, displayFont, convention, panelW, newsSubW } = useUI()
 
-  // 「知」三层 Miller：总览=2 列（rail+舞台）、个股=3 列（rail+标的+舞台）、
-  // 资讯=4 列（rail+日期+板块+舞台）
-  const newsCols = newsPrimary === 'info' ? 4 : newsPrimary === 'stocks' ? 3 : 2
+  // 「知」三层 Miller：资讯=4 列（rail+日期+板块+舞台）、个股=3 列（rail+标的+舞台）
+  const newsCols = newsPrimary === 'info' ? 4 : 3
   const layoutClass =
     view === 'zhi'
       ? `layout know-${newsCols}`

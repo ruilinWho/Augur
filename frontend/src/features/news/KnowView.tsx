@@ -180,37 +180,19 @@ function SinceLast() {
   )
 }
 
-// ── 总览：晨读 Top3 + 自上次以来 + 机会 + 日报 + 今日要闻 ──
-function OverviewView() {
-  const feed = useNewsFeed(80)
-  return (
-    <div className="know">
-      <MorningBrief />
-      <SinceLast />
-      <OpportunitiesPanel />
-      <DigestBlock date={null} />
-      <section className="feed">
-        <div className="sec-head">
-          <h3>今日要闻</h3>
-          <span className="feed-count">{feed.data?.length ?? 0} 条</span>
-        </div>
-        <FeedGroups items={feed.data ?? []} empty="还没有新闻，先「↻ 刷新信源」" />
-      </section>
-    </div>
-  )
-}
-
 // ── 每日 · 某天快照：那一天的 日报 + 要事 Top3 + 机会 + 要闻（统一时间轴）──
 function dayStr(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// 资讯 · 某天「总结」：那天蒸馏出的结论 = 趋势日报 + 要事 Top3 + 机会（原始新闻/推特在同级别另两个板块）
+// 资讯 · 某天「总结」：那天蒸馏出的结论 = 趋势日报 + 要事 Top3 + 机会（原始新闻/推特在同级别另两个板块）。
+// 看今天时，顶部加「自上次以来」增量（跨天的「上次查看后新增」，原总览独有，合并到此）。
 function DaySummaryView({ date }: { date: string }) {
   const isToday = date === dayStr()
   return (
     <div className="know">
+      {isToday && <SinceLast />}
       <DigestBlock date={date} />
       <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} />
       <OpportunitiesPanel date={date} />
@@ -466,9 +448,8 @@ export default function KnowView() {
       transition={{ duration: 0.24, ease: EASE }}
       style={{ minHeight: '100%' }}
     >
-      {primary === 'overview' && <OverviewView />}
-      {primary === 'stocks' && <StockNarrativeView />}
       {primary === 'info' && <InfoView />}
+      {primary === 'stocks' && <StockNarrativeView />}
     </motion.div>
   )
 }
