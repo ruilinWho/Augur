@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from . import runtime_config
 from .llm import gateway
-from .news import source_registry
+from .news import source_registry, source_test
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -120,6 +120,12 @@ async def set_source_config(body: SourceConfigIn) -> dict:
     clean = source_registry.sanitize_config(fields[body.field], body.value)
     await run_in_threadpool(runtime_config.set_source_config, body.id, body.field, clean)
     return {"id": body.id, "field": body.field, "value": clean}
+
+
+@router.post("/source/test")
+async def test_source(id: str) -> dict:
+    """测试某数据信源是否可用（轻量真实探活）。→ {ok, latency_ms, count?, note?} | {ok:false}。"""
+    return await run_in_threadpool(source_test.test_source, id)
 
 
 @router.post("/secret")

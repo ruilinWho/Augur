@@ -99,6 +99,21 @@ def _resolve_user_id(client: httpx.Client, screen_name: str) -> str | None:
     return None
 
 
+def ping() -> int:
+    """轻量探活：解析一个账号的 user_id（验证 key + 连通）。成功返回 1，失败抛异常。"""
+    if not _key():
+        raise RuntimeError("未配置 TWTAPI_KEY")
+    accs = accounts()
+    if not accs:
+        raise RuntimeError("没有配置 X 账号")
+    headers = {"X-API-Key": _key(), "User-Agent": _UA}
+    with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as c:
+        rid = _resolve_user_id(c, accs[0]["screen_name"])
+    if not rid:
+        raise RuntimeError("解析账号失败（key 可能无效）")
+    return 1
+
+
 def _walk_tweets(obj, out: list[dict]) -> None:
     """递归收集 Twitter GraphQL 里的 Tweet 结果对象。"""
     if isinstance(obj, dict):
