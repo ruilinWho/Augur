@@ -217,6 +217,10 @@ button {
 .layout.know-3 {
   grid-template-columns: 92px var(--news-sub-w, 196px) 1fr;
 }
+/* 资讯：rail + 日期 + 板块（三级）+ 主舞台 */
+.layout.know-4 {
+  grid-template-columns: 92px var(--news-sub-w, 196px) 128px 1fr;
+}
 /* 「知」二级卡 resize 句柄：rail 92 + 二级宽处 */
 .resize-handle.news-resize {
   left: calc(92px + var(--news-sub-w, 196px));
@@ -683,6 +687,33 @@ button {
 }
 .range-seg button {
   font-size: 0.78rem;
+}
+/* 资讯·新闻/推特：主题/账号过滤 chips（舞台内，替代旧的二级导航）*/
+.tfilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+.tfilter-chip {
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 11px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.tfilter-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tfilter-chip.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
 }
 .clusters {
   display: flex;

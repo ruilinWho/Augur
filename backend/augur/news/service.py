@@ -95,7 +95,7 @@ def recent_items(
     新闻一直持久化在 news_items（不按龄删除），day/days 让主人翻看已存历史而非只看当前。
     """
     if day:
-        return linker.attach_symbols(items_for_day(day, theme)[:limit])
+        return linker.attach_symbols(items_for_day(day, theme, source_prefix)[:limit])
     conn = get_conn()
     try:
         # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
@@ -177,8 +177,16 @@ def items_for_window(
         conn.close()
 
 
-def items_for_day(day: str | None = None, theme: str | None = None) -> list[dict]:
-    """某日（默认今天，主人时区）的全部相关条目（relevance!=2），时间倒序。日报/机会喂全天。"""
+def items_for_day(
+    day: str | None = None,
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+) -> list[dict]:
+    """某日（默认今天，主人时区）的相关条目（relevance!=2），时间倒序。
+
+    theme/source_prefix/category 过滤同 items_for_window——供「资讯·某天·新闻/推特」按天取。
+    """
     lo, hi = _day_bounds_utc(day)
     conn = get_conn()
     try:
@@ -191,6 +199,12 @@ def items_for_day(day: str | None = None, theme: str | None = None) -> list[dict
         if theme:
             sql += " AND theme = ?"
             args.append(theme)
+        if source_prefix:
+            sql += " AND source LIKE ?"
+            args.append(f"{source_prefix}%")
+        if category:
+            sql += " AND category = ?"
+            args.append(category)
         sql += " ORDER BY COALESCE(published_at, fetched_at) DESC"
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
     finally:
@@ -884,7 +898,7 @@ def generate_clusters(
     rd = day or _today()
     # 封顶 200（实测可在合理时延内完成；更大会拖慢「生成要点」）。
     if day:
-        items = items_for_day(day, theme)[:200]
+        items = items_for_day(day, theme, source_prefix, category)[:200]
     else:
         items = items_for_window(days, theme, source_prefix, category)[:200]
     if not items:

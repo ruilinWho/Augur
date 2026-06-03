@@ -1,12 +1,17 @@
-import type { NewsPrimary } from './store'
+import type { InfoSection, NewsPrimary } from './store'
 
-// 一级分类（列1）。hasSub=是否有二级卡片（列2）。
-export const PRIMARIES: { id: NewsPrimary; label: string; hasSub: boolean }[] = [
-  { id: 'overview', label: '总览', hasSub: false },
-  { id: 'stocks', label: '个股', hasSub: true },
-  { id: 'digest', label: '每日', hasSub: true },
-  { id: 'news', label: '新闻', hasSub: true },
-  { id: 'twitter', label: '推特', hasSub: true },
+// 一级分类（rail）。资讯=按天看世界信息（二级=日期，三级=总结/新闻/推特）。
+export const PRIMARIES: { id: NewsPrimary; label: string }[] = [
+  { id: 'overview', label: '总览' },
+  { id: 'stocks', label: '个股' },
+  { id: 'info', label: '资讯' },
+]
+
+// 资讯第三层：某天的「总结」+ 构成它的原始信源。未来在此加 reddit/雪球…
+export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
+  { id: 'summary', label: '总结' },
+  { id: 'news', label: '新闻' },
+  { id: 'twitter', label: '推特' },
 ]
 
 // 新闻二级：主题。key='' = 全部。与后端 classify 主题键一致。

@@ -31,7 +31,6 @@ import SettingsView from './features/settings/SettingsView'
 import NewsNav from './features/news/NewsNav'
 import KnowView from './features/news/KnowView'
 import { useNews } from './features/news/store'
-import { PRIMARIES } from './features/news/consts'
 import StockNews from './features/news/StockNews'
 import ResearchView from './features/research/ResearchView'
 
@@ -215,11 +214,12 @@ export default function App() {
   const newsPrimary = useNews((s) => s.primary)
   const { theme, textBase, leading, displayFont, convention, panelW, newsSubW } = useUI()
 
-  // 「知」用两列纵向导航（rail + 条件二级卡）；无二级时 2 列，有二级 3 列
-  const newsHasSub = view === 'zhi' && (PRIMARIES.find((p) => p.id === newsPrimary)?.hasSub ?? false)
+  // 「知」三层 Miller：总览=2 列（rail+舞台）、个股=3 列（rail+标的+舞台）、
+  // 资讯=4 列（rail+日期+板块+舞台）
+  const newsCols = newsPrimary === 'info' ? 4 : newsPrimary === 'stocks' ? 3 : 2
   const layoutClass =
     view === 'zhi'
-      ? `layout ${newsHasSub ? 'know-3' : 'know-2'}`
+      ? `layout know-${newsCols}`
       : view === 'kan' || view === 'yan'
         ? 'layout kan'
         : 'layout'
@@ -280,7 +280,7 @@ export default function App() {
         ) : view === 'zhi' ? (
           <>
             <NewsNav />
-            {newsHasSub && <NewsResizeHandle />}
+            {newsCols >= 3 && <NewsResizeHandle />}
           </>
         ) : (
           <>

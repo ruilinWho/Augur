@@ -18,7 +18,7 @@ import {
 } from '../../api'
 import Collapse from '../../components/Collapse'
 import { useNews } from './store'
-import { TW_CATS, themeLabel } from './consts'
+import { THEMES, TW_CATS } from './consts'
 import { Digest, FeedGroups } from './shared'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
@@ -206,23 +206,14 @@ function dayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function DaySnapshotView() {
-  const secondary = useNews((s) => s.secondary)
-  const date = secondary ?? dayStr() // 默认今天
+// 资讯 · 某天「总结」：那天蒸馏出的结论 = 趋势日报 + 要事 Top3 + 机会（原始新闻/推特在同级别另两个板块）
+function DaySummaryView({ date }: { date: string }) {
   const isToday = date === dayStr()
-  const feed = useNewsFeed(120, { day: date })
   return (
     <div className="know">
       <DigestBlock date={date} />
       <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} />
       <OpportunitiesPanel date={date} />
-      <section className="feed">
-        <div className="sec-head">
-          <h3>当日要闻</h3>
-          <span className="feed-count">{feed.data?.length ?? 0} 条</span>
-        </div>
-        <FeedGroups items={feed.data ?? []} empty={feed.isLoading ? '加载…' : '这一天还没有抓到要闻'} />
-      </section>
     </div>
   )
 }
@@ -234,12 +225,6 @@ const IMP: Record<string, { label: string; cls: string }> = {
   med: { label: '一般', cls: 'imp-med' },
   low: { label: '次要', cls: 'imp-low' },
 }
-const RANGES = [
-  { d: 1, label: '今天' },
-  { d: 7, label: '近7天' },
-  { d: 30, label: '近30天' },
-]
-
 function ClusterCard({ c }: { c: NewsCluster }) {
   const [open, setOpen] = useState(false)
   const imp = IMP[c.importance] ?? IMP.med
@@ -310,70 +295,49 @@ function ClusterList({ params }: { params: ClusterParams }) {
   )
 }
 
-// 时间线/要点 + 时间范围 的通用视图（新闻、推特共用）
-function ScopedNews({
-  title,
-  theme,
-  sourcePrefix,
-  categoryFilter,
-  category,
-}: {
-  title: string
-  theme?: string
-  sourcePrefix?: string
-  categoryFilter?: string // 推特时间线：客户端按账号分类过滤
-  category?: string // 推特要点：分类（后端过滤）
-}) {
+// 资讯 · 某天的「新闻」或「推特」：固定那一天，主题/账号分类做**舞台内过滤** + 时间线/要点切换
+function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' }) {
   const [mode, setMode] = useState<'time' | 'key'>('time')
-  const [days, setDays] = useState(1)
-  const feed = useNewsFeed(days >= 7 ? 400 : 150, { theme, sourcePrefix, days })
-  const items = (feed.data ?? []).filter((i) => !categoryFilter || i.category === categoryFilter)
+  const [filter, setFilter] = useState('') // theme key（新闻）/ category key（推特）；''=全部
+  const opts = kind === 'news' ? THEMES : TW_CATS
+  const theme = kind === 'news' && filter ? filter : undefined
+  const sourcePrefix = kind === 'twitter' ? 'X·' : undefined
+  const category = kind === 'twitter' && filter ? filter : undefined
+  const feed = useNewsFeed(250, { theme, sourcePrefix, day: date })
+  const items = (feed.data ?? []).filter((i) => kind !== 'twitter' || !filter || i.category === filter)
+  const clusterParams: ClusterParams = { theme, sourcePrefix, category, days: 1, date }
   return (
     <div className="know">
       <div className="know-head">
-        <h2>{title}</h2>
-        <div className="know-segs">
-          <div className="seg range-seg">
-            {RANGES.map((r) => (
-              <button key={r.d} aria-pressed={days === r.d} onClick={() => setDays(r.d)}>
-                {r.label}
-              </button>
-            ))}
-          </div>
-          <div className="seg feed-seg">
-            <button aria-pressed={mode === 'time'} onClick={() => setMode('time')}>
-              时间线
-            </button>
-            <button aria-pressed={mode === 'key'} onClick={() => setMode('key')}>
-              要点
-            </button>
-          </div>
+        <h3>
+          {kind === 'news' ? '新闻' : '推特'} <span className="faint">· {fmtDate(date)}</span>
+        </h3>
+        <div className="seg feed-seg">
+          <button aria-pressed={mode === 'time'} onClick={() => setMode('time')}>
+            时间线
+          </button>
+          <button aria-pressed={mode === 'key'} onClick={() => setMode('key')}>
+            要点
+          </button>
         </div>
       </div>
+      <div className="tfilter">
+        {opts.map((o) => (
+          <button
+            key={o.key}
+            className={`tfilter-chip ${filter === o.key ? 'active' : ''}`}
+            onClick={() => setFilter(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
       {mode === 'time' ? (
-        <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '该范围暂无内容'} />
+        <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '这一天暂无内容'} />
       ) : (
-        <ClusterList params={{ theme, sourcePrefix, category, days }} />
+        <ClusterList params={clusterParams} />
       )}
     </div>
-  )
-}
-
-function FeedView() {
-  const theme = useNews((s) => s.secondary) || ''
-  return <ScopedNews title={themeLabel(theme)} theme={theme || undefined} />
-}
-
-function TwitterView() {
-  const cat = useNews((s) => s.secondary) || ''
-  const label = TW_CATS.find((c) => c.key === cat)?.label ?? '全部'
-  return (
-    <ScopedNews
-      title={`推特 · ${label}`}
-      sourcePrefix="X·"
-      categoryFilter={cat || undefined}
-      category={cat || undefined}
-    />
   )
 }
 
@@ -466,7 +430,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
 }
 
 function StockNarrativeView() {
-  const symbol = useNews((s) => s.secondary)
+  const symbol = useNews((s) => s.stockSym)
   if (!symbol)
     return (
       <div className="know">
@@ -479,12 +443,24 @@ function StockNarrativeView() {
   return <StockNarrative key={symbol} symbol={symbol} />
 }
 
+// 资讯：某天（infoDate）+ 三级板块（总结/新闻/推特）
+function InfoView() {
+  const infoDate = useNews((s) => s.infoDate)
+  const infoSection = useNews((s) => s.infoSection)
+  const date = infoDate ?? dayStr()
+  if (infoSection === 'news') return <DayScopedNews key={`n${date}`} date={date} kind="news" />
+  if (infoSection === 'twitter') return <DayScopedNews key={`t${date}`} date={date} kind="twitter" />
+  return <DaySummaryView date={date} />
+}
+
 export default function KnowView() {
   const primary = useNews((s) => s.primary)
-  const secondary = useNews((s) => s.secondary)
+  const stockSym = useNews((s) => s.stockSym)
+  const infoDate = useNews((s) => s.infoDate)
+  const infoSection = useNews((s) => s.infoSection)
   return (
     <motion.div
-      key={`${primary}/${secondary ?? ''}`}
+      key={`${primary}/${stockSym ?? ''}/${infoDate ?? ''}/${infoSection}`}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: EASE }}
@@ -492,9 +468,7 @@ export default function KnowView() {
     >
       {primary === 'overview' && <OverviewView />}
       {primary === 'stocks' && <StockNarrativeView />}
-      {primary === 'digest' && <DaySnapshotView />}
-      {primary === 'news' && <FeedView />}
-      {primary === 'twitter' && <TwitterView />}
+      {primary === 'info' && <InfoView />}
     </motion.div>
   )
 }

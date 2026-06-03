@@ -1,22 +1,32 @@
 import { create } from 'zustand'
 
-// 「知」两级导航状态（非持久、随会话）。
-//   primary：一级分类（列1）。secondary：二级选项（列2），语义随 primary 变：
-//     digest  → 日期串（null=最新）   news → theme（null=全部）   twitter → 账号分类（null=全部）
-//     overview / opps → 无二级（secondary 恒 null）
-export type NewsPrimary = 'overview' | 'stocks' | 'digest' | 'news' | 'twitter'
+// 「知」导航（非持久、随会话）。三层 Miller：
+//   一级 primary：总览 / 个股 / 资讯
+//   · 个股 → 二级 stockSym（选中的标的）
+//   · 资讯 → 二级 infoDate（日期，null=今天）+ 三级 infoSection（总结/新闻/推特…）
+//   · 总览 → 无二级
+export type NewsPrimary = 'overview' | 'stocks' | 'info'
+// 资讯第三层：日的「总结」+ 构成它的原始信源（新闻/推特，未来可加 reddit/雪球…）
+export type InfoSection = 'summary' | 'news' | 'twitter'
 
 interface NewsState {
   primary: NewsPrimary
-  secondary: string | null
+  stockSym: string | null // 个股：选中标的
+  infoDate: string | null // 资讯：选中日期（null=今天）
+  infoSection: InfoSection // 资讯：第三层
   setPrimary: (p: NewsPrimary) => void
-  setSecondary: (s: string | null) => void
+  setStockSym: (s: string) => void
+  setInfoDate: (d: string | null) => void
+  setInfoSection: (s: InfoSection) => void
 }
 
 export const useNews = create<NewsState>((set) => ({
   primary: 'overview',
-  secondary: null,
-  // 切一级时把二级重置为该级默认（null＝最新/全部）
-  setPrimary: (primary) => set({ primary, secondary: null }),
-  setSecondary: (secondary) => set({ secondary }),
+  stockSym: null,
+  infoDate: null,
+  infoSection: 'summary',
+  setPrimary: (primary) => set({ primary }),
+  setStockSym: (stockSym) => set({ stockSym }),
+  setInfoDate: (infoDate) => set({ infoDate }),
+  setInfoSection: (infoSection) => set({ infoSection }),
 }))
