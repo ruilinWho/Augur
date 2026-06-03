@@ -65,7 +65,30 @@ CREATE TABLE IF NOT EXISTS news_items (
     topics       TEXT    NOT NULL DEFAULT '[]',       -- 细标签 JSON 数组（多值）
     classified_by TEXT   NOT NULL DEFAULT '',         -- ''=未分类 / rule / llm
     title_zh     TEXT,                                -- 中文标题（cheap 翻译缓存；NULL=未翻）
-    relevance    INTEGER NOT NULL DEFAULT 0  -- 0未判/1保留/2丢弃 见 relevance.py
+    relevance    INTEGER NOT NULL DEFAULT 0,  -- 0未判/1保留/2丢弃 见 relevance.py
+    linked       INTEGER NOT NULL DEFAULT 0   -- 0未挂钩/1已挂钩 ticker 见 linker.py
+);
+
+-- 新闻↔标的挂钩（每条新闻确定性接地到 MARKET:CODE）——三支柱融合地基（linker.py）
+CREATE TABLE IF NOT EXISTS news_item_symbols (
+    news_id    INTEGER NOT NULL,
+    symbol     TEXT    NOT NULL,                  -- MARKET:CODE
+    name       TEXT    NOT NULL DEFAULT '',       -- 展示名（快照）
+    confidence TEXT    NOT NULL DEFAULT 'med',    -- high/med
+    matched_by TEXT    NOT NULL DEFAULT '',       -- 命中方式（term/code/targeted）
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (news_id, symbol)
+);
+
+-- 信源健康度（每次抓取的成功/失败/条数/最近成功时间）——纯统计，无 LLM
+CREATE TABLE IF NOT EXISTS source_health (
+    source       TEXT    PRIMARY KEY,
+    ok_count     INTEGER NOT NULL DEFAULT 0,
+    fail_count   INTEGER NOT NULL DEFAULT 0,
+    last_count   INTEGER NOT NULL DEFAULT 0,      -- 最近一次抓到条数
+    last_ok_at   TEXT,
+    last_fail_at TEXT,
+    updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
 
@@ -140,6 +163,7 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "classified_by", "TEXT NOT NULL DEFAULT ''"),
     ("news_items", "title_zh", "TEXT"),
     ("news_items", "relevance", "INTEGER NOT NULL DEFAULT 0"),
+    ("news_items", "linked", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 
@@ -150,6 +174,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
     # 新列上的索引须在补列之后建（不能放进 SCHEMA：已存在的表 executescript 时还没这列）
     conn.execute("CREATE INDEX IF NOT EXISTS idx_news_theme ON news_items(theme)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_nis_symbol ON news_item_symbols(symbol)")
     conn.commit()
 
 

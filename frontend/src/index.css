@@ -2467,13 +2467,11 @@ input:focus:not(:focus-visible) {
   color: var(--text-faint);
 }
 .hl {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
   padding: 11px 4px;
   border-bottom: 1px solid var(--border);
-  text-decoration: none;
   transition: background 0.12s ease;
 }
 .hl:hover {
@@ -2481,6 +2479,14 @@ input:focus:not(:focus-visible) {
 }
 .hl:last-child {
   border-bottom: 0;
+}
+.hl-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
 }
 .hl-src {
   font-size: 0.72rem;
@@ -2497,10 +2503,32 @@ input:focus:not(:focus-visible) {
 .hl:hover .hl-title {
   color: var(--accent);
 }
+.hl-syms {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.hl-sym {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease;
+}
+.hl-sym:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .hl-ago {
   font-size: 0.7rem;
   color: var(--text-faint);
   white-space: nowrap;
+  flex: none;
 }
 /* SEC 官方文件表单徽标（8-K / 10-Q / DEF 14A…） */
 .filing-form {

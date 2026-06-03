@@ -9,7 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from ..llm import gateway
-from . import service
+from . import ingest, linker, service
 from .schemas import (
     ClustersResponse,
     Filing,
@@ -38,6 +38,18 @@ async def feed(
 async def refresh() -> dict:
     """手动抓取所有信源并落库（容忍单源失败）。"""
     return await run_in_threadpool(service.refresh)
+
+
+@router.get("/source-health")
+async def source_health() -> list[dict]:
+    """各信源健康度（成功/失败次数、最近条数、最近成功时间）——纯统计。"""
+    return await run_in_threadpool(ingest.source_health)
+
+
+@router.post("/relink")
+async def relink() -> dict:
+    """重挂全部新闻↔自选股 ticker（自选变动后用；确定性、零幻觉）。"""
+    return await run_in_threadpool(linker.relink_all)
 
 
 @router.get("/for", response_model=list[NewsItem])

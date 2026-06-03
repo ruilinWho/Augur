@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { NewsItem } from '../../api'
+import { useUI } from '../../store'
 
 // ── 今日要闻按天归类的日期标签 ──
 export function dayLabel(iso: string | null): string {
@@ -102,14 +103,31 @@ export function Digest({ body }: { body: string }) {
   return <div className="digest">{blocks}</div>
 }
 
-// ── 单条要闻 ──
+// ── 单条要闻（含挂钩的自选股 ticker chip，点击跳「看」）──
 export function Headline({ item }: { item: NewsItem }) {
+  const select = useUI((s) => s.select)
   return (
-    <a className="hl" href={item.url} target="_blank" rel="noreferrer">
-      <span className="hl-src">{item.source}</span>
-      <span className="hl-title">{item.title_zh || item.title}</span>
+    <div className="hl">
+      <a className="hl-main" href={item.url} target="_blank" rel="noreferrer">
+        <span className="hl-src">{item.source}</span>
+        <span className="hl-title">{item.title_zh || item.title}</span>
+      </a>
+      {item.symbols.length > 0 && (
+        <span className="hl-syms">
+          {item.symbols.map((s) => (
+            <button
+              key={s.symbol}
+              className="hl-sym"
+              title={s.symbol}
+              onClick={() => select(s.symbol)}
+            >
+              {s.name || s.symbol.split(':')[1]}
+            </button>
+          ))}
+        </span>
+      )}
       {ago(item.published_at) && <span className="hl-ago">{ago(item.published_at)}</span>}
-    </a>
+    </div>
   )
 }
 

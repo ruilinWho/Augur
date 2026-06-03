@@ -126,6 +126,48 @@ def _prune_removed_sources(feed_names: set[str]) -> int:
         conn.close()
 
 
+def _record_health(rows: list[tuple[str, bool, int]]) -> None:
+    """累计每源成功/失败次数 + 最近条数/成功时间（纯统计，无 LLM）。失败不抛。"""
+    conn = get_conn()
+    try:
+        for source, ok, n in rows:
+            if ok:
+                conn.execute(
+                    "INSERT INTO source_health "
+                    "(source, ok_count, last_count, last_ok_at, updated_at) "
+                    "VALUES (?, 1, ?, datetime('now'), datetime('now')) "
+                    "ON CONFLICT(source) DO UPDATE SET ok_count=ok_count+1, "
+                    "last_count=excluded.last_count, last_ok_at=datetime('now'), "
+                    "updated_at=datetime('now')",
+                    (source, n),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO source_health (source, fail_count, last_fail_at, updated_at) "
+                    "VALUES (?, 1, datetime('now'), datetime('now')) "
+                    "ON CONFLICT(source) DO UPDATE SET fail_count=fail_count+1, "
+                    "last_fail_at=datetime('now'), updated_at=datetime('now')",
+                    (source,),
+                )
+        conn.commit()
+    except Exception:  # noqa: BLE001 — 健康度记录失败不应影响摄取
+        pass
+    finally:
+        conn.close()
+
+
+def source_health() -> list[dict]:
+    """各源健康度（按最近成功时间倒序；从未成功的排后）。供 GET /news/source-health。"""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM source_health ORDER BY last_ok_at IS NULL, last_ok_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def ingest_all() -> dict:
     """并发遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
     feeds = sources.load_feeds()
@@ -135,15 +177,21 @@ def ingest_all() -> dict:
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
     failures: list[str] = []
+    health: list[tuple[str, bool, int]] = []  # (source, ok, 抓到条数) → 健康度
     with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as ex:
         futures: dict = {ex.submit(fetch_feed, f, cutoff): f["name"] for f in feeds}
         for name, fn in _ADAPTERS.items():  # 中文科技适配器并发同抓
             futures[ex.submit(fn, cutoff)] = name
         for fut in as_completed(futures):
+            name = futures[fut]
             try:
-                all_items.extend(fut.result())
+                got = fut.result()
+                all_items.extend(got)
+                health.append((name, True, len(got)))
             except Exception:  # noqa: BLE001 — 单源失败不应中断整体
-                failures.append(futures[fut])
+                failures.append(name)
+                health.append((name, False, 0))
+    _record_health(health)
     inserted = _store(all_items)
     classify.backfill_rules()  # 给历史未分类条目补规则分类（幂等、只扫未分类行）
     total = len(feeds) + len(_ADAPTERS)

@@ -511,6 +511,7 @@ const newsItemSchema = z.object({
   theme: z.string().default(''),
   topics: z.array(z.string()).default([]),
   title_zh: z.string().nullable().default(null),
+  symbols: z.array(z.object({ symbol: z.string(), name: z.string().default('') })).default([]),
 })
 const newsReportSchema = z.object({
   report_date: z.string(),

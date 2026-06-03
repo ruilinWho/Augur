@@ -18,7 +18,7 @@ from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
 from ..watchlist import service as wl
-from . import edgar, ingest, relevance, ticker_news, translate
+from . import edgar, ingest, linker, relevance, ticker_news, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -74,6 +74,10 @@ def refresh() -> dict:
         result["filtered"] = relevance.judge_pending()  # cheap LLM 滤掉与投资无关的
     except Exception:  # noqa: BLE001
         result["filtered"] = {"judged": 0, "dropped": 0}
+    try:
+        result["linked"] = linker.link_pending()  # 确定性挂钩到自选股 ticker（零幻觉）
+    except Exception:  # noqa: BLE001
+        result["linked"] = {"linked": 0, "pairs": 0}
     return result
 
 
@@ -105,7 +109,8 @@ def recent_items(
             args.append(lo)
         sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
         args.append(limit)
-        return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
+        items = [_item_out(r) for r in conn.execute(sql, args).fetchall()]
+        return linker.attach_symbols(items)  # 挂上关联自选股 ticker chip
     finally:
         conn.close()
 

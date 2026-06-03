@@ -5,6 +5,11 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 
+class LinkedSymbol(BaseModel):
+    symbol: str  # MARKET:CODE
+    name: str = ""
+
+
 class NewsItem(BaseModel):
     id: int
     source: str
@@ -17,6 +22,7 @@ class NewsItem(BaseModel):
     theme: str = ""  # 主题主类（ai/chips/robotics/space/tech/markets/crypto/world/other）
     topics: list[str] = []  # 细标签（多值）
     title_zh: str | None = None  # 中文标题（cheap 翻译；None=未翻，前端回退原文）
+    symbols: list[LinkedSymbol] = []  # 挂钩的自选股 ticker（linker.py，确定性接地）
 
 
 class Filing(BaseModel):
