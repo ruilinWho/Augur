@@ -52,6 +52,7 @@ const fmtPrice = (n: number) => n.toLocaleString('en-US', { maximumFractionDigit
 const countSymbols = (s: Section) =>
   s.items.length + s.children.reduce((a, c) => a + c.items.length, 0)
 const DIRECT = -1 // col2 里「直属标的」伪条目的 id
+const ALL = -2 // col2 里「全部」伪条目（聚合直属 + 所有二级的标的，只读）
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
@@ -210,6 +211,31 @@ function StockRow({ item }: { item: Item }) {
         className="stk-del"
         title="移出自选"
         onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          delItem.mutate(item.id)
+        }}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+// 「全部」聚合视图里的只读标的行（不可拖拽；点选/删除仍可用）
+function PlainStockRow({ item }: { item: Item }) {
+  const selected = useUI((s) => s.selectedSymbol)
+  const select = useUI((s) => s.select)
+  const delItem = useDeleteItem()
+  return (
+    <div
+      className={`stk ${selected === item.symbol ? 'active' : ''}`}
+      onClick={() => select(item.symbol)}
+    >
+      <RowBody item={item} />
+      <button
+        className="stk-del"
+        title="移出自选"
         onClick={(e) => {
           e.stopPropagation()
           delItem.mutate(item.id)
@@ -429,9 +455,20 @@ export default function WatchlistPanel() {
   const dragging = useRef(false)
 
   const l1 = useMemo(() => sections?.find((s) => s.id === selL1) ?? null, [sections, selL1])
-  // col3 的 section（一级直属 = l1 自身；否则某二级）
+  // col3 的 section：全部=聚合直属+所有二级（按 symbol 去重，只读）；直属=l1 自身；否则某二级
   const col3 = useMemo(() => {
     if (!l1) return null
+    if (selSec === ALL) {
+      const seen = new Set<string>()
+      const items: Item[] = []
+      for (const it of [...l1.items, ...l1.children.flatMap((c) => c.items)]) {
+        if (!seen.has(it.symbol)) {
+          seen.add(it.symbol)
+          items.push(it)
+        }
+      }
+      return { id: ALL, name: '全部', parent_id: null, sort_order: 0, items, children: [] }
+    }
     if (selSec === l1.id || selSec == null) return l1
     return l1.children.find((c) => c.id === selSec) ?? l1
   }, [l1, selSec])
@@ -455,16 +492,22 @@ export default function WatchlistPanel() {
     ? '标的'
     : !showCol2
       ? col3.name
-      : col3.id === l1?.id
-        ? `${l1?.name} · 直属`
-        : col3.name
+      : col3.id === ALL
+        ? `${l1?.name} · 全部`
+        : col3.id === l1?.id
+          ? `${l1?.name} · 直属`
+          : col3.name
+
+  // 选一级板块时 col3 默认显示谁：有子板块 → 「全部」（聚合总览，也避免选到空的隐藏直属）；
+  // 无子板块 → 板块自身（其标的直接在 col3）。
+  const defaultSec = (s: Section): number => (s.children.length > 0 ? ALL : s.id)
 
   // 选择合法化：sections 变化时保证 selL1/selSec 有效
   useEffect(() => {
     if (!sections || !sections.length) return
     if (!sections.some((s) => s.id === selL1)) {
       setSelL1(sections[0].id)
-      setSelSec(sections[0].id)
+      setSelSec(defaultSec(sections[0]))
     }
   }, [sections, selL1])
 
@@ -544,7 +587,8 @@ export default function WatchlistPanel() {
 
   const selectL1 = (id: number) => {
     setSelL1(id)
-    setSelSec(id)
+    const sec = sections?.find((s) => s.id === id)
+    setSelSec(sec ? defaultSec(sec) : id)
     setAdding(null)
   }
 
@@ -620,14 +664,26 @@ export default function WatchlistPanel() {
         {showCol2 && l1 && (
           <Column i={1} title={l1.name}>
             <>
-              <div
-                className={`secrow ${selSec === l1.id ? 'active' : ''}`}
-                onClick={() => setSelSec(l1.id)}
-                role="button"
-              >
-                <span className="secname">直属</span>
-                <span className="seccount">{l1.items.length}</span>
-              </div>
+              {l1.children.length > 0 && (
+                <div
+                  className={`secrow ${selSec === ALL ? 'active' : ''}`}
+                  onClick={() => setSelSec(ALL)}
+                  role="button"
+                >
+                  <span className="secname">全部</span>
+                  <span className="seccount">{countSymbols(l1)}</span>
+                </div>
+              )}
+              {l1.items.length > 0 && (
+                <div
+                  className={`secrow ${selSec === l1.id ? 'active' : ''}`}
+                  onClick={() => setSelSec(l1.id)}
+                  role="button"
+                >
+                  <span className="secname">直属</span>
+                  <span className="seccount">{l1.items.length}</span>
+                </div>
+              )}
               <SortableContext
                 items={orderedSubs.map((c) => `sec:${c.id}`)}
                 strategy={verticalListSortingStrategy}
@@ -673,7 +729,8 @@ export default function WatchlistPanel() {
           i={2}
           title={col3Title}
           action={
-            col3 && (
+            col3 &&
+            col3.id !== ALL && (
               <button
                 className="kc-add"
                 title="加标的"
@@ -690,7 +747,15 @@ export default function WatchlistPanel() {
             )
           }
         >
-          {col3 ? (
+          {col3 && col3.id === ALL ? (
+            // 「全部」聚合视图：只读（跨多个板块，拖拽排序/换区无意义），点选/删除仍可用
+            <>
+              {col3Items.map((it) => (
+                <PlainStockRow key={it.id} item={it} />
+              ))}
+              {!col3Items.length && <div className="faint kc-msg">该板块下还没有标的。</div>}
+            </>
+          ) : col3 ? (
             <>
               {adding && adding !== 'top' && adding.id === col3.id && adding.kind === 'stock' && (
                 <StockSearch sectionId={col3.id} onDone={() => setAdding(null)} />
