@@ -6,6 +6,7 @@ import {
   streamReport,
   useClusters,
   useGenerateClusters,
+  useGenerateOpportunities,
   useGenerateNarrative,
   useNarrative,
   useNewsFeed,
@@ -186,12 +187,66 @@ function dayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// 一键生成：把那天的 日报 + 要事 + 机会 三样并行生成；各步独立成败、带状态点。
+type GenStep = 'idle' | 'run' | 'done' | 'err'
+const stepDot = (s: GenStep) => (s === 'done' ? '✓' : s === 'err' ? '✗' : s === 'run' ? '·' : '·')
+
+function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
+  const qc = useQueryClient()
+  const genClusters = useGenerateClusters()
+  const genOpps = useGenerateOpportunities()
+  const [digest, setDigest] = useState<GenStep>('idle')
+  const [clusters, setClusters] = useState<GenStep>('idle')
+  const [opps, setOpps] = useState<GenStep>('idle')
+  const running = [digest, clusters, opps].includes('run')
+
+  const run = async () => {
+    setDigest('run')
+    setClusters('run')
+    setOpps('run')
+    await Promise.allSettled([
+      streamReport(date, () => {})
+        .then(() => {
+          setDigest('done')
+          qc.invalidateQueries({ queryKey: ['news-report'] })
+          qc.invalidateQueries({ queryKey: ['news-reports'] })
+        })
+        .catch(() => setDigest('err')),
+      genClusters
+        .mutateAsync({ days: 1, date })
+        .then(() => setClusters('done'))
+        .catch(() => setClusters('err')),
+      genOpps
+        .mutateAsync(date)
+        .then(() => setOpps('done'))
+        .catch(() => setOpps('err')),
+    ])
+  }
+
+  return (
+    <div className="sum-head">
+      <h2 className="sum-title">{isToday ? '今天' : fmtDate(date)}</h2>
+      <div className="sum-gen">
+        {(running || digest !== 'idle') && (
+          <span className="sum-steps faint">
+            日报 {stepDot(digest)} · 要事 {stepDot(clusters)} · 机会 {stepDot(opps)}
+          </span>
+        )}
+        <button className="btn btn-primary jsm" disabled={running} onClick={run}>
+          {running ? '生成中…' : '一键生成'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // 资讯 · 某天「总结」：那天蒸馏出的结论 = 趋势日报 + 要事 Top3 + 机会（原始新闻/推特在同级别另两个板块）。
 // 看今天时，顶部加「自上次以来」增量（跨天的「上次查看后新增」，原总览独有，合并到此）。
 function DaySummaryView({ date }: { date: string }) {
   const isToday = date === dayStr()
   return (
     <div className="know">
+      <DaySummaryHead date={date} isToday={isToday} />
       {isToday && <SinceLast />}
       <DigestBlock date={date} />
       <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} />

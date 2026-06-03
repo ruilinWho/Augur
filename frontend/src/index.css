@@ -3114,7 +3114,40 @@ input:focus:not(:focus-visible) {
   margin-top: 26px;
 }
 
-/* 总览 · 晨读 Top3（平铺段，与日报/机会同宽对齐，不再包卡片）*/
+/* 资讯·总结：一键生成头（日期大标题 + 醒目主按钮 + 分步状态）*/
+.sum-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sum-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.sum-gen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sum-steps {
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sum-head .btn-primary {
+  min-width: 96px;
+  text-align: center;
+  justify-content: center;
+}
+
+/* 资讯 · 晨读 Top3（平铺段，与日报/机会同宽对齐，不再包卡片）*/
 .brief-list {
   list-style: none;
   margin: 11px 0 0;
