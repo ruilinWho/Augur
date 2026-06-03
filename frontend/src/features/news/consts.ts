@@ -4,7 +4,7 @@ import type { NewsPrimary } from './store'
 export const PRIMARIES: { id: NewsPrimary; label: string; hasSub: boolean }[] = [
   { id: 'overview', label: '总览', hasSub: false },
   { id: 'stocks', label: '个股', hasSub: true },
-  { id: 'digest', label: '日报', hasSub: true },
+  { id: 'digest', label: '每日', hasSub: true },
   { id: 'news', label: '新闻', hasSub: true },
   { id: 'twitter', label: '推特', hasSub: true },
   { id: 'opps', label: '机会', hasSub: false },

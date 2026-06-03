@@ -23,29 +23,37 @@ const fmtDay = (d: string) => {
   return `${Number(m)}月${Number(day)}日`
 }
 
-// 列2 · 日报按天
+// 本地时区今天 YYYY-MM-DD（与后端 settings.tz 同机一致）
+function todayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// 列2 · 每日按天（某天快照）。始终把今天置顶（即使还没日报），点选具体日期。
 function DigestSub() {
   const reports = useNewsReports()
   const secondary = useNews((s) => s.secondary)
   const setSecondary = useNews((s) => s.setSecondary)
+  const td = todayStr()
   const list = reports.data ?? []
+  const days = list.some((r) => r.report_date === td)
+    ? list.map((r) => ({ date: r.report_date, n: r.item_count }))
+    : [{ date: td, n: 0 }, ...list.map((r) => ({ date: r.report_date, n: r.item_count }))]
+  // 默认（secondary=null）= 今天
+  const cur = secondary ?? td
   return (
     <div className="nsub-list">
-      {list.map((r, i) => {
-        const active = secondary === r.report_date || (secondary === null && i === 0)
-        return (
-          <button
-            key={r.report_date}
-            className={`nsub-row ${active ? 'active' : ''}`}
-            onClick={() => setSecondary(i === 0 ? null : r.report_date)}
-          >
-            <span className="nsub-main">{fmtDay(r.report_date)}</span>
-            <span className="nsub-n">{r.item_count}</span>
-          </button>
-        )
-      })}
+      {days.map((r) => (
+        <button
+          key={r.date}
+          className={`nsub-row ${cur === r.date ? 'active' : ''}`}
+          onClick={() => setSecondary(r.date)}
+        >
+          <span className="nsub-main">{r.date === td ? '今天' : fmtDay(r.date)}</span>
+          {r.n > 0 && <span className="nsub-n">{r.n}</span>}
+        </button>
+      ))}
       {reports.isLoading && <div className="nsub-row faint">加载…</div>}
-      {!reports.isLoading && !list.length && <div className="nsub-empty faint">还没有日报</div>}
     </div>
   )
 }

@@ -83,15 +83,17 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
 }
 
 // ── 晨读 · 今日要事（Top3）：复用 news@1d 要点的前 3 条，scheduler 每日预生成 ──
-function MorningBrief() {
-  const clusters = useClusters({ days: 1 })
+// date 给定（某天快照）→ 取/生成那一天的要点；省略＝今天。
+function MorningBrief({ date, heading = '晨读 · 今日要事' }: { date?: string; heading?: string }) {
+  const params = { days: 1, date }
+  const clusters = useClusters(params)
   const gen = useGenerateClusters()
   const top = (clusters.data?.clusters ?? []).slice(0, 3)
   return (
     <section className="brief">
       <div className="sec-head">
-        <h3>晨读 · 今日要事</h3>
-        <button className="btn btn-primary jsm" disabled={gen.isPending} onClick={() => gen.mutate({ days: 1 })}>
+        <h3>{heading}</h3>
+        <button className="btn btn-primary jsm" disabled={gen.isPending} onClick={() => gen.mutate(params)}>
           {gen.isPending ? '生成中…' : top.length ? '刷新' : '✨ 生成晨读'}
         </button>
       </div>
@@ -194,12 +196,29 @@ function OverviewView() {
   )
 }
 
-// ── 日报（按天）──
-function DigestView() {
-  const date = useNews((s) => s.secondary)
+// ── 每日 · 某天快照：那一天的 日报 + 要事 Top3 + 机会 + 要闻（统一时间轴）──
+function dayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function DaySnapshotView() {
+  const secondary = useNews((s) => s.secondary)
+  const date = secondary ?? dayStr() // 默认今天
+  const isToday = date === dayStr()
+  const feed = useNewsFeed(120, { day: date })
   return (
     <div className="know">
       <DigestBlock date={date} />
+      <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} />
+      <OpportunitiesPanel date={date} />
+      <section className="feed">
+        <div className="sec-head">
+          <h3>当日要闻</h3>
+          <span className="feed-count">{feed.data?.length ?? 0} 条</span>
+        </div>
+        <FeedGroups items={feed.data ?? []} empty={feed.isLoading ? '加载…' : '这一天还没有抓到要闻'} />
+      </section>
     </div>
   )
 }
@@ -474,7 +493,7 @@ export default function KnowView() {
     >
       {primary === 'overview' && <OverviewView />}
       {primary === 'stocks' && <StockNarrativeView />}
-      {primary === 'digest' && <DigestView />}
+      {primary === 'digest' && <DaySnapshotView />}
       {primary === 'news' && <FeedView />}
       {primary === 'twitter' && <TwitterView />}
       {primary === 'opps' && <OppsView />}

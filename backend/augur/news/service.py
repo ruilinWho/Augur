@@ -86,12 +86,16 @@ def recent_items(
     theme: str | None = None,
     source_prefix: str | None = None,
     days: int | None = None,
+    day: str | None = None,
 ) -> list[dict]:
     """最近条目（按发布时间倒序，缺时间用抓取时间兜底）。可按 theme / source 前缀 / 近 days 天过滤。
 
     source_prefix 供「推特」视图取 X·<handle> 源（传 "X·"）；days 供时间范围（近 N 天，看历史）。
-    新闻一直持久化在 news_items（不按龄删除），days 让主人翻看已存历史而非只看当前。
+    day 给定 → 只取那个**日历日**（某天快照「当日要闻」），优先于 days。
+    新闻一直持久化在 news_items（不按龄删除），day/days 让主人翻看已存历史而非只看当前。
     """
+    if day:
+        return linker.attach_symbols(items_for_day(day, theme)[:limit])
     conn = get_conn()
     try:
         # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
@@ -815,7 +819,7 @@ def _cluster_scope(
     return f"{base}@{int(days)}d"
 
 
-def _save_clusters(scope: str, clusters: list[dict], model: str, n: int) -> None:
+def _save_clusters(scope: str, clusters: list[dict], model: str, n: int, rd: str) -> None:
     conn = get_conn()
     try:
         conn.execute(
@@ -823,7 +827,7 @@ def _save_clusters(scope: str, clusters: list[dict], model: str, n: int) -> None
             "VALUES (?, ?, ?, ?, ?) ON CONFLICT(report_date, theme) DO UPDATE SET "
             "body=excluded.body, model=excluded.model, item_count=excluded.item_count, "
             "created_at=datetime('now')",
-            (_today(), scope, json.dumps(clusters, ensure_ascii=False), model, n),
+            (rd, scope, json.dumps(clusters, ensure_ascii=False), model, n),
         )
         conn.commit()
     finally:
@@ -835,19 +839,24 @@ def get_clusters(
     source_prefix: str | None = None,
     category: str | None = None,
     days: int = 1,
+    day: str | None = None,
 ) -> dict | None:
-    """取当天某 scope（主题/推特 + 时间窗）的要点；无 → None。"""
+    """取某天（day，默认今天）某 scope 的要点；无 → None。
+
+    day 让历史某天的要点可回看（修「写死今天」——昨天的要点不再不可达）。
+    """
+    rd = day or _today()
     scope = _cluster_scope(theme, source_prefix, category, days)
     conn = get_conn()
     try:
         row = conn.execute(
             "SELECT * FROM news_clusters WHERE report_date = ? AND theme = ?",
-            (_today(), scope),
+            (rd, scope),
         ).fetchone()
         if not row:
             return None
         return {
-            "report_date": _today(),
+            "report_date": rd,
             "scope": scope,
             "days": days,
             "clusters": json.loads(row["body"] or "[]"),
@@ -865,14 +874,23 @@ def generate_clusters(
     category: str | None = None,
     days: int = 1,
     role: str = "summarize",
+    day: str | None = None,
 ) -> dict:
-    """LLM 把近 days 天某范围新闻去重聚类 + 按重要性排序。落库覆盖（当天, scope）。"""
-    # 封顶 200（实测可在合理时延内完成；更大会拖慢「生成要点」）。长范围按时间倒序取最近 200。
-    items = items_for_window(days, theme, source_prefix, category)[:200]
+    """LLM 把某范围新闻去重聚类 + 按重要性排序。落库覆盖 (report_date, scope)。
+
+    day 给定（如「某天快照」）→ 锚定那个日历日（`items_for_day`，days 视为 1）；
+    否则按近 days 天滚动窗口、锚定今天。
+    """
+    rd = day or _today()
+    # 封顶 200（实测可在合理时延内完成；更大会拖慢「生成要点」）。
+    if day:
+        items = items_for_day(day, theme)[:200]
+    else:
+        items = items_for_window(days, theme, source_prefix, category)[:200]
     if not items:
         raise ValueError("该范围暂无新闻，请先刷新（POST /news/refresh）")
     block, by_n = _items_block(items)
-    prompt = _load_prompt("news_clusters").replace("{{DATE}}", _today()).replace("{{ITEMS}}", block)
+    prompt = _load_prompt("news_clusters").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)
     raw = gateway.complete(
         [{"role": "user", "content": prompt}],
@@ -909,10 +927,11 @@ def generate_clusters(
             }
         )
     out.sort(key=lambda c: _IMP_ORDER.get(c["importance"], 2))  # 稳定：同重要性保留 LLM 顺序
-    _save_clusters(_cluster_scope(theme, source_prefix, category, days), out, model, len(items))
-    return get_clusters(theme, source_prefix, category, days) or {
-        "report_date": _today(),
-        "scope": _cluster_scope(theme, source_prefix, category, days),
+    scope = _cluster_scope(theme, source_prefix, category, days)
+    _save_clusters(scope, out, model, len(items), rd)
+    return get_clusters(theme, source_prefix, category, days, day) or {
+        "report_date": rd,
+        "scope": scope,
         "days": days,
         "clusters": [],
         "model": model,

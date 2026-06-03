@@ -85,8 +85,8 @@ function OppCard({ o }: { o: Opportunity }) {
   )
 }
 
-export default function OpportunitiesPanel() {
-  const opps = useOpportunities(null)
+export default function OpportunitiesPanel({ date = null }: { date?: string | null }) {
+  const opps = useOpportunities(date)
   const gen = useGenerateOpportunities()
   const [open, setOpen] = useState(true)
   const list = opps.data?.opportunities ?? []
@@ -101,7 +101,7 @@ export default function OpportunitiesPanel() {
           onClick={(e) => {
             e.stopPropagation()
             setOpen(true)
-            gen.mutate(null)
+            gen.mutate(date)
           }}
         >
           {gen.isPending ? '识别中…' : list.length ? '重新识别' : '✨ 识别机会'}

@@ -106,7 +106,8 @@
   - ✅ **⑤ 机会卡直通「研」**：`store.research(symbol)`（选标的 + 进「研」）；机会卡已解析关联 chip 改**拆分胶囊**「名字→看 · 研→深度研究」，一键从机会进单股研究。
   - ✅ **⑥ 晨读 Top3**：总览顶部 hero「晨读 · 今日要事」＝复用 news@1d 要点的前 3（重要性徽标 + 标题 + 为何要紧 + 序号），scheduler 每日预生成（早晨即就绪），可手动「✨ 生成晨读」。
   - ✅ **⑦「自上次以来」增量**：`useUI.lastSeenNewsAt`（持久化）+ `markNewsSeen`；总览「自上次以来 · N」列出打卡基准后发布的新条目（确定性、零成本、零 LLM），「标记已读」推进基准；首访给「标记此刻为已读」起点。
-  - ⚪ **队列清空**（融合主线 ①–⑦ 全落地）。后续：分区日报、影响链、预期差、IR/官方 X 并入「一条龙」。
+  - ✅ **⑧ 统一时间轴 · 「某天快照」**（主人：「每天信息不一样，怎么存/看某一天/更新」）：审计确认**存**(news_items 永不按龄删、按 published_at 沉淀；reports/opps 一天一份)与**更新**(refresh 累积去重 + scheduler 每日 + 自上次以来 diff)已扎实；**看某一天**原先只有日报兑现 → 现把「日历日」做成贯穿轴。修 `get/generate_clusters` **写死 `_today()` 的 bug**（历史要点不可达）→ 加 `day` 参（report_date=该日、`items_for_day(day)` 重建）；`recent_items(day=)` 取当日要闻；`/news/feed?day=`、`/news/clusters?date=` 加参。前端**「日报」Tab 改名「每日」**＝**某天快照**：二级列每天（今天置顶），主舞台＝那天的 趋势日报 + 要事 Top3 + 当日机会 + 当日要闻（`DaySnapshotView`，复用 `MorningBrief(date)`/`OpportunitiesPanel(date)`/`DigestBlock(date)`）。
+  - ⚪ **队列清空**（融合主线 ①–⑧ 全落地）。后续：分区日报、影响链、预期差、IR/官方 X 并入「一条龙」、研·Deep Research。
   - 测试自选库（28 个 US ticker：NVDA/MU/RMBS/CRDO/ALAB/SNDK + 光通信 LITE/CIEN/COHR/CLS + 航天 ASTS/RKLB/RDW/PL + AI云 ORCL/CRWV/NBIS/PLTR/GOOG/META/MSFT/AMZN + SOFI/HOOD + TSLA/AAPL + HIMS + QQQ，两级分区）已入本地库模拟真实环境。
 - ⚪ 华尔街见闻-tmt 焦点科技 lane、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、信源健康度前端。
 

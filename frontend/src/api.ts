@@ -549,18 +549,20 @@ export type Filing = z.infer<typeof filingSchema>
 
 export function useNewsFeed(
   limit = 60,
-  opts?: { theme?: string; sourcePrefix?: string; days?: number },
+  opts?: { theme?: string; sourcePrefix?: string; days?: number; day?: string },
 ) {
   const theme = opts?.theme
   const sp = opts?.sourcePrefix
   const days = opts?.days
+  const day = opts?.day
   return useQuery({
-    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? '', days ?? 0],
+    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? '', days ?? 0, day ?? ''],
     queryFn: async () => {
       const q = new URLSearchParams({ limit: String(limit) })
       if (theme) q.set('theme', theme)
       if (sp) q.set('source_prefix', sp)
       if (days) q.set('days', String(days))
+      if (day) q.set('day', day)
       return z.array(newsItemSchema).parse(await getJSON(`/news/feed?${q.toString()}`))
     },
     staleTime: 5 * 60_000,
@@ -715,6 +717,7 @@ export type ClusterParams = {
   sourcePrefix?: string
   category?: string
   days?: number
+  date?: string // 某天快照：取/生成那一天的要点
 }
 function clusterQS(p: ClusterParams): string {
   const q = new URLSearchParams()
@@ -722,6 +725,7 @@ function clusterQS(p: ClusterParams): string {
   if (p.sourcePrefix) q.set('source_prefix', p.sourcePrefix)
   if (p.category) q.set('category', p.category)
   q.set('days', String(p.days ?? 1))
+  if (p.date) q.set('date', p.date)
   return q.toString()
 }
 

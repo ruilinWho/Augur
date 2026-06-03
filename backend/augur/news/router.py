@@ -29,9 +29,12 @@ async def feed(
     theme: str | None = None,
     source_prefix: str | None = None,
     days: int | None = None,
+    day: str | None = None,
 ) -> list[dict]:
-    """最近新闻条目（theme 过滤 · source_prefix='X·' 取推特 · days 近 N 天看历史）。"""
-    return await run_in_threadpool(service.recent_items, limit, theme, source_prefix, days)
+    """最近新闻条目（theme 过滤 · source_prefix='X·' 取推特 · days 近 N 天 · day 取某一天）。"""
+    return await run_in_threadpool(
+        service.recent_items, limit, theme, source_prefix, days, day
+    )
 
 
 @router.post("/refresh", response_model=RefreshResult)
@@ -136,9 +139,12 @@ async def clusters(
     source_prefix: str | None = None,
     category: str | None = None,
     days: int = 1,
+    date: str | None = None,
 ) -> dict:
-    """某范围（新闻按 theme / 推特按 source_prefix+category，近 days 天）的要点。无 → 404。"""
-    data = await run_in_threadpool(service.get_clusters, theme, source_prefix, category, days)
+    """某范围要点（新闻按 theme / 推特按 source_prefix+category；date 取某天快照）。无 → 404。"""
+    data = await run_in_threadpool(
+        service.get_clusters, theme, source_prefix, category, days, date
+    )
     if data is None:
         raise HTTPException(status_code=404, detail="暂无要点，先生成")
     return data
@@ -150,14 +156,15 @@ async def generate_clusters(
     source_prefix: str | None = None,
     category: str | None = None,
     days: int = 1,
+    date: str | None = None,
 ) -> dict:
-    """生成要点：LLM 去重聚类+按投资重要性排序（阻塞，约 20–40s）。落库覆盖（当天, scope）。"""
+    """生成要点：LLM 去重聚类+按重要性排序（阻塞 ~20–40s）。落库覆盖 (report_date, scope)。"""
     try:
         gateway.check_ready("summarize")
     except gateway.LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     return await run_in_threadpool(
-        service.generate_clusters, theme, source_prefix, category, days
+        service.generate_clusters, theme, source_prefix, category, days, "summarize", date
     )
 
 
