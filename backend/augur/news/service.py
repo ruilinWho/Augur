@@ -78,11 +78,15 @@ def refresh() -> dict:
 
 
 def recent_items(
-    limit: int = 60, theme: str | None = None, source_prefix: str | None = None
+    limit: int = 60,
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    days: int | None = None,
 ) -> list[dict]:
-    """最近条目（按发布时间倒序，缺发布时间用抓取时间兜底）。可按 theme / source 前缀过滤。
+    """最近条目（按发布时间倒序，缺时间用抓取时间兜底）。可按 theme / source 前缀 / 近 days 天过滤。
 
-    source_prefix 供「推特」视图取 X·<handle> 源（传 "X·"）。
+    source_prefix 供「推特」视图取 X·<handle> 源（传 "X·"）；days 供时间范围（近 N 天，看历史）。
+    新闻一直持久化在 news_items（不按龄删除），days 让主人翻看已存历史而非只看当前。
     """
     conn = get_conn()
     try:
@@ -95,6 +99,10 @@ def recent_items(
         if source_prefix:
             sql += " AND source LIKE ?"
             args.append(f"{source_prefix}%")
+        if days and days > 0:
+            lo, _ = _window_bounds_utc(days)
+            sql += " AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?)"
+            args.append(lo)
         sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
         args.append(limit)
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
@@ -114,6 +122,49 @@ def _day_bounds_utc(day: str | None) -> tuple[str, str]:
         start.astimezone(utc).strftime("%Y-%m-%d %H:%M:%S"),
         (start + timedelta(days=1)).astimezone(utc).strftime("%Y-%m-%d %H:%M:%S"),
     )
+
+
+def _window_bounds_utc(days: int) -> tuple[str, str]:
+    """近 days 天（含今天，主人时区，日对齐）的 [起,止) → UTC 字符串。"""
+    tz = ZoneInfo(get_settings().tz)
+    end = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    start = end - timedelta(days=max(1, days))
+    utc = ZoneInfo("UTC")
+    return (
+        start.astimezone(utc).strftime("%Y-%m-%d %H:%M:%S"),
+        end.astimezone(utc).strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+def items_for_window(
+    days: int = 1,
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+) -> list[dict]:
+    """近 days 天的相关条目（relevance!=2），时间倒序。供「要点」按时间范围/主题/推特聚类。"""
+    lo, hi = _window_bounds_utc(days)
+    conn = get_conn()
+    try:
+        sql = (
+            "SELECT * FROM news_items WHERE relevance != 2 "
+            "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
+            "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
+        )
+        args: list = [lo, hi]
+        if theme:
+            sql += " AND theme = ?"
+            args.append(theme)
+        if source_prefix:
+            sql += " AND source LIKE ?"
+            args.append(f"{source_prefix}%")
+        if category:
+            sql += " AND category = ?"
+            args.append(category)
+        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC"
+        return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
+    finally:
+        conn.close()
 
 
 def items_for_day(day: str | None = None, theme: str | None = None) -> list[dict]:
@@ -599,10 +650,19 @@ def generate_opportunities(report_date: str | None = None, role: str = "summariz
 
 
 # ───────────────────────── 新闻「要点」：去重聚类 + 按重要性排序 ─────────────────────────
-_IMP_ORDER = {"high": 0, "med": 1, "low": 2}
+# 4 级重要性（含「非常重要」critical），值越小越靠前
+_IMP_ORDER = {"critical": 0, "high": 1, "med": 2, "low": 3}
 
 
-def _save_clusters(rd: str, theme: str, clusters: list[dict], model: str, n: int) -> None:
+def _cluster_scope(
+    theme: str | None, source_prefix: str | None, category: str | None, days: int
+) -> str:
+    """聚类范围 → 唯一 scope 串（存进 theme 列）。新闻按主题、推特按账号、含时间窗。"""
+    base = f"tw:{category or 'all'}" if source_prefix else f"news:{theme or 'all'}"
+    return f"{base}@{int(days)}d"
+
+
+def _save_clusters(scope: str, clusters: list[dict], model: str, n: int) -> None:
     conn = get_conn()
     try:
         conn.execute(
@@ -610,27 +670,33 @@ def _save_clusters(rd: str, theme: str, clusters: list[dict], model: str, n: int
             "VALUES (?, ?, ?, ?, ?) ON CONFLICT(report_date, theme) DO UPDATE SET "
             "body=excluded.body, model=excluded.model, item_count=excluded.item_count, "
             "created_at=datetime('now')",
-            (rd, theme or "", json.dumps(clusters, ensure_ascii=False), model, n),
+            (_today(), scope, json.dumps(clusters, ensure_ascii=False), model, n),
         )
         conn.commit()
     finally:
         conn.close()
 
 
-def get_clusters(report_date: str | None = None, theme: str | None = None) -> dict | None:
-    """取某日（默认今天）某主题（默认全部）的新闻要点；无 → None。"""
-    rd = report_date or _today()
+def get_clusters(
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+    days: int = 1,
+) -> dict | None:
+    """取当天某 scope（主题/推特 + 时间窗）的要点；无 → None。"""
+    scope = _cluster_scope(theme, source_prefix, category, days)
     conn = get_conn()
     try:
         row = conn.execute(
             "SELECT * FROM news_clusters WHERE report_date = ? AND theme = ?",
-            (rd, theme or ""),
+            (_today(), scope),
         ).fetchone()
         if not row:
             return None
         return {
-            "report_date": rd,
-            "theme": theme or "",
+            "report_date": _today(),
+            "scope": scope,
+            "days": days,
             "clusters": json.loads(row["body"] or "[]"),
             "model": row["model"],
             "item_count": row["item_count"],
@@ -641,15 +707,19 @@ def get_clusters(report_date: str | None = None, theme: str | None = None) -> di
 
 
 def generate_clusters(
-    report_date: str | None = None, theme: str | None = None, role: str = "summarize"
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+    days: int = 1,
+    role: str = "summarize",
 ) -> dict:
-    """LLM 把当天（某主题）新闻去重聚类 + 按投资重要性排序。落库覆盖（date,theme）。"""
-    rd = report_date or _today()
-    items = items_for_day(rd, theme)[:200]  # 当天（主题内）全部，封顶 200 控 token
+    """LLM 把近 days 天某范围新闻去重聚类 + 按重要性排序。落库覆盖（当天, scope）。"""
+    # 封顶 200（实测可在合理时延内完成；更大会拖慢「生成要点」）。长范围按时间倒序取最近 200。
+    items = items_for_window(days, theme, source_prefix, category)[:200]
     if not items:
-        raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
+        raise ValueError("该范围暂无新闻，请先刷新（POST /news/refresh）")
     block, by_n = _items_block(items)
-    prompt = _load_prompt("news_clusters").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
+    prompt = _load_prompt("news_clusters").replace("{{DATE}}", _today()).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)
     raw = gateway.complete(
         [{"role": "user", "content": prompt}],
@@ -685,11 +755,12 @@ def generate_clusters(
                 "members": members,
             }
         )
-    out.sort(key=lambda c: _IMP_ORDER.get(c["importance"], 1))  # 稳定：同重要性保留 LLM 顺序
-    _save_clusters(rd, theme or "", out, model, len(items))
-    return get_clusters(rd, theme) or {
-        "report_date": rd,
-        "theme": theme or "",
+    out.sort(key=lambda c: _IMP_ORDER.get(c["importance"], 2))  # 稳定：同重要性保留 LLM 顺序
+    _save_clusters(_cluster_scope(theme, source_prefix, category, days), out, model, len(items))
+    return get_clusters(theme, source_prefix, category, days) or {
+        "report_date": _today(),
+        "scope": _cluster_scope(theme, source_prefix, category, days),
+        "days": days,
         "clusters": [],
         "model": model,
         "item_count": len(items),

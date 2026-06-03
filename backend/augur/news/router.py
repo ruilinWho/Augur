@@ -25,10 +25,13 @@ router = APIRouter(prefix="/news", tags=["news"])
 
 @router.get("/feed", response_model=list[NewsItem])
 async def feed(
-    limit: int = 60, theme: str | None = None, source_prefix: str | None = None
+    limit: int = 60,
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    days: int | None = None,
 ) -> list[dict]:
-    """最近新闻条目（可按 theme=ai/chips/... 过滤；source_prefix='X·' 取推特源）。"""
-    return await run_in_threadpool(service.recent_items, limit, theme, source_prefix)
+    """最近新闻条目（theme 过滤 · source_prefix='X·' 取推特 · days 近 N 天看历史）。"""
+    return await run_in_threadpool(service.recent_items, limit, theme, source_prefix, days)
 
 
 @router.post("/refresh", response_model=RefreshResult)
@@ -84,22 +87,34 @@ async def generate_opportunities(date: str | None = None) -> dict:
 
 
 @router.get("/clusters", response_model=ClustersResponse)
-async def clusters(theme: str | None = None, date: str | None = None) -> dict:
-    """某日（默认今天）某主题（默认全部）的新闻要点（去重聚类+重要性排序）。无 → 404。"""
-    data = await run_in_threadpool(service.get_clusters, date, theme)
+async def clusters(
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+    days: int = 1,
+) -> dict:
+    """某范围（新闻按 theme / 推特按 source_prefix+category，近 days 天）的要点。无 → 404。"""
+    data = await run_in_threadpool(service.get_clusters, theme, source_prefix, category, days)
     if data is None:
         raise HTTPException(status_code=404, detail="暂无要点，先生成")
     return data
 
 
 @router.post("/clusters/generate", response_model=ClustersResponse)
-async def generate_clusters(theme: str | None = None, date: str | None = None) -> dict:
-    """生成新闻要点：LLM 去重聚类+按投资重要性排序（阻塞，约 20–40s）。落库覆盖。"""
+async def generate_clusters(
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+    days: int = 1,
+) -> dict:
+    """生成要点：LLM 去重聚类+按投资重要性排序（阻塞，约 20–40s）。落库覆盖（当天, scope）。"""
     try:
         gateway.check_ready("summarize")
     except gateway.LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
-    return await run_in_threadpool(service.generate_clusters, date, theme)
+    return await run_in_threadpool(
+        service.generate_clusters, theme, source_prefix, category, days
+    )
 
 
 @router.post("/report/generate")

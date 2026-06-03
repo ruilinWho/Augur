@@ -340,9 +340,16 @@ button {
   font-size: 0.8rem;
 }
 
-/* 新闻：时间线/要点切换 + 要点卡片 */
-.feed-seg {
+/* 新闻：时间范围 + 时间线/要点切换 + 要点卡片 */
+.know-segs {
+  display: flex;
+  gap: 8px;
   margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.range-seg button {
+  font-size: 0.78rem;
 }
 .clusters {
   display: flex;
@@ -372,9 +379,14 @@ button {
   border-radius: 999px;
   align-self: center;
 }
-.cl-imp.imp-high {
+.cl-imp.imp-critical {
   color: var(--accent-ink);
   background: var(--accent);
+  font-weight: 700;
+}
+.cl-imp.imp-high {
+  color: var(--accent);
+  background: var(--accent-weak);
 }
 .cl-imp.imp-med {
   color: var(--text-muted);

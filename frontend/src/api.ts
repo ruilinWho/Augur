@@ -546,15 +546,20 @@ export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
 export type Filing = z.infer<typeof filingSchema>
 
-export function useNewsFeed(limit = 60, opts?: { theme?: string; sourcePrefix?: string }) {
+export function useNewsFeed(
+  limit = 60,
+  opts?: { theme?: string; sourcePrefix?: string; days?: number },
+) {
   const theme = opts?.theme
   const sp = opts?.sourcePrefix
+  const days = opts?.days
   return useQuery({
-    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? ''],
+    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? '', days ?? 0],
     queryFn: async () => {
       const q = new URLSearchParams({ limit: String(limit) })
       if (theme) q.set('theme', theme)
       if (sp) q.set('source_prefix', sp)
+      if (days) q.set('days', String(days))
       return z.array(newsItemSchema).parse(await getJSON(`/news/feed?${q.toString()}`))
     },
     staleTime: 5 * 60_000,
@@ -695,21 +700,37 @@ const newsClusterSchema = z.object({
 })
 const clustersSchema = z.object({
   report_date: z.string(),
-  theme: z.string().default(''),
+  scope: z.string().default(''),
+  days: z.number().default(1),
   model: z.string().default(''),
   item_count: z.number().default(0),
   created_at: z.string().nullable().default(null),
   clusters: z.array(newsClusterSchema).default([]),
 })
 export type NewsCluster = z.infer<typeof newsClusterSchema>
+// 聚类范围：新闻按 theme，推特按 sourcePrefix='X·' + category；都带时间窗 days
+export type ClusterParams = {
+  theme?: string
+  sourcePrefix?: string
+  category?: string
+  days?: number
+}
+function clusterQS(p: ClusterParams): string {
+  const q = new URLSearchParams()
+  if (p.theme) q.set('theme', p.theme)
+  if (p.sourcePrefix) q.set('source_prefix', p.sourcePrefix)
+  if (p.category) q.set('category', p.category)
+  q.set('days', String(p.days ?? 1))
+  return q.toString()
+}
 
-export function useClusters(theme?: string) {
-  const t = theme || ''
+export function useClusters(p: ClusterParams) {
+  const qs = clusterQS(p)
   return useQuery({
-    queryKey: ['news-clusters', t],
+    queryKey: ['news-clusters', qs],
     queryFn: async () => {
       try {
-        return clustersSchema.parse(await getJSON(`/news/clusters${t ? `?theme=${t}` : ''}`))
+        return clustersSchema.parse(await getJSON(`/news/clusters?${qs}`))
       } catch (e) {
         if ((e as Error).message.includes('暂无')) return null
         throw e
@@ -721,10 +742,8 @@ export function useClusters(theme?: string) {
 export function useGenerateClusters() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (theme?: string) =>
-      clustersSchema.parse(
-        await send(`/news/clusters/generate${theme ? `?theme=${theme}` : ''}`, 'POST'),
-      ),
+    mutationFn: async (p: ClusterParams) =>
+      clustersSchema.parse(await send(`/news/clusters/generate?${clusterQS(p)}`, 'POST')),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['news-clusters'] }),
   })
 }

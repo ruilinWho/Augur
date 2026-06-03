@@ -108,7 +108,8 @@ class NewsCluster(BaseModel):
 
 class ClustersResponse(BaseModel):
     report_date: str
-    theme: str = ""
+    scope: str = ""
+    days: int = 1
     model: str = ""
     item_count: int = 0
     created_at: str | None = None

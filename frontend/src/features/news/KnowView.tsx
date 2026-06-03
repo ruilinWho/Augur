@@ -7,6 +7,7 @@ import {
   useGenerateClusters,
   useNewsFeed,
   useNewsReport,
+  type ClusterParams,
   type NewsCluster,
 } from '../../api'
 import Collapse from '../../components/Collapse'
@@ -103,12 +104,18 @@ function DigestView() {
   )
 }
 
-// ── 新闻：时间线（原始流）/ 要点（去重聚类+重要性排序）切换 ──
+// ── 新闻 / 推特：时间线 ↔ 要点（去重聚类+重要性排序）+ 时间范围 ──
 const IMP: Record<string, { label: string; cls: string }> = {
+  critical: { label: '非常重要', cls: 'imp-critical' },
   high: { label: '重要', cls: 'imp-high' },
   med: { label: '一般', cls: 'imp-med' },
   low: { label: '次要', cls: 'imp-low' },
 }
+const RANGES = [
+  { d: 1, label: '今天' },
+  { d: 7, label: '近7天' },
+  { d: 30, label: '近30天' },
+]
 
 function ClusterCard({ c }: { c: NewsCluster }) {
   const [open, setOpen] = useState(false)
@@ -135,8 +142,8 @@ function ClusterCard({ c }: { c: NewsCluster }) {
   )
 }
 
-function ClusterList({ theme }: { theme: string }) {
-  const clusters = useClusters(theme)
+function ClusterList({ params }: { params: ClusterParams }) {
+  const clusters = useClusters(params)
   const gen = useGenerateClusters()
   const [showLow, setShowLow] = useState(false)
   const data = clusters.data
@@ -150,7 +157,7 @@ function ClusterList({ theme }: { theme: string }) {
         <button
           className="btn btn-primary jsm"
           disabled={gen.isPending}
-          onClick={() => gen.mutate(theme || undefined)}
+          onClick={() => gen.mutate(params)}
         >
           {gen.isPending ? '聚类中…' : data ? '重新生成' : '✨ 生成要点'}
         </button>
@@ -173,56 +180,77 @@ function ClusterList({ theme }: { theme: string }) {
         <div className="report-card faint">加载…</div>
       ) : (
         <div className="know-empty">
-          <div className="ke-title">还没有今日要点</div>
+          <div className="ke-title">还没有要点</div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// 时间线/要点 + 时间范围 的通用视图（新闻、推特共用）
+function ScopedNews({
+  title,
+  theme,
+  sourcePrefix,
+  categoryFilter,
+  category,
+}: {
+  title: string
+  theme?: string
+  sourcePrefix?: string
+  categoryFilter?: string // 推特时间线：客户端按账号分类过滤
+  category?: string // 推特要点：分类（后端过滤）
+}) {
+  const [mode, setMode] = useState<'time' | 'key'>('time')
+  const [days, setDays] = useState(1)
+  const feed = useNewsFeed(days >= 7 ? 400 : 150, { theme, sourcePrefix, days })
+  const items = (feed.data ?? []).filter((i) => !categoryFilter || i.category === categoryFilter)
+  return (
+    <div className="know">
+      <div className="know-head">
+        <h2>{title}</h2>
+        <div className="know-segs">
+          <div className="seg range-seg">
+            {RANGES.map((r) => (
+              <button key={r.d} aria-pressed={days === r.d} onClick={() => setDays(r.d)}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div className="seg feed-seg">
+            <button aria-pressed={mode === 'time'} onClick={() => setMode('time')}>
+              时间线
+            </button>
+            <button aria-pressed={mode === 'key'} onClick={() => setMode('key')}>
+              要点
+            </button>
+          </div>
+        </div>
+      </div>
+      {mode === 'time' ? (
+        <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '该范围暂无内容'} />
+      ) : (
+        <ClusterList params={{ theme, sourcePrefix, category, days }} />
       )}
     </div>
   )
 }
 
 function FeedView() {
-  const theme = useNews((s) => s.secondary)
-  const [mode, setMode] = useState<'time' | 'key'>('time')
-  const feed = useNewsFeed(200, { theme: theme || undefined })
-  return (
-    <div className="know">
-      <div className="know-head">
-        <h2>{themeLabel(theme || '')}</h2>
-        <div className="seg feed-seg">
-          <button aria-pressed={mode === 'time'} onClick={() => setMode('time')}>
-            时间线
-          </button>
-          <button aria-pressed={mode === 'key'} onClick={() => setMode('key')}>
-            要点
-          </button>
-        </div>
-      </div>
-      {mode === 'time' ? (
-        <FeedGroups items={feed.data ?? []} empty="该主题暂无要闻" />
-      ) : (
-        <ClusterList theme={theme || ''} />
-      )}
-    </div>
-  )
+  const theme = useNews((s) => s.secondary) || ''
+  return <ScopedNews title={themeLabel(theme)} theme={theme || undefined} />
 }
 
-// ── 推特（按账号分类）──
 function TwitterView() {
-  const cat = useNews((s) => s.secondary)
-  const feed = useNewsFeed(250, { sourcePrefix: 'X·' })
-  const items = (feed.data ?? []).filter((i) => !cat || i.category === cat)
-  const label = TW_CATS.find((c) => c.key === (cat || ''))?.label ?? '全部'
+  const cat = useNews((s) => s.secondary) || ''
+  const label = TW_CATS.find((c) => c.key === cat)?.label ?? '全部'
   return (
-    <div className="know">
-      <div className="know-head">
-        <h2>推特 · {label}</h2>
-        <span className="feed-count">{items.length} 条</span>
-      </div>
-      <FeedGroups
-        items={items}
-        empty={feed.isLoading ? '加载…' : '还没有推文（需配 twtapi key 并刷新信源）'}
-      />
-    </div>
+    <ScopedNews
+      title={`推特 · ${label}`}
+      sourcePrefix="X·"
+      categoryFilter={cat || undefined}
+      category={cat || undefined}
+    />
   )
 }
 
