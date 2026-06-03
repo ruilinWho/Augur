@@ -1350,6 +1350,106 @@ body.resizing * {
   cursor: pointer;
 }
 
+/* 数据/信源：二级菜单（源列表）+ 子页面 */
+.src2 {
+  display: grid;
+  grid-template-columns: 184px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.src2-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-right: 1px solid var(--border);
+  padding-right: 14px;
+}
+.src2-glabel {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  font-weight: 600;
+  padding: 0 8px 4px;
+}
+.src2-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.src2-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.src2-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+}
+.src2-iname {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.src2-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.src2-dot.on {
+  background: var(--up);
+}
+.src2-page {
+  max-width: 560px;
+}
+.src2-phead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.src2-phead h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.src2-phead .badge {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.src2-phead .badge.on {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 40%, var(--border));
+}
+.src2-field {
+  margin-bottom: 18px;
+}
+.src2-flabel {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.src2-none {
+  font-size: 0.85rem;
+}
+
 /* 看·K线下方模块拖动重排：手柄在模块标题**左侧**的留白里，hover 才浮现（stage 左 padding 28px，
    故 left:-22px 落在 gutter 内、不裁切）。仅手柄可拖，模块内交互不受影响。 */
 .kan-mod {

@@ -200,7 +200,7 @@ def status_list() -> list[dict]:
             configured, status = False, "不可用"
         elif key_env:  # 需凭证（key/token），免费或付费皆可
             configured = runtime_config.has_secret(key_env)
-            status = "已配置" if configured else f"待配置 {'token' if cred == 'token' else 'key'}"
+            status = "已配置" if configured else "待配置"
         else:
             configured, status = False, "待接入"
         name = s["name"]

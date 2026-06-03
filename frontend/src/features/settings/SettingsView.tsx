@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react'
 import { useUI } from '../../store'
-import Collapse from '../../components/Collapse'
 import {
   useDeleteConnection,
   useSetRoleTarget,
@@ -11,7 +10,6 @@ import {
   useUpsertConnection,
   type Connection,
   type RoleTarget,
-  type SourceConfigField,
   type SourceGroup,
   type SourceStatus,
   type TestResult,
@@ -227,68 +225,65 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
 }
 
 // ───────────────────────── 数据 / 信源 ─────────────────────────
-const ACCESS_TONE: Record<string, string> = {
-  builtin: 'var(--up)',
-  free_rss: 'var(--up)',
-  free_api: 'var(--accent)',
-  paid_api: 'var(--text-muted)',
-}
-
-function SourceRow({ s }: { s: SourceStatus }) {
+// 信源详情子页：只放名称 + 状态 + 可操作项（key / 账户 / 关键词）。不写任何说明性文案。
+function SourceDetail({ s }: { s: SourceStatus }) {
   const setSecret = useSetSecret()
   const [key, setKey] = useState('')
-  const tone = s.configured ? 'var(--up)' : ACCESS_TONE[s.access] ?? 'var(--text-faint)'
   const isToken = s.cred === 'token'
-  const placeholder = s.configured
-    ? `${isToken ? 'token' : 'key'}（留空＝不改）`
-    : isToken
-      ? '粘贴登录 token'
-      : '粘贴 API key'
+  const hasNothing = !s.key_env && s.config.length === 0
   return (
-    <div className="src-block">
-      <div className="src-head2">
-        <div className="src-name">
-          {s.name}
-          {s.note && <span className="src-note-inline">{s.note}</span>}
-        </div>
-        <div className="src-badges">
-          {s.payment && <span className="pay-badge">{s.payment}</span>}
-          <span className="badge" style={{ color: tone }}>
-            {s.status}
-            {s.hint ? ` · ${s.hint}` : ''}
-          </span>
-        </div>
+    <div className="src2-page">
+      <div className="src2-phead">
+        <h2>{s.name}</h2>
+        <span className={`badge ${s.configured ? 'on' : ''}`}>{s.status}</span>
       </div>
+
       {s.key_env && (
-        <div className="src-keyrow">
-          <input
-            className="cfg-input"
-            type="password"
-            autoComplete="off"
-            placeholder={placeholder}
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-          />
-          {s.configured && (
-            <button className="btn btn-ghost jsm" onClick={() => setSecret.mutate({ name: s.key_env!, value: null })}>
-              清除
+        <div className="src2-field">
+          <div className="src2-flabel">{isToken ? '登录 token' : 'API key'}</div>
+          <div className="src-keyrow">
+            <input
+              className="cfg-input"
+              type="password"
+              autoComplete="off"
+              placeholder={s.configured ? '留空＝不改' : isToken ? '粘贴 token' : '粘贴 key'}
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+            />
+            {s.configured && (
+              <button
+                className="btn btn-ghost jsm"
+                onClick={() => setSecret.mutate({ name: s.key_env!, value: null })}
+              >
+                清除
+              </button>
+            )}
+            <button
+              className="btn jsm"
+              disabled={!key.trim() || setSecret.isPending}
+              onClick={() => {
+                setSecret.mutate({ name: s.key_env!, value: key.trim() })
+                setKey('')
+              }}
+            >
+              保存
             </button>
-          )}
-          <button
-            className="btn jsm"
-            disabled={!key.trim() || setSecret.isPending}
-            onClick={() => {
-              setSecret.mutate({ name: s.key_env!, value: key.trim() })
-              setKey('')
-            }}
-          >
-            保存
-          </button>
+          </div>
         </div>
       )}
+
       {s.config.map((f) => (
-        <ConfigField key={f.field} id={s.id} f={f} />
+        <div key={f.field} className="src2-field">
+          <div className="src2-flabel">{f.label}</div>
+          {f.type === 'accounts' ? (
+            <AccountsEditor id={s.id} field={f.field} value={f.value as TwAccount[]} />
+          ) : (
+            <TagsEditor id={s.id} field={f.field} value={f.value as string[]} />
+          )}
+        </div>
       ))}
+
+      {hasNothing && <div className="src2-none faint">无需配置</div>}
     </div>
   )
 }
@@ -391,49 +386,44 @@ function AccountsEditor({ id, field, value }: { id: string; field: string; value
   )
 }
 
-// 单个可配置项：可折叠的 「label · N」 头 + 编辑器
-function ConfigField({ id, f }: { id: string; f: SourceConfigField }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="src-cfg">
-      <button className="src-cfg-toggle" onClick={() => setOpen((v) => !v)}>
-        {f.label} · {f.value.length}
-      </button>
-      <Collapse open={open}>
-        <div className="src-cfg-body">
-          {f.type === 'accounts' ? (
-            <AccountsEditor id={id} field={f.field} value={f.value as TwAccount[]} />
-          ) : (
-            <TagsEditor id={id} field={f.field} value={f.value as string[]} />
-          )}
-        </div>
-      </Collapse>
-    </div>
-  )
-}
-
 const GROUP_FALLBACK: SourceGroup[] = [
   { id: 'finance', label: '财经', blurb: '' },
   { id: 'news', label: '新闻', blurb: '' },
   { id: 'forum', label: '论坛', blurb: '' },
 ]
 
+// 二级菜单：左侧按 财经/新闻/论坛 分组列出信源，右侧是选中源的子页面
 function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: SourceGroup[] }) {
   const order = groups.length ? groups : GROUP_FALLBACK
+  const [selId, setSelId] = useState<string>('')
+  const sel = sources.find((s) => s.id === selId) ?? sources[0]
   return (
     <>
       <h1 className="set2-title">数据 / 信源</h1>
-      {order.map((g) => {
-        const items = sources.filter((s) => s.group === g.id)
-        if (!items.length) return null
-        return (
-          <Section key={g.id} title={g.label}>
-            {items.map((s) => (
-              <SourceRow key={s.id} s={s} />
-            ))}
-          </Section>
-        )
-      })}
+      <div className="src2">
+        <nav className="src2-nav">
+          {order.map((g) => {
+            const items = sources.filter((s) => s.group === g.id)
+            if (!items.length) return null
+            return (
+              <div key={g.id} className="src2-group">
+                <div className="src2-glabel">{g.label}</div>
+                {items.map((s) => (
+                  <button
+                    key={s.id}
+                    className={`src2-item ${sel?.id === s.id ? 'active' : ''}`}
+                    onClick={() => setSelId(s.id)}
+                  >
+                    <span className="src2-iname">{s.name}</span>
+                    <span className={`src2-dot ${s.configured ? 'on' : ''}`} />
+                  </button>
+                ))}
+              </div>
+            )
+          })}
+        </nav>
+        <div className="src2-detail">{sel && <SourceDetail s={sel} />}</div>
+      </div>
     </>
   )
 }
