@@ -744,11 +744,11 @@ body.resizing * {
   border-color: var(--accent);
   background: var(--surface);
 }
-.src-cat {
-  font-size: 0.7rem;
+.src-note-inline {
+  font-size: 0.74rem;
   color: var(--text-faint);
   font-weight: 400;
-  margin-left: 4px;
+  margin-left: 8px;
 }
 /* 分区名双击重命名的内联输入框 */
 .nm-edit {
@@ -953,6 +953,10 @@ body.resizing * {
 .src-name {
   font-size: 0.92rem;
   color: var(--text);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .src-badges {
   display: flex;
@@ -968,12 +972,6 @@ body.resizing * {
   padding: 2px 7px;
   border-radius: 999px;
   white-space: nowrap;
-}
-.src-note2 {
-  font-size: 0.78rem;
-  color: var(--text-faint);
-  line-height: 1.5;
-  margin-top: 4px;
 }
 .src-keyrow {
   display: flex;

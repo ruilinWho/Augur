@@ -23,7 +23,8 @@
 |---|---|---|
 | **OpenAI** | 仅 USD 国际卡 | 大陆卡常被拒 → 野卡 WildCard 虚拟卡（微信/支付宝充）或中转站 |
 | **Anthropic** | Visa/MC（含虚拟卡） | **官方不支持中国大陆/香港区域**→通常靠中转站 |
-| **TwitterAPI.io**(X 桥) | 信用卡(Stripe)·**加密(USDT,+2%)** | **加密(USDT) 充值**＝国内最优，免国际卡 |
+| **twtapi**(X 桥·**主人选定**) | 月付套餐+**免费试用** | **主人定用此桥**：免国际卡（TwitterAPI.io 要国际卡办不了）；有免费试用先试 |
+| ~~TwitterAPI.io~~(X 桥·弃) | 信用卡(Stripe)·加密(USDT) | 纯按量更省，但**需国际银行卡，主人办不了** → 弃，改用 twtapi（ADR-0007 §5）|
 | **apidance**(最便宜 X 桥) | 仅加密 | 卖家中文个人，或可私聊支付宝代充（非官方） |
 | SocialData / RSS.app / 官方 X API | 信用卡(Stripe)/PayPal | 虚拟卡；官方 X API 最不友好 |
 | Finnhub / Polygon / Alpha Vantage / Marketaux / Tiingo | 信用卡为主 | 虚拟卡/PayPal；**优先吃免费层 + 既有 yfinance/akshare/FDR** |
@@ -34,6 +35,6 @@
 
 ## 采购优先级（结论）
 1. **LLM**：以 **DeepSeek**（支付宝、现用）为主；**便宜角色**(summarize/cheap/翻译/相关性筛选) 路由到 **智谱/Kimi/硅基流动/MiniMax**（都支付宝可充、多送免费额度）；**前沿模型**(GPT/Claude) 走 **OpenRouter**（Stripe 支付宝，需梯子）或 **OhMyGPT 中转**（+10%，敏感内容不走）。**避免**直连 OpenAI/Anthropic 官方充值。
-2. **X 桥**：无原生支付宝/微信；若上，用 **TwitterAPI.io + 加密(USDT)** 或虚拟卡；低优先（ADR-0006）。
+2. **X 桥**：**主人选定 twtapi**（有免费试用 + 月付，免国际卡；TwitterAPI.io 要国际卡故弃）。配 `TWTAPI_KEY` 启用（ADR-0007 §5）。
 3. **金融数据**：吃免费层 + 既有开源栈；付费走虚拟卡/PayPal，非刚需。
 4. **中文终端**：全弃。

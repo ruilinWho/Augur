@@ -259,14 +259,20 @@ const roleTargetSchema = z.object({
 const sourceStatusSchema = z.object({
   id: z.string(),
   name: z.string(),
-  category: z.string(),
+  group: z.string().default('news'),
   access: z.string(),
   key_env: z.string().nullable().default(null),
+  cred: z.string().default(''),
   note: z.string().default(''),
   payment: z.string().default(''),
   configured: z.boolean(),
   status: z.string(),
   hint: z.string().default(''),
+})
+const sourceGroupSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  blurb: z.string().default(''),
 })
 const settingsConfigSchema = z.object({
   llm: z.object({
@@ -274,10 +280,12 @@ const settingsConfigSchema = z.object({
     roles: z.array(roleTargetSchema),
   }),
   sources: z.array(sourceStatusSchema),
+  source_groups: z.array(sourceGroupSchema).default([]),
 })
 export type Connection = z.infer<typeof connectionSchema>
 export type RoleTarget = z.infer<typeof roleTargetSchema>
 export type SourceStatus = z.infer<typeof sourceStatusSchema>
+export type SourceGroup = z.infer<typeof sourceGroupSchema>
 export type TestResult = { ok: boolean; latency_ms?: number; reply?: string; error?: string }
 
 export function useSettingsConfig() {

@@ -37,6 +37,7 @@ async def get_config() -> dict:
             "roles": gateway.roles_status(),
         },
         "sources": source_registry.status_list(),
+        "source_groups": source_registry.groups(),
     }
 
 

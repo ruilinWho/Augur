@@ -1,88 +1,163 @@
 """数据/新闻信源「接口」注册表——驱动「设置」页的信源配置区（CLAUDE.md §1「知」）。
 
-把需要凭证或属于「待接入」的高价值信源登记于此：免费已接（Bloomberg RSS）、免费待接
-（财联社/东财，非官方 API，适配器后续）、付费待主人买 key（X 桥/Reuters/iFinD/Choice）、
-不可用（Wind 需 Windows 终端、DM 仅 FICC）。`status_list()` 计算每条的可用状态供前端展示。
+按主人要求把所有信源分三类（`group`）：**财经**（行情/基本面数据，喂 看/研）、
+**新闻**（RSS/中文 newswire/官方资讯，喂 知）、**论坛**（社媒/社区情绪信号）。
+免费已接的内置栈（行情数据、RSS 聚合）以只读聚合行呈现；需 key/token 的源留配置槽。
 
-调研依据见 ADR-0006（X）+ 后续 ADR（Bloomberg/Reuters/中文终端可行性）。普通 RSS 源仍在
-`feeds.yaml`；这里只登记**需 key 或需专用适配器**的源，便于主人在 UI 里配 key、看状态。
+候选源可行性调研（twtapi/必盈/iTick/Tushare/雪球）结论见 ADR-0007：均与现有免费栈
+重叠或有隐私权衡，故标为「可选·待配置」由主人定夺，不默认启用、不写适配器（先登记留槽）。
+普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
 from __future__ import annotations
 
 from .. import runtime_config
+from . import sources
 
-# access 取值：free_rss 免费RSS已接 · free_api 免费非官方API待接 ·
-#              paid_api 付费API待key · paid_terminal 付费终端(headless难) · unavailable 不可用
+# access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
+# group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
+# cred：需要的凭证类型（key / token），决定配置槽文案；无则不显配置槽
 SOURCES: list[dict] = [
+    # ──────────── 财经 · 行情 / 基本面数据 ────────────
+    {
+        "id": "market_data",
+        "name": "行情 / 基本面数据",
+        "group": "finance",
+        "access": "builtin",
+        "payment": "免费",
+        "note": "FDR·akshare·yfinance·pykrx",
+    },
+    {
+        "id": "tushare_pro",
+        "name": "Tushare Pro",
+        "group": "finance",
+        "access": "paid_api",
+        "key_env": "TUSHARE_TOKEN",
+        "cred": "token",
+        "payment": "积分制·充值",
+        "note": "A股·免费档薄·已被覆盖",
+    },
+    {
+        "id": "biyingapi",
+        "name": "必盈 BiYing",
+        "group": "finance",
+        "access": "paid_api",
+        "key_env": "BIYING_API_LICENCE",
+        "cred": "key",
+        "payment": "未明示·疑微信",
+        "note": "A/港行情·已被覆盖",
+    },
+    {
+        "id": "itick",
+        "name": "iTick",
+        "group": "finance",
+        "access": "paid_api",
+        "key_env": "ITICK_API_KEY",
+        "cred": "key",
+        "payment": "USD·国际卡",
+        "note": "全球行情·免费档严",
+    },
+    # ──────────── 新闻 · RSS / 中文 newswire / 官方资讯 ────────────
+    {
+        "id": "feeds_rss",
+        "name": "RSS 新闻源",  # status_list 动态补条数
+        "group": "news",
+        "access": "free_rss",
+        "payment": "免费",
+        "note": "详见 feeds.yaml",
+    },
     {
         "id": "bloomberg",
         "name": "Bloomberg · 科技/市场",
-        "category": "国际 · 精英二手",
+        "group": "news",
         "access": "free_rss",
-        "key_env": None,
         "payment": "免费",
-        "note": "彭博官方 RSS（technology/markets），已接入 feeds.yaml；未公开文档，带回退。",
-    },
-    {
-        "id": "x_bridge",
-        "name": "X(Twitter) 官方号",
-        "category": "社媒一手",
-        "access": "paid_api",
-        "key_env": "TWITTERAPI_KEY",
-        "payment": "信用卡 / 加密(USDT)·无支付宝",
-        "note": "经 TwitterAPI.io 桥拉官方号推文（OpenAI/NVIDIA/@sama…）。配 key 后启用；"
-        "无支付宝/微信，国内走加密(USDT)或虚拟卡；权衡见 ADR-0006/0007。",
+        "note": "官方 RSS",
     },
     {
         "id": "cls",
         "name": "财联社 CLS",
-        "category": "中文 · 科技 newswire",
+        "group": "news",
         "access": "free_api",
-        "key_env": None,
         "active": True,
         "payment": "免费",
-        "note": "科创电报，免费非官方 API（带 sign）；最佳中文科技实时源，已接入（cls.py）。",
+        "note": "科创电报",
     },
     {
         "id": "eastmoney_news",
         "name": "东方财富 · 资讯",
-        "category": "中文 · 科技",
+        "group": "news",
         "access": "free_api",
-        "key_env": None,
         "active": True,
         "payment": "免费",
-        "note": "免费关键词资讯 JSON（人工智能/半导体/算力…），已接入（eastmoney_news.py）。",
+        "note": "关键词资讯",
+    },
+    {
+        "id": "twtapi",
+        "name": "X(Twitter) 官方号",
+        "group": "news",
+        "access": "paid_api",
+        "key_env": "TWTAPI_KEY",
+        "cred": "key",
+        "payment": "月付·有免费试用",
+        "note": "官方号推文·twtapi 桥",
+    },
+    # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
+    {
+        "id": "xueqiu",
+        "name": "雪球 Xueqiu",
+        "group": "forum",
+        "access": "free_api",
+        "key_env": "XUEQIU_TOKEN",
+        "cred": "token",
+        "payment": "免费·需登录",
+        "note": "社区情绪·需登录·泄持仓",
     },
 ]
-# 已按主人意见**移除太贵的数据源**（仅保留免费/极廉）：
-#   Reuters（仅 LSEG/Refinitiv 企业合约，五位数/年）、万得 Wind（~¥39,800/年且需 Windows 终端）、
-#   同花顺 iFinD / 东财 Choice（~¥30k/年机构终端）。需要时可经 ADR-0007 记录的路径再接。
-#   保留：Bloomberg（免费 RSS）、财联社/东财（免费 API）、X（TwitterAPI.io 桥，约 $几/月）。
+# 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
+#   覆盖且增隐私外泄；雪球需周级失效的登录 token 且把持仓查询绑真实账号泄露（违 §11）。故均登记
+#   留槽、由主人定夺。**Twitter 桥选 twtapi**（而非 TwitterAPI.io）：主人无国际银行卡、付不了
+#   TwitterAPI.io，twtapi 有免费试用+月付套餐，故采 twtapi。已移除太贵源见 ADR-0007。
+
+# 三类显示顺序与中文标签（前端分组用）
+GROUPS: list[dict] = [
+    {"id": "finance", "label": "财经", "blurb": "行情 · 基本面数据"},
+    {"id": "news", "label": "新闻", "blurb": "RSS · newswire · 官方资讯"},
+    {"id": "forum", "label": "论坛", "blurb": "社媒 · 社区情绪"},
+]
 
 
 def status_list() -> list[dict]:
-    """每条信源 + 计算后的状态（供前端徽标）。"""
+    """每条信源 + 计算后的状态（供前端按 group 分组、显徽标）。"""
+    rss_n = len(sources.load_feeds())
     out: list[dict] = []
     for s in SOURCES:
-        key_env = s["key_env"]
-        if s["access"] == "free_rss":
-            status, configured = "已接入", True
-        elif s["access"] == "free_api":
+        key_env = s.get("key_env")
+        access = s["access"]
+        cred = s.get("cred", "key")
+        if access in ("builtin", "free_rss"):
+            configured, status = True, "已接入"
+        elif access == "free_api" and not key_env:
             configured = bool(s.get("active"))
             status = "已接入" if configured else "免费 · 待接入"
-        elif s["access"] == "unavailable":
-            status, configured = "不可用", False
-        else:  # paid_api：看 key
-            configured = bool(key_env and runtime_config.has_secret(key_env))
-            status = "已配置" if configured else "待配置 key"
+        elif access == "unavailable":
+            configured, status = False, "不可用"
+        elif key_env:  # 需凭证（key/token），免费或付费皆可
+            configured = runtime_config.has_secret(key_env)
+            status = "已配置" if configured else f"待配置 {'token' if cred == 'token' else 'key'}"
+        else:
+            configured, status = False, "待接入"
+        name = s["name"]
+        if s["id"] == "feeds_rss":
+            name = f"{name} · {rss_n}"  # 动态条数，不写死
         out.append(
             {
                 "id": s["id"],
-                "name": s["name"],
-                "category": s["category"],
-                "access": s["access"],
+                "name": name,
+                "group": s["group"],
+                "access": access,
                 "key_env": key_env,
+                "cred": cred if key_env else "",
                 "note": s["note"],
                 "payment": s.get("payment", ""),  # 支付方式（中国用户视角，见 ADR-0007）
                 "configured": configured,
@@ -91,3 +166,8 @@ def status_list() -> list[dict]:
             }
         )
     return out
+
+
+def groups() -> list[dict]:
+    """三类标签 + 顺序（供前端分组渲染）。"""
+    return GROUPS

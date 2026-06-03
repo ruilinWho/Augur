@@ -9,6 +9,7 @@ import {
   useUpsertConnection,
   type Connection,
   type RoleTarget,
+  type SourceGroup,
   type SourceStatus,
   type TestResult,
 } from '../../api'
@@ -223,6 +224,7 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
 
 // ───────────────────────── 数据 / 信源 ─────────────────────────
 const ACCESS_TONE: Record<string, string> = {
+  builtin: 'var(--up)',
   free_rss: 'var(--up)',
   free_api: 'var(--accent)',
   paid_api: 'var(--text-muted)',
@@ -232,11 +234,18 @@ function SourceRow({ s }: { s: SourceStatus }) {
   const setSecret = useSetSecret()
   const [key, setKey] = useState('')
   const tone = s.configured ? 'var(--up)' : ACCESS_TONE[s.access] ?? 'var(--text-faint)'
+  const isToken = s.cred === 'token'
+  const placeholder = s.configured
+    ? `${isToken ? 'token' : 'key'}（留空＝不改）`
+    : isToken
+      ? '粘贴登录 token'
+      : '粘贴 API key'
   return (
     <div className="src-block">
       <div className="src-head2">
         <div className="src-name">
-          {s.name} <span className="src-cat">{s.category}</span>
+          {s.name}
+          {s.note && <span className="src-note-inline">{s.note}</span>}
         </div>
         <div className="src-badges">
           {s.payment && <span className="pay-badge">{s.payment}</span>}
@@ -246,14 +255,13 @@ function SourceRow({ s }: { s: SourceStatus }) {
           </span>
         </div>
       </div>
-      <div className="src-note2">{s.note}</div>
       {s.key_env && (
         <div className="src-keyrow">
           <input
             className="cfg-input"
             type="password"
             autoComplete="off"
-            placeholder={s.configured ? 'key（留空＝不改）' : '粘贴 API key'}
+            placeholder={placeholder}
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
@@ -278,15 +286,28 @@ function SourceRow({ s }: { s: SourceStatus }) {
   )
 }
 
-function SourcesPage({ sources }: { sources: SourceStatus[] }) {
+const GROUP_FALLBACK: SourceGroup[] = [
+  { id: 'finance', label: '财经', blurb: '' },
+  { id: 'news', label: '新闻', blurb: '' },
+  { id: 'forum', label: '论坛', blurb: '' },
+]
+
+function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: SourceGroup[] }) {
+  const order = groups.length ? groups : GROUP_FALLBACK
   return (
     <>
-      <h1 className="set2-title">数据 / 信源 API</h1>
-      <Section title="信源">
-        {sources.map((s) => (
-          <SourceRow key={s.id} s={s} />
-        ))}
-      </Section>
+      <h1 className="set2-title">数据 / 信源</h1>
+      {order.map((g) => {
+        const items = sources.filter((s) => s.group === g.id)
+        if (!items.length) return null
+        return (
+          <Section key={g.id} title={g.label}>
+            {items.map((s) => (
+              <SourceRow key={s.id} s={s} />
+            ))}
+          </Section>
+        )
+      })}
     </>
   )
 }
@@ -301,7 +322,9 @@ export default function SettingsView() {
       {page === 'models' && (
         <ModelsPage conns={cfg.data?.llm.connections ?? []} roles={cfg.data?.llm.roles ?? []} />
       )}
-      {page === 'sources' && <SourcesPage sources={cfg.data?.sources ?? []} />}
+      {page === 'sources' && (
+        <SourcesPage sources={cfg.data?.sources ?? []} groups={cfg.data?.source_groups ?? []} />
+      )}
     </div>
   )
 }
