@@ -248,15 +248,57 @@ def remove_item(item_id: int) -> None:
 
 
 def reorder(kind: str, ordered_ids: list[int]) -> None:
-    """按给定顺序写回 sort_order（dnd-kit 拖拽后调用）。"""
-    table = {"section": "sections", "item": "watchlist_items"}.get(kind)
-    if table is None:
+    """按给定顺序写回 sort_order（dnd-kit 拖拽后调用）。
+
+    板块（section）：前端可能只传**当前市场可见**的子集（list_tree 按市场剪枝）。
+    为不扰动隐藏兄弟的相对位置——只在「被拖动子集占据的槽位」内重排，其余原地不动。
+    标的（item）：直接按传入顺序写 0..n-1。
+    """
+    if kind == "section":
+        _reorder_sections(ordered_ids)
+        return
+    if kind != "item":
         raise ValueError(f"未知 kind {kind!r}，应为 'section' 或 'item'")
     conn = get_conn()
     try:
         conn.executemany(
-            f"UPDATE {table} SET sort_order = ? WHERE id = ?",
+            "UPDATE watchlist_items SET sort_order = ? WHERE id = ?",
             [(idx, _id) for idx, _id in enumerate(ordered_ids)],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _reorder_sections(ordered_ids: list[int]) -> None:
+    """同列（同 parent）板块重排，未参与的隐藏兄弟保持原位。"""
+    if not ordered_ids:
+        return
+    conn = get_conn()
+    try:
+        first = conn.execute(
+            "SELECT parent_id FROM sections WHERE id = ?", (ordered_ids[0],)
+        ).fetchone()
+        if first is None:
+            raise NotFound(f"板块 {ordered_ids[0]} 不存在")
+        parent_id = first["parent_id"]
+        if parent_id is None:
+            sibs = conn.execute(
+                "SELECT id FROM sections WHERE parent_id IS NULL ORDER BY sort_order, id"
+            ).fetchall()
+        else:
+            sibs = conn.execute(
+                "SELECT id FROM sections WHERE parent_id = ? ORDER BY sort_order, id",
+                (parent_id,),
+            ).fetchall()
+        sib_ids = [r["id"] for r in sibs]
+        valid = {i for i in ordered_ids if i in set(sib_ids)}
+        moving = iter(i for i in ordered_ids if i in valid)
+        # 被拖动子集按新顺序填回它们原先占据的槽位；其余兄弟原地不动
+        merged = [next(moving) if sid in valid else sid for sid in sib_ids]
+        conn.executemany(
+            "UPDATE sections SET sort_order = ? WHERE id = ?",
+            [(idx, sid) for idx, sid in enumerate(merged)],
         )
         conn.commit()
     finally:

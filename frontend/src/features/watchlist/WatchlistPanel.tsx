@@ -5,7 +5,6 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCorners,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -238,8 +237,19 @@ function SecRow({
   onAddSub?: () => void
   onDelete: () => void
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `sec:${section.id}` })
   const rename = useRenameSection()
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+    active: activeDnd,
+  } = useSortable({ id: `sec:${section.id}` })
+  // 拖入高亮（drop-into 虚线）仅在拖「标的」悬停时显示；拖板块互相经过时只是重排，不显虚线
+  const overByStock = isOver && String(activeDnd?.id ?? '').startsWith('item:')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(section.name)
   const clickT = useRef<number | null>(null)
@@ -277,9 +287,18 @@ function SecRow({
   return (
     <div
       ref={setNodeRef}
-      className={`secrow ${active ? 'active' : ''} ${isOver ? 'drop-into' : ''}`}
+      className={`secrow ${active ? 'active' : ''} ${overByStock ? 'drop-into' : ''} ${
+        isDragging ? 'dragging' : ''
+      }`}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.55 : 1,
+        zIndex: isDragging ? 5 : undefined,
+      }}
       onClick={handleClick}
-      role="button"
+      {...attributes}
+      {...listeners}
     >
       {editing ? (
         <input
@@ -287,6 +306,7 @@ function SecRow({
           autoFocus
           value={draft}
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
@@ -305,14 +325,24 @@ function SecRow({
           </span>
           <span className="seccount">{count}</span>
           {onAddSub && (
-            <span className="secact" title="加子板块" onClick={stop(onAddSub)}>
+            <span
+              className="secact"
+              title="加子板块"
+              onClick={stop(onAddSub)}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="2.5" y="2.5" width="9" height="9" rx="2.2" />
                 <path d="M7 5v4M5 7h4" />
               </svg>
             </span>
           )}
-          <span className="secact del" title="删板块" onClick={stop(onDelete)}>
+          <span
+            className="secact del"
+            title="删板块"
+            onClick={stop(onDelete)}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             ×
           </span>
         </>
@@ -390,10 +420,12 @@ export default function WatchlistPanel() {
   const [selSec, setSelSec] = useState<number | null>(null) // col3 显示哪个 section 的标的
   const [adding, setAdding] = useState<Adding>(null)
 
-  // col3 的标的顺序乐观态
+  // 拖拽乐观态：col3 标的顺序 + col1/col2 板块顺序
   const [ord, setOrd] = useState<number[]>([])
   const [itemData, setItemData] = useState<Record<number, Item>>({})
-  const [activeId, setActiveId] = useState<number | null>(null)
+  const [secOrd, setSecOrd] = useState<number[]>([]) // 一级板块顺序
+  const [subOrd, setSubOrd] = useState<number[]>([]) // 选中一级的子板块顺序
+  const [activeDrag, setActiveDrag] = useState<string | null>(null) // 'item:5' / 'sec:3'
   const dragging = useRef(false)
 
   const l1 = useMemo(() => sections?.find((s) => s.id === selL1) ?? null, [sections, selL1])
@@ -403,6 +435,17 @@ export default function WatchlistPanel() {
     if (selSec === l1.id || selSec == null) return l1
     return l1.children.find((c) => c.id === selSec) ?? l1
   }, [l1, selSec])
+
+  // 按乐观顺序排列（拖拽后即时反映）；secOrd/subOrd 里没有的新板块补末尾、已删的自动忽略
+  const orderInto = (list: Section[], order: number[]): Section[] => {
+    if (!order.length) return list
+    const byId = new Map(list.map((s) => [s.id, s]))
+    const out = order.map((id) => byId.get(id)).filter((s): s is Section => !!s)
+    for (const s of list) if (!out.includes(s)) out.push(s)
+    return out
+  }
+  const orderedSecs = useMemo(() => orderInto(sections ?? [], secOrd), [sections, secOrd])
+  const orderedSubs = useMemo(() => orderInto(l1?.children ?? [], subOrd), [l1, subOrd])
 
   // 无子板块时不显中列（避免只有一个「直属」的冗余卡）；建子板块或正在建时才分出中列
   const isAddingSub =
@@ -425,12 +468,20 @@ export default function WatchlistPanel() {
     }
   }, [sections, selL1])
 
-  // 同步 col3 标的顺序（非拖拽时）
+  // 同步顺序（非拖拽时回到服务器顺序）：col3 标的 + col1/col2 板块
   useEffect(() => {
     if (dragging.current || !col3) return
     setOrd(col3.items.map((i) => i.id))
     setItemData(Object.fromEntries(col3.items.map((i) => [i.id, i])))
   }, [col3])
+  useEffect(() => {
+    if (dragging.current) return
+    setSecOrd((sections ?? []).map((s) => s.id))
+  }, [sections])
+  useEffect(() => {
+    if (dragging.current) return
+    setSubOrd((l1?.children ?? []).map((c) => c.id))
+  }, [l1])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -439,25 +490,45 @@ export default function WatchlistPanel() {
 
   const onDragStart = (e: DragStartEvent) => {
     dragging.current = true
-    setActiveId(Number(String(e.active.id).slice(5)))
+    setActiveDrag(String(e.active.id))
   }
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
     dragging.current = false
-    setActiveId(null)
+    setActiveDrag(null)
     if (!over) return
-    const id = Number(String(active.id).slice(5))
-    const overId = String(over.id)
-    if (overId.startsWith('sec:')) {
-      const to = Number(overId.slice(4))
+    const activeStr = String(active.id)
+    const overStr = String(over.id)
+
+    // ── 板块拖拽重排（仅同一列内、落到另一板块上才生效；跨层不处理以保父子关系）──
+    if (activeStr.startsWith('sec:')) {
+      if (!overStr.startsWith('sec:') || activeStr === overStr) return
+      const aid = Number(activeStr.slice(4))
+      const oid = Number(overStr.slice(4))
+      const reorderIn = (list: number[], setList: (v: number[]) => void) => {
+        const from = list.indexOf(aid)
+        const to = list.indexOf(oid)
+        if (from < 0 || to < 0 || from === to) return
+        const next = arrayMove(list, from, to)
+        setList(next)
+        reorder.mutate({ kind: 'section', orderedIds: next })
+      }
+      if (secOrd.includes(aid) && secOrd.includes(oid)) reorderIn(secOrd, setSecOrd)
+      else if (subOrd.includes(aid) && subOrd.includes(oid)) reorderIn(subOrd, setSubOrd)
+      return
+    }
+
+    // ── 标的拖拽：落到板块=换区；落到标的=列内重排 ──
+    const id = Number(activeStr.slice(5))
+    if (overStr.startsWith('sec:')) {
+      const to = Number(overStr.slice(4))
       if (col3 && to !== col3.id) {
         setOrd((o) => o.filter((x) => x !== id)) // 乐观移出 col3
         moveItem.mutate({ itemId: id, sectionId: to })
       }
       return
     }
-    // 列内重排
-    const overItem = Number(overId.slice(5))
+    const overItem = Number(overStr.slice(5))
     const from = ord.indexOf(id)
     const to = ord.indexOf(overItem)
     if (from < 0 || to < 0 || from === to) return
@@ -467,7 +538,9 @@ export default function WatchlistPanel() {
   }
 
   const col3Items = ord.map((id) => itemData[id]).filter(Boolean)
-  const activeItem = activeId != null ? itemData[activeId] : null
+  const activeItem = activeDrag?.startsWith('item:')
+    ? itemData[Number(activeDrag.slice(5))] ?? null
+    : null
 
   const selectL1 = (id: number) => {
     setSelL1(id)
@@ -483,7 +556,7 @@ export default function WatchlistPanel() {
       onDragEnd={onDragEnd}
       onDragCancel={() => {
         dragging.current = false
-        setActiveId(null)
+        setActiveDrag(null)
       }}
     >
       <div className="kan-nav">
@@ -519,20 +592,25 @@ export default function WatchlistPanel() {
           )}
           {isLoading && <div className="kc-skel skeleton" />}
           {error && <div className="faint kc-msg">{(error as Error).message}</div>}
-          {sections?.map((s) => (
-            <SecRow
-              key={s.id}
-              section={s}
-              active={selL1 === s.id}
-              count={countSymbols(s)}
-              onSelect={() => selectL1(s.id)}
-              onAddSub={() => {
-                setSelL1(s.id)
-                setAdding({ id: s.id, kind: 'sub' })
-              }}
-              onDelete={() => delSectionFn(s.id)}
-            />
-          ))}
+          <SortableContext
+            items={orderedSecs.map((s) => `sec:${s.id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            {orderedSecs.map((s) => (
+              <SecRow
+                key={s.id}
+                section={s}
+                active={selL1 === s.id}
+                count={countSymbols(s)}
+                onSelect={() => selectL1(s.id)}
+                onAddSub={() => {
+                  setSelL1(s.id)
+                  setAdding({ id: s.id, kind: 'sub' })
+                }}
+                onDelete={() => delSectionFn(s.id)}
+              />
+            ))}
+          </SortableContext>
           {sections && sections.length === 0 && (
             <div className="faint kc-msg">还没有板块，点上方 ＋ 新建。</div>
           )}
@@ -550,19 +628,24 @@ export default function WatchlistPanel() {
                 <span className="secname">直属</span>
                 <span className="seccount">{l1.items.length}</span>
               </div>
-              {l1.children.map((c) => (
-                <SecRow
-                  key={c.id}
-                  section={c}
-                  active={selSec === c.id}
-                  count={c.items.length}
-                  onSelect={() => setSelSec(c.id)}
-                  onDelete={() => {
-                    delSectionFn(c.id)
-                    if (selSec === c.id) setSelSec(l1.id)
-                  }}
-                />
-              ))}
+              <SortableContext
+                items={orderedSubs.map((c) => `sec:${c.id}`)}
+                strategy={verticalListSortingStrategy}
+              >
+                {orderedSubs.map((c) => (
+                  <SecRow
+                    key={c.id}
+                    section={c}
+                    active={selSec === c.id}
+                    count={c.items.length}
+                    onSelect={() => setSelSec(c.id)}
+                    onDelete={() => {
+                      delSectionFn(c.id)
+                      if (selSec === c.id) setSelSec(l1.id)
+                    }}
+                  />
+                ))}
+              </SortableContext>
               {adding && adding !== 'top' && adding.id === l1.id && adding.kind === 'sub' && (
                 <InlineAdd
                   placeholder="子板块名…"

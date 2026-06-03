@@ -56,7 +56,7 @@
 - ✅ **全市场模糊检索加股**（`market/search.py` + `listings.py`）：本地目录（FDR 列表 + akshare A股中文名 + KOSPI/KOSDAQ 韩文名，缓存 Parquet）∪ 东方财富实时联想，统一打分去重。港股 MiniMax/智谱、拼音、中文、英文、韩文皆可命中；跨语言别名 `resources/sources/aliases.yaml`（海力士→KR:000660）。带缓存/超时/失败降级。
 - ✅ **拖拽换区/重排**（dnd-kit）：标的跨板块移动 + 同区重排；后端 `PATCH /watchlist/items/{id}` + `/reorder`。
 - ✅ **左栏可拖拽调宽**（`--panel-w`，夹 208–520px，持久化）；K 线 `autoSize` 自适应回流。
-- ✅ **「看」自选改三列 Miller（主人反馈：标的多了单列太挤要频繁滚动）**：仿「知」多列，**一级板块 | 二级板块(+「直属」) | 标的** 三列；选一级→中列显其子板块+直属、右列显标的，点二级→右列换该子板块标的。**每列可拖宽（`kanColW` 持久化）+ 可一键收起成竖条（`kanColClosed`）**。保留全部：市场过滤、检索加股、双击重命名、增删板块/标的、报价行、点击选股；**完整 dnd**——列内拖拽排序 + **跨列把标的拖到左/中列板块即换区**（`closestCorners`，sec 落点 move / item 落点 reorder）。`WatchlistPanel` 重写为 `Column`+`SecRow`+`StockRow`，`.layout.kan` grid `auto 1fr`。
+- ✅ **「看」自选改三列 Miller（主人反馈：标的多了单列太挤要频繁滚动）**：仿「知」多列，**一级板块 | 二级板块(+「直属」) | 标的** 三列；选一级→中列显其子板块+直属、右列显标的，点二级→右列换该子板块标的。**每列可拖宽（`kanColW` 持久化）+ 可一键收起成竖条（`kanColClosed`）**。保留全部：市场过滤、检索加股、双击重命名、增删板块/标的、报价行、点击选股；**完整 dnd**——标的列内重排 + **跨列把标的拖到左/中列板块即换区**（`closestCorners`，sec 落点 move / item 落点 reorder）+ **板块本身可拖排序（一/二级两层，`SecRow` sortable+droppable，乐观 `secOrd`/`subOrd`）**。**板块重排市场安全**：只传可见子集，后端 `_reorder_sections` 锚定槽位、隐藏兄弟不动（验证 US 视图重排 `[A,B,C]→[C,A,B]` 时隐藏韩股板块 H 在 ALL 仍原位）。`WatchlistPanel` 为 `Column`+`SecRow`+`StockRow`，`.layout.kan` grid `auto 1fr`。
 - ✅ **判断日记**（`journal/` 域）：个股 K 线下方，按日期倒序可折叠卡片，加/改/删/改日期；SQLite `journal_entries` + CRUD。是「研」支柱的轻量前身。
 - ✅ **分区按"标的所在市场"显示**（`list_tree` 按内容剪枝）：分区可跨市场，选具体市场只露该市场有标的的分区+该市场的票；空分区只在「全部」出现（修主人反馈：`大模型` 不该出现在韩股）。
 - ✅ 文案精简：去掉"数据源…仅供研究"、判断日记副标题/冗长 placeholder（主人要"功能摆在这就行"）。

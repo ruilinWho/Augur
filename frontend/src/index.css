@@ -396,6 +396,11 @@ button {
   outline-offset: -2px;
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
+.secrow.dragging {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  cursor: grabbing;
+}
 .secname {
   flex: 1;
   font-size: 0.88rem;
