@@ -47,7 +47,9 @@ def list_tree(market: str | None = None) -> list[dict]:
         return keep_all or symbol.split(":", 1)[0].upper() == market.upper()
 
     items_by_section: dict[int, list[sqlite3.Row]] = {}
+    all_by_section: dict[int, int] = {}  # 各分区标的总数（不分市场）——判定"真正空分区"
     for it in items:
+        all_by_section[it["section_id"]] = all_by_section.get(it["section_id"], 0) + 1
         if keep(it["symbol"]):
             items_by_section.setdefault(it["section_id"], []).append(it)
 
@@ -56,8 +58,15 @@ def list_tree(market: str | None = None) -> list[dict]:
         if s["parent_id"] is not None:
             subs_by_parent.setdefault(s["parent_id"], []).append(s)
 
-    # 分区按"标的所在市场"显示（CLAUDE.md §8）：选了具体市场时，只露出在该市场有标的的
-    # 分区、且只露该市场的标的；既无匹配标的、子分区也都空的分区 → 剪掉（空分区只在「全部」出现）。
+    def has_any_stock(sid: int) -> bool:
+        """该分区或其子分区是否有任何标的（不分市场）。"""
+        if all_by_section.get(sid):
+            return True
+        return any(has_any_stock(ch["id"]) for ch in subs_by_parent.get(sid, []))
+
+    # 分区按"标的所在市场"显示（CLAUDE.md §8）：选了具体市场时，只露出在该市场有标的的分区+该
+    # 市场的标的；**有标的但本市场无的**分区剪掉（防 大模型 污染韩股）。但**真正的空分区**（任何
+    # 市场都没标的）在所有市场都显示——它无市场归属，便于在任何视图里就地创建并填充（主人反馈）。
     def to_out(s: sqlite3.Row) -> dict | None:
         items_out = [_item_out(i) for i in items_by_section.get(s["id"], [])]
         children: list[dict] = []
@@ -65,7 +74,7 @@ def list_tree(market: str | None = None) -> list[dict]:
             c = to_out(ch)
             if c is not None:
                 children.append(c)
-        if not keep_all and not items_out and not children:
+        if not keep_all and not items_out and not children and has_any_stock(s["id"]):
             return None
         return {
             "id": s["id"],

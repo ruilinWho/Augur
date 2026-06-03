@@ -404,6 +404,18 @@ export default function WatchlistPanel() {
     return l1.children.find((c) => c.id === selSec) ?? l1
   }, [l1, selSec])
 
+  // 无子板块时不显中列（避免只有一个「直属」的冗余卡）；建子板块或正在建时才分出中列
+  const isAddingSub =
+    adding !== null && adding !== 'top' && adding.kind === 'sub' && !!l1 && adding.id === l1.id
+  const showCol2 = !!l1 && (l1.children.length > 0 || isAddingSub)
+  const col3Title = !col3
+    ? '标的'
+    : !showCol2
+      ? col3.name
+      : col3.id === l1?.id
+        ? `${l1?.name} · 直属`
+        : col3.name
+
   // 选择合法化：sections 变化时保证 selL1/selSec 有效
   useEffect(() => {
     if (!sections || !sections.length) return
@@ -498,8 +510,7 @@ export default function WatchlistPanel() {
               onSubmit={async (v) => {
                 const sec = (await createSection.mutateAsync({ name: v })) as Section
                 setAdding(null)
-                // 新/空板块在具体市场会被剪枝隐藏（§8）→ 切「全部」并选中，让创建可见
-                if (market !== 'ALL') setMarket('ALL')
+                // 空板块现在在任何市场都可见（后端 §8 细化）→ 就地选中，不切换市场
                 setSelL1(sec.id)
                 setSelSec(sec.id)
               }}
@@ -527,9 +538,9 @@ export default function WatchlistPanel() {
           )}
         </Column>
 
-        {/* ── 列2：选中一级板块的 二级板块 + 直属 ── */}
-        <Column i={1} title={l1 ? l1.name : '子板块'}>
-          {l1 ? (
+        {/* ── 列2：选中一级板块的 二级板块 + 直属（仅当有子板块/正在建子板块时显示）── */}
+        {showCol2 && l1 && (
+          <Column i={1} title={l1.name}>
             <>
               <div
                 className={`secrow ${selSec === l1.id ? 'active' : ''}`}
@@ -561,7 +572,6 @@ export default function WatchlistPanel() {
                       parent_id: l1.id,
                     })) as Section
                     setAdding(null)
-                    if (market !== 'ALL') setMarket('ALL') // 空子板块同样会被剪枝 → 切全部可见
                     setSelL1(l1.id)
                     setSelSec(sub.id)
                   }}
@@ -572,15 +582,13 @@ export default function WatchlistPanel() {
                 ＋ 子板块
               </button>
             </>
-          ) : (
-            <div className="faint kc-msg">选左侧板块</div>
-          )}
-        </Column>
+          </Column>
+        )}
 
         {/* ── 列3：标的（可拖拽排序/换区）── */}
         <Column
           i={2}
-          title={col3 ? (col3.id === l1?.id ? `${l1?.name} · 直属` : col3.name) : '标的'}
+          title={col3Title}
           action={
             col3 && (
               <button
