@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from .. import runtime_config
-from . import sources
+from . import eastmoney_news, sources, twtapi
 
 # access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
 # group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
@@ -91,6 +91,7 @@ SOURCES: list[dict] = [
         "active": True,
         "payment": "免费",
         "note": "关键词资讯",
+        "config": [{"field": "keywords", "type": "tags", "label": "检索关键词"}],
     },
     {
         "id": "twtapi",
@@ -101,6 +102,7 @@ SOURCES: list[dict] = [
         "cred": "key",
         "payment": "月付·有免费试用",
         "note": "官方号推文·twtapi 桥",
+        "config": [{"field": "accounts", "type": "accounts", "label": "关注账户"}],
     },
     # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
     {
@@ -125,6 +127,60 @@ GROUPS: list[dict] = [
     {"id": "news", "label": "新闻", "blurb": "RSS · newswire · 官方资讯"},
     {"id": "forum", "label": "论坛", "blurb": "社媒 · 社区情绪"},
 ]
+
+# 信源可配置项「生效值」解析器（(source_id, field) → 返回当前生效列表的函数）
+_CONFIG_VALUE = {
+    ("twtapi", "accounts"): twtapi.accounts,
+    ("eastmoney_news", "keywords"): eastmoney_news.keywords,
+}
+_ACCOUNT_CATS = {"ai", "chips", "space", "robotics", "tech"}  # 账户分类白名单
+
+
+def _config_for(s: dict) -> list[dict]:
+    """某源的可配置项 + 当前生效值（供前端渲染编辑器）。"""
+    out: list[dict] = []
+    for f in s.get("config") or []:
+        resolver = _CONFIG_VALUE.get((s["id"], f["field"]))
+        out.append(
+            {
+                "field": f["field"],
+                "type": f["type"],
+                "label": f["label"],
+                "value": resolver() if resolver else [],
+            }
+        )
+    return out
+
+
+def config_fields(source_id: str) -> dict[str, str]:
+    """某源声明的 {field: type}（供端点校验）。"""
+    s = next((x for x in SOURCES if x["id"] == source_id), None)
+    return {f["field"]: f["type"] for f in (s or {}).get("config") or []}
+
+
+def sanitize_config(ftype: str, value) -> list:
+    """按字段类型清洗写入值（accounts=账户列表 / tags=关键词列表）。"""
+    if ftype == "accounts":
+        out, seen = [], set()
+        for a in value or []:
+            if not isinstance(a, dict):
+                continue
+            sn = str(a.get("screen_name", "")).strip().lstrip("@")[:30]
+            if not sn or sn.lower() in seen:
+                continue
+            seen.add(sn.lower())
+            cat = str(a.get("category", "tech")).strip().lower()
+            out.append({"screen_name": sn, "category": cat if cat in _ACCOUNT_CATS else "tech"})
+        return out[:60]
+    if ftype == "tags":
+        out, seen = [], set()
+        for k in value or []:
+            k = str(k).strip()[:20]
+            if k and k.lower() not in seen:
+                seen.add(k.lower())
+                out.append(k)
+        return out[:40]
+    return []
 
 
 def status_list() -> list[dict]:
@@ -163,6 +219,7 @@ def status_list() -> list[dict]:
                 "configured": configured,
                 "status": status,
                 "hint": runtime_config.secret_hint(key_env) if key_env else "",
+                "config": _config_for(s),
             }
         )
     return out

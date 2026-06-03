@@ -10,6 +10,8 @@ export type SettingsPage = 'appearance' | 'models' | 'sources'
 
 export const PANEL_MIN = 208
 export const PANEL_MAX = 520
+export const NEWS_SUB_MIN = 140
+export const NEWS_SUB_MAX = 360
 
 interface UIState {
   view: View
@@ -22,6 +24,7 @@ interface UIState {
   displayFont: DisplayFont
   convention: Convention
   panelW: number // 左栏宽度（px），可拖拽调整
+  newsSubW: number // 「知」二级卡宽度（px），可拖拽调整
   kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
   settingsPage: SettingsPage // 「设置」当前页（左栏导航选择，瞬时不持久化）
 
@@ -34,6 +37,7 @@ interface UIState {
   setDisplayFont: (f: DisplayFont) => void
   setConvention: (c: Convention) => void
   setPanelW: (n: number) => void
+  setNewsSubW: (n: number) => void
   setKanOrder: (o: string[]) => void
   setSettingsPage: (p: SettingsPage) => void
 }
@@ -52,6 +56,7 @@ export const useUI = create<UIState>()(
       displayFont: 'serif',
       convention: 'us',
       panelW: 268,
+      newsSubW: 196,
       kanOrder: [...KAN_MODULES],
       settingsPage: 'appearance',
 
@@ -65,6 +70,8 @@ export const useUI = create<UIState>()(
       setConvention: (convention) => set({ convention }),
       setPanelW: (panelW) =>
         set({ panelW: Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(panelW))) }),
+      setNewsSubW: (newsSubW) =>
+        set({ newsSubW: Math.max(NEWS_SUB_MIN, Math.min(NEWS_SUB_MAX, Math.round(newsSubW))) }),
       setKanOrder: (kanOrder) => set({ kanOrder }),
       setSettingsPage: (settingsPage) => set({ settingsPage }),
     }),
@@ -78,6 +85,7 @@ export const useUI = create<UIState>()(
         convention: s.convention,
         market: s.market,
         panelW: s.panelW,
+        newsSubW: s.newsSubW,
         kanOrder: s.kanOrder,
       }),
     },

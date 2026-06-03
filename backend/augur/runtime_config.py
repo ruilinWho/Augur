@@ -208,6 +208,23 @@ def delete_connection(cid: str) -> None:
         _write(data)
 
 
+# ───────────────────────── 信源可配置项（账户 / 关键词 等）─────────────────────────
+# 通用：data["source_config"][<source_id>][<field>] = 值（list/str…，JSON 可序列化）。
+# 未设 → 适配器用内置默认（read-with-fallback，非破坏式）。gitignored、即时生效。
+def get_source_config(source_id: str, field: str, default=None):
+    sc = (_read().get("source_config") or {}).get(source_id) or {}
+    v = sc.get(field)
+    return v if v is not None else default
+
+
+def set_source_config(source_id: str, field: str, value) -> None:
+    with _lock:
+        data = _read()
+        sc = data.setdefault("source_config", {})
+        sc.setdefault(source_id, {})[field] = value
+        _write(data)
+
+
 def get_role_target(role: str) -> str | None:
     return (_read().get("llm_roles") or {}).get(role)
 

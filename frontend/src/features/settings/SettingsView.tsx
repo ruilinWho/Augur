@@ -1,17 +1,21 @@
 import { useState, type ReactNode } from 'react'
 import { useUI } from '../../store'
+import Collapse from '../../components/Collapse'
 import {
   useDeleteConnection,
   useSetRoleTarget,
   useSetSecret,
+  useSetSourceConfig,
   useSettingsConfig,
   useTestConnection,
   useUpsertConnection,
   type Connection,
   type RoleTarget,
+  type SourceConfigField,
   type SourceGroup,
   type SourceStatus,
   type TestResult,
+  type TwAccount,
 } from '../../api'
 
 // ── 通用：Anthropic 风格的「左标题+说明 / 右控件 + 分隔线」行 ──
@@ -282,6 +286,128 @@ function SourceRow({ s }: { s: SourceStatus }) {
           </button>
         </div>
       )}
+      {s.config.map((f) => (
+        <ConfigField key={f.field} id={s.id} f={f} />
+      ))}
+    </div>
+  )
+}
+
+// 账户分类（与 x_accounts.yaml / TW_CATS 对齐）
+const ACCT_CATS = [
+  { v: 'ai', l: '大模型' },
+  { v: 'chips', l: '芯片' },
+  { v: 'space', l: '航天' },
+  { v: 'robotics', l: '机器人' },
+  { v: 'tech', l: '科技' },
+]
+const catLabel = (v: string) => ACCT_CATS.find((c) => c.v === v)?.l ?? v
+
+// 关键词标签编辑器（tags 类型）
+function TagsEditor({ id, field, value }: { id: string; field: string; value: string[] }) {
+  const set = useSetSourceConfig()
+  const [draft, setDraft] = useState('')
+  const commit = (next: string[]) => set.mutate({ id, field, value: next })
+  const add = () => {
+    const v = draft.trim()
+    if (v && !value.includes(v)) commit([...value, v])
+    setDraft('')
+  }
+  return (
+    <div className="cfg-tags">
+      {value.map((k, i) => (
+        <span key={i} className="cfg-tag">
+          {k}
+          <button onClick={() => commit(value.filter((_, j) => j !== i))} aria-label="删除">
+            ×
+          </button>
+        </span>
+      ))}
+      <input
+        className="cfg-tag-input"
+        placeholder="加关键词 ↵"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') add()
+        }}
+      />
+    </div>
+  )
+}
+
+// 账户编辑器（accounts 类型：screen_name + 分类）
+function AccountsEditor({ id, field, value }: { id: string; field: string; value: TwAccount[] }) {
+  const set = useSetSourceConfig()
+  const [sn, setSn] = useState('')
+  const [cat, setCat] = useState('ai')
+  const commit = (next: TwAccount[]) => set.mutate({ id, field, value: next })
+  const add = () => {
+    const v = sn.trim().replace(/^@/, '')
+    if (v && !value.some((a) => a.screen_name.toLowerCase() === v.toLowerCase()))
+      commit([...value, { screen_name: v, category: cat }])
+    setSn('')
+  }
+  return (
+    <div className="cfg-accts">
+      <div className="cfg-acct-list">
+        {value.map((a, i) => (
+          <div key={i} className="cfg-acct">
+            <span className="cfg-acct-sn">@{a.screen_name}</span>
+            <span className="cfg-acct-cat">{catLabel(a.category)}</span>
+            <button
+              className="cfg-acct-del"
+              onClick={() => commit(value.filter((_, j) => j !== i))}
+              aria-label="删除"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="cfg-acct-add">
+        <span className="cfg-at">@</span>
+        <input
+          className="cfg-input"
+          placeholder="账号（不含 @）"
+          value={sn}
+          onChange={(e) => setSn(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') add()
+          }}
+        />
+        <select className="cfg-sel" value={cat} onChange={(e) => setCat(e.target.value)}>
+          {ACCT_CATS.map((c) => (
+            <option key={c.v} value={c.v}>
+              {c.l}
+            </option>
+          ))}
+        </select>
+        <button className="btn jsm" onClick={add} disabled={!sn.trim()}>
+          添加
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// 单个可配置项：可折叠的 「label · N」 头 + 编辑器
+function ConfigField({ id, f }: { id: string; f: SourceConfigField }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="src-cfg">
+      <button className="src-cfg-toggle" onClick={() => setOpen((v) => !v)}>
+        {f.label} · {f.value.length}
+      </button>
+      <Collapse open={open}>
+        <div className="src-cfg-body">
+          {f.type === 'accounts' ? (
+            <AccountsEditor id={id} field={f.field} value={f.value as TwAccount[]} />
+          ) : (
+            <TagsEditor id={id} field={f.field} value={f.value as string[]} />
+          )}
+        </div>
+      </Collapse>
     </div>
   )
 }

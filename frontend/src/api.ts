@@ -256,6 +256,13 @@ const roleTargetSchema = z.object({
   connection_name: z.string().nullable().default(null),
   configured: z.boolean(),
 })
+// 信源可配置项（账户/关键词…）。value 元素：accounts=对象 {screen_name,category}；tags=字符串
+const sourceConfigFieldSchema = z.object({
+  field: z.string(),
+  type: z.string(),
+  label: z.string(),
+  value: z.array(z.any()).default([]),
+})
 const sourceStatusSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -268,7 +275,10 @@ const sourceStatusSchema = z.object({
   configured: z.boolean(),
   status: z.string(),
   hint: z.string().default(''),
+  config: z.array(sourceConfigFieldSchema).default([]),
 })
+export type SourceConfigField = z.infer<typeof sourceConfigFieldSchema>
+export type TwAccount = { screen_name: string; category: string }
 const sourceGroupSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -319,6 +329,15 @@ export function useDeleteConnection() {
   const invalidate = useInvalidateSettings()
   return useMutation({
     mutationFn: (id: string) => send(`/settings/llm/connection/${id}`, 'DELETE'),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetSourceConfig() {
+  const invalidate = useInvalidateSettings()
+  return useMutation({
+    mutationFn: (v: { id: string; field: string; value: unknown[] }) =>
+      send('/settings/source/config', 'POST', v),
     onSuccess: invalidate,
   })
 }

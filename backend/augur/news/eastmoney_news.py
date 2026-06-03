@@ -15,13 +15,24 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from .. import runtime_config
 from . import classify
 from . import filter as noise_filter
 
 _UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
 _PER_KW = 12  # 每关键词取前 N 条
-_KEYWORDS = ["人工智能", "半导体", "算力", "机器人", "大模型", "芯片"]
+DEFAULT_KEYWORDS = ["人工智能", "半导体", "算力", "机器人", "大模型", "芯片"]
+
+
+def keywords() -> list[str]:
+    """生效检索关键词：主人在「设置」里配的优先，否则用内置默认。"""
+    cfg = runtime_config.get_source_config("eastmoney_news", "keywords")
+    if isinstance(cfg, list):
+        kws = [str(k).strip() for k in cfg if str(k).strip()]
+        if kws:
+            return kws
+    return DEFAULT_KEYWORDS
 _API = "https://search-api-web.eastmoney.com/search/jsonp?cb=cb&param="
 _EM_RE = re.compile(r"</?em>")
 _CST = ZoneInfo("Asia/Shanghai")
@@ -56,7 +67,7 @@ def fetch_eastmoney(cutoff: datetime | None = None) -> list[dict]:
     """东财多关键词科技资讯 → 归一化条目（按 url 去重）。单关键词失败不影响其余。"""
     out: list[dict] = []
     seen: set[str] = set()
-    for kw in _KEYWORDS:
+    for kw in keywords():
         try:
             rows = _query(kw)
         except Exception:  # noqa: BLE001 — 单关键词失败容忍

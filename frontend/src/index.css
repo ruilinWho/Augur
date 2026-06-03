@@ -215,7 +215,11 @@ button {
   grid-template-columns: 92px 1fr;
 }
 .layout.know-3 {
-  grid-template-columns: 92px 196px 1fr;
+  grid-template-columns: 92px var(--news-sub-w, 196px) 1fr;
+}
+/* 「知」二级卡 resize 句柄：rail 92 + 二级宽处 */
+.resize-handle.news-resize {
+  left: calc(92px + var(--news-sub-w, 196px));
 }
 
 /* 列1 · 一级 rail */
@@ -1107,6 +1111,135 @@ body.resizing * {
 }
 .src-keyrow .cfg-input {
   flex: 1;
+}
+
+/* 信源可配置项（账户 / 关键词） */
+.src-cfg {
+  margin-top: 8px;
+}
+.src-cfg-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.src-cfg-toggle:hover {
+  text-decoration: underline;
+}
+.src-cfg-body {
+  padding: 8px 0 4px;
+}
+/* 关键词 tag */
+.cfg-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.cfg-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.cfg-tag button {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+}
+.cfg-tag button:hover {
+  color: var(--down);
+}
+.cfg-tag-input {
+  border: 1px dashed var(--border);
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  width: 108px;
+}
+.cfg-tag-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+/* 账户列表 */
+.cfg-acct-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+.cfg-acct {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 7px;
+}
+.cfg-acct:hover {
+  background: var(--surface-2);
+}
+.cfg-acct-sn {
+  font-size: 0.86rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.cfg-acct-cat {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.cfg-acct-del {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+.cfg-acct-del:hover {
+  color: var(--down);
+}
+.cfg-acct-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 440px;
+}
+.cfg-acct-add .cfg-at {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+.cfg-acct-add .cfg-input {
+  flex: 1;
+}
+.cfg-sel {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text);
+  cursor: pointer;
 }
 
 /* 看·K线下方模块拖动重排：手柄在模块标题**左侧**的留白里，hover 才浮现（stage 左 padding 28px，

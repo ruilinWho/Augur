@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 import httpx
 import yaml
 
+from .. import runtime_config
 from ..config import get_settings
 from . import classify
 from . import filter as noise_filter
@@ -43,24 +44,40 @@ def _key() -> str:
     return (os.environ.get("TWTAPI_KEY") or "").strip()
 
 
-def load_accounts() -> list[dict]:
-    """读账号清单（resources/sources/x_accounts.yaml）；缺失/残缺 → []。"""
+def _norm_accounts(raw: list) -> list[dict]:
+    """归一账号列表：每项 {screen_name(去@), category}；丢弃残缺。"""
+    out: list[dict] = []
+    seen: set[str] = set()
+    for a in raw or []:
+        if not isinstance(a, dict):
+            continue
+        sn = str(a.get("screen_name", "")).strip().lstrip("@")
+        if not sn or sn.lower() in seen:
+            continue
+        seen.add(sn.lower())
+        cat = str(a.get("category", "tech")).strip() or "tech"
+        out.append({"screen_name": sn, "category": cat})
+    return out
+
+
+def default_accounts() -> list[dict]:
+    """内置默认账号清单（resources/sources/x_accounts.yaml）；缺失/残缺 → []。"""
     path = get_settings().resources_dir / "sources" / "x_accounts.yaml"
     if not path.exists():
         return []
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    out: list[dict] = []
-    for a in data.get("accounts", []) or []:
-        sn = str(a.get("screen_name", "")).strip().lstrip("@")
-        if sn:
-            cat = str(a.get("category", "tech")).strip() or "tech"
-            out.append({"screen_name": sn, "category": cat})
-    return out
+    return _norm_accounts(data.get("accounts") or [])
+
+
+def accounts() -> list[dict]:
+    """生效账号清单：主人在「设置」里配的优先，否则用 yaml 默认。"""
+    cfg = runtime_config.get_source_config("twtapi", "accounts")
+    return _norm_accounts(cfg) if cfg is not None else default_accounts()
 
 
 def source_names() -> set[str]:
     """该适配器会产生的所有 source 名（供 ingest prune 豁免，否则不在 feeds.yaml 会被误删）。"""
-    return {f"X·{a['screen_name']}" for a in load_accounts()}
+    return {f"X·{a['screen_name']}" for a in accounts()}
 
 
 def _get(client: httpx.Client, path: str, params: dict) -> dict:
@@ -153,13 +170,13 @@ def fetch_all(cutoff: datetime | None = None) -> list[dict]:
     """拉清单内全部 X 官方账号近期推文 → 归一化条目。无 key → []；单账号失败跳过、不抛。"""
     if not _key():
         return []
-    accounts = load_accounts()
-    if not accounts:
+    accs = accounts()
+    if not accs:
         return []
     headers = {"X-API-Key": _key(), "User-Agent": _UA}
     items: list[dict] = []
     with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as c:
-        for acc in accounts:
+        for acc in accs:
             try:
                 items.extend(_fetch_account(c, acc, cutoff))
             except Exception:  # noqa: BLE001 — 单账号失败（限流/失效）不连累其余

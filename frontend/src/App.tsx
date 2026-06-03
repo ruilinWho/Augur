@@ -117,6 +117,25 @@ function ResizeHandle() {
   return <div className="resize-handle" onPointerDown={onPointerDown} title="拖动调整栏宽" />
 }
 
+// 「知」二级卡宽度拖拽：rail 固定 92px，故二级宽 = 指针 clientX − 92
+const NEWS_RAIL_W = 92
+function NewsResizeHandle() {
+  const setNewsSubW = useUI((s) => s.setNewsSubW)
+  const onPointerDown = (e: ReactPointerEvent) => {
+    e.preventDefault()
+    const move = (ev: globalThis.PointerEvent) => setNewsSubW(ev.clientX - NEWS_RAIL_W)
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.classList.remove('resizing')
+    }
+    document.body.classList.add('resizing')
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  return <div className="resize-handle news-resize" onPointerDown={onPointerDown} title="拖动调整二级栏宽" />
+}
+
 // 看·K线下方模块：拖动手柄重排（持久化）。仅手柄可拖，模块内部交互不受影响。
 const KAN_RENDER: Record<string, (symbol: string) => ReactNode> = {
   financials: (s) => <FinancialsPanel symbol={s} />,
@@ -194,7 +213,7 @@ export default function App() {
   const setView = useUI((s) => s.setView)
   const selectedSymbol = useUI((s) => s.selectedSymbol)
   const newsPrimary = useNews((s) => s.primary)
-  const { theme, textBase, leading, displayFont, convention, panelW } = useUI()
+  const { theme, textBase, leading, displayFont, convention, panelW, newsSubW } = useUI()
 
   // 「知」用两列纵向导航（rail + 条件二级卡）；无二级时 2 列，有二级 3 列
   const newsHasSub = view === 'zhi' && (PRIMARIES.find((p) => p.id === newsPrimary)?.hasSub ?? false)
@@ -210,7 +229,8 @@ export default function App() {
     el.style.setProperty('--up', convention === 'cn' ? 'var(--crayon-red)' : 'var(--crayon-green)')
     el.style.setProperty('--down', convention === 'cn' ? 'var(--crayon-green)' : 'var(--crayon-red)')
     el.style.setProperty('--panel-w', `${panelW}px`)
-  }, [theme, textBase, leading, displayFont, convention, panelW])
+    el.style.setProperty('--news-sub-w', `${newsSubW}px`)
+  }, [theme, textBase, leading, displayFont, convention, panelW, newsSubW])
 
   return (
     <div className="app-shell">
@@ -257,7 +277,10 @@ export default function App() {
             <ResizeHandle />
           </>
         ) : view === 'zhi' ? (
-          <NewsNav />
+          <>
+            <NewsNav />
+            {newsHasSub && <NewsResizeHandle />}
+          </>
         ) : (
           <>
             <SettingsNav />

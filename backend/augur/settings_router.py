@@ -104,6 +104,23 @@ class SecretIn(BaseModel):
     value: str | None = None  # 空/None = 清除
 
 
+class SourceConfigIn(BaseModel):
+    id: str
+    field: str
+    value: list  # accounts: [{screen_name,category}] · tags: [str]
+
+
+@router.post("/source/config")
+async def set_source_config(body: SourceConfigIn) -> dict:
+    """设置某信源的可配置项（账户/关键词等，写 gitignored 本地存储，即时生效）。"""
+    fields = source_registry.config_fields(body.id)
+    if body.field not in fields:
+        raise HTTPException(status_code=400, detail=f"未知信源配置项：{body.id}.{body.field}")
+    clean = source_registry.sanitize_config(fields[body.field], body.value)
+    await run_in_threadpool(runtime_config.set_source_config, body.id, body.field, clean)
+    return {"id": body.id, "field": body.field, "value": clean}
+
+
 @router.post("/secret")
 async def set_secret(body: SecretIn) -> dict:
     """设置/清除一个数据信源 API key（写 gitignored 本地存储，即时生效）。"""

@@ -150,7 +150,7 @@ cd frontend && pnpm dev
 - **一切走 litellm。** 不在各 feature 里散落直连 `openai`/`anthropic` SDK。
 - 模型 = **可动态增删的连接列表**（不再写死厂商）：每个连接 `{id, name, base_url, api_key, model}`，**一律 OpenAI 兼容**（`litellm model="openai/<model>"` + `api_base` + `api_key`，覆盖 DeepSeek/各类中转站/OpenRouter/国产模型；原生 Anthropic 走中转站）。详见 [ADR-0008](docs/decisions/0008-settings-v2-dynamic-llm-connections.md)。
 - 区分**角色**：`chat`、`deep_research`、`summarize`、`cheap`。每角色**指到一个连接**——主人可把摘要/翻译/筛选路由到便宜模型、深度分析路由到前沿模型。`gateway` 解析角色→连接→OpenAI 兼容调用；有**测试连接**端点 `/settings/llm/test`（发极小请求验证）。
-- **两处配置，同一真相：** 既可改 gitignored `backend/.env`，也可在前端**「设置」页**改（连接增删/角色指派/信源 key），落 gitignored `data/config.local.json`（`runtime_config`，注入 `os.environ` **即时生效、无需重启**，UI 优先于 `.env`；**首次自动把旧 `.env` 配置迁成连接**，不中断）。`/settings/*` 端点**只回脱敏状态、从不回传明文、绝不打日志、写入名经 guard**（§11）。数据/新闻信源 key 也走这里（`news/source_registry.py` 注册表驱动，**按 财经/新闻/论坛 三类**[`group`]＋支付方式徽标；详见 [ADR-0007](docs/decisions/0007-api-config-and-source-feasibility.md)）。
+- **两处配置，同一真相：** 既可改 gitignored `backend/.env`，也可在前端**「设置」页**改（连接增删/角色指派/信源 key），落 gitignored `data/config.local.json`（`runtime_config`，注入 `os.environ` **即时生效、无需重启**，UI 优先于 `.env`；**首次自动把旧 `.env` 配置迁成连接**，不中断）。`/settings/*` 端点**只回脱敏状态、从不回传明文、绝不打日志、写入名经 guard**（§11）。数据/新闻信源 key 也走这里（`news/source_registry.py` 注册表驱动，**按 财经/新闻/论坛 三类**[`group`]＋支付方式徽标；详见 [ADR-0007](docs/decisions/0007-api-config-and-source-feasibility.md)）。**信源还可声明可配置项**（注册表 `config` 字段，type=accounts/tags）：**Twitter 关注账户**、**东财检索关键词**等在设置页源行内可增删（`runtime_config.get/set_source_config`，gitignored、即时生效、read-with-fallback 到内置默认；`POST /settings/source/config` 校验+清洗）。
 - 面向用户时**总是流式**。**总是把 token 用量记到 `data/db`** 以便看成本。
 - 提示词模板放 `resources/prompts/`（版本化），按名加载——别在代码里内联大段提示词。
 
