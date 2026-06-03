@@ -231,13 +231,14 @@ _EM_NOISE = (
 )
 # 港股二级计价/人民币柜台后缀（与主柜台重复）；-W/-SW/-S 是同股不同权/二次上市，保留
 _EM_DROP_SUFFIX = ("-R", "-WR", "-WS", "-RS")
-_EM_TTL = 1800.0  # 同一 query 30 分钟内走缓存，别狂打数据源
+_EM_TTL = 1800.0  # 成功结果同一 query 30 分钟内走缓存，别狂打数据源
+_EM_FAIL_TTL = 30.0  # 失败只缓存 30s：一次网络抖动不该让该 query 半小时都返回空、用户重敲也搜不到
 _em_cache: dict[str, tuple[float, list[dict]]] = {}
 _em_lock = threading.Lock()
 
 
 def _em_suggest(q: str) -> list[dict]:
-    """调东财 suggest，返回原始条目（缓存 + 超时 + 失败降级为空）。"""
+    """调东财 suggest，返回原始条目（成功缓存 30min / 失败缓存 30s + 超时 + 失败降级为空）。"""
     now = time.time()
     with _em_lock:
         hit = _em_cache.get(q)
@@ -253,7 +254,10 @@ def _em_suggest(q: str) -> list[dict]:
         data = (r.json().get("QuotationCodeTable") or {}).get("Data") or []
     except Exception as e:  # noqa: BLE001 — 断网/被墙/超时 → 静默降级到本地
         print(f"[search] 东财联想失败（降级本地）：{type(e).__name__}: {str(e)[:80]}")
-        data = []
+        # 回填一个 30s 后即过期的占位（时间戳回拨），让网络恢复后能尽快重试，而非锁死 30min
+        with _em_lock:
+            _em_cache[q] = (now - (_EM_TTL - _EM_FAIL_TTL), [])
+        return []
     with _em_lock:
         _em_cache[q] = (now, data)
         if len(_em_cache) > 500:

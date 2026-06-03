@@ -117,14 +117,10 @@ def _prune_removed_sources(feed_names: set[str]) -> int:
     conn = get_conn()
     try:
         # 只在 feed lane 内剪枝；定向抓取（lane='ticker'）的 publisher 源不在 feeds.yaml，豁免
-        rows = conn.execute(
-            "SELECT DISTINCT source FROM news_items WHERE lane = 'feed'"
-        ).fetchall()
+        rows = conn.execute("SELECT DISTINCT source FROM news_items WHERE lane = 'feed'").fetchall()
         gone = [(r["source"],) for r in rows if r["source"] not in feed_names]
         if gone:
-            conn.executemany(
-                "DELETE FROM news_items WHERE source = ? AND lane = 'feed'", gone
-            )
+            conn.executemany("DELETE FROM news_items WHERE source = ? AND lane = 'feed'", gone)
             conn.commit()
         return len(gone)
     finally:

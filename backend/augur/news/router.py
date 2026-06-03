@@ -23,6 +23,9 @@ from .schemas import (
 
 router = APIRouter(prefix="/news", tags=["news"])
 
+# SSE 响应头：禁缓存 + 关代理缓冲（保逐字到达）
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
 
 @router.get("/feed", response_model=list[NewsItem])
 async def feed(
@@ -33,9 +36,7 @@ async def feed(
     day: str | None = None,
 ) -> list[dict]:
     """最近新闻条目（theme 过滤 · source_prefix='X·' 取推特 · days 近 N 天 · day 取某一天）。"""
-    return await run_in_threadpool(
-        service.recent_items, limit, theme, source_prefix, days, day
-    )
+    return await run_in_threadpool(service.recent_items, limit, theme, source_prefix, days, day)
 
 
 @router.post("/refresh", response_model=RefreshResult)
@@ -201,9 +202,7 @@ async def clusters(
     date: str | None = None,
 ) -> dict:
     """某范围要点（新闻按 theme / 推特按 source_prefix+category；date 取某天快照）。无 → 404。"""
-    data = await run_in_threadpool(
-        service.get_clusters, theme, source_prefix, category, days, date
-    )
+    data = await run_in_threadpool(service.get_clusters, theme, source_prefix, category, days, date)
     if data is None:
         raise HTTPException(status_code=404, detail="暂无要点，先生成")
     return data
@@ -239,9 +238,9 @@ async def generate(date: str | None = None) -> StreamingResponse:
         try:
             for delta in service.generate_report_stream(date):
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
         except Exception as e:  # noqa: BLE001 — 流中途出错也要让前端收到
             err = json.dumps({"error": f"{type(e).__name__}: {e}"}, ensure_ascii=False)
             yield f"data: {err}\n\n"
+        yield "data: [DONE]\n\n"  # 无论成功/出错都收尾，前端统一以 [DONE] 解除等待
 
-    return StreamingResponse(sse(), media_type="text/event-stream")
+    return StreamingResponse(sse(), media_type="text/event-stream", headers=_SSE_HEADERS)

@@ -64,8 +64,14 @@ def _store(symbol: str, name: str, items: list[dict]) -> int:
                 "(source, title, url, summary, lang, category, published_at, "
                 "theme, topics, classified_by, lane) "
                 "VALUES (?, ?, ?, '', 'en', '', ?, ?, ?, 'rule', 'ticker')",
-                (it["source"], title[:500], url, it.get("published_at"), theme,
-                 json.dumps(topics, ensure_ascii=False)),
+                (
+                    it["source"],
+                    title[:500],
+                    url,
+                    it.get("published_at"),
+                    theme,
+                    json.dumps(topics, ensure_ascii=False),
+                ),
             )
             inserted += conn.total_changes - before
             row = conn.execute("SELECT id FROM news_items WHERE url = ?", (url,)).fetchone()

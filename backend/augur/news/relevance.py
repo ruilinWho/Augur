@@ -38,10 +38,13 @@ def _strip_fence(s: str) -> str:
 def _select_pending(limit: int) -> list[tuple[int, str, str, str]]:
     conn = get_conn()
     try:
+        # ASC（最老未判优先）：单轮插入 >_MAX_PER_RUN 条时，DESC 会让最老一批永远排在末尾
+        # 永不被选中 → 因「未判=保留」直接泄入信息流，从严过滤对存量尾部失效。最老的即将滑出
+        # 可见窗口反而更该先判，几轮 refresh 自然清空积压。
         rows = conn.execute(
             "SELECT id, COALESCE(NULLIF(title_zh, ''), title) AS t, source, theme "
             "FROM news_items WHERE relevance = 0 AND lane = 'feed' "
-            "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
+            "ORDER BY COALESCE(published_at, fetched_at) ASC LIMIT ?",
             (limit,),
         ).fetchall()
         return [(r["id"], r["t"], r["source"], r["theme"]) for r in rows]

@@ -33,6 +33,8 @@ def keywords() -> list[str]:
         if kws:
             return kws
     return DEFAULT_KEYWORDS
+
+
 _API = "https://search-api-web.eastmoney.com/search/jsonp?cb=cb&param="
 _EM_RE = re.compile(r"</?em>")
 _CST = ZoneInfo("Asia/Shanghai")

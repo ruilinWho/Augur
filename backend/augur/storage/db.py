@@ -187,12 +187,22 @@ CREATE TABLE IF NOT EXISTS research_reports (
 
 
 def get_conn() -> sqlite3.Connection:
-    """打开一个连接（启用外键、Row 工厂）。调用方负责关闭。"""
+    """打开一个连接（启用外键、Row 工厂）。调用方负责关闭。
+
+    并发安全（CLAUDE.md §11「尊重限流/激进缓存」的工程同构）：app 同时跑
+    FastAPI 请求线程（同步 DB 调用丢 threadpool）+ APScheduler 后台线程（07:30 抓取
+    连续多次提交）+ warm-listings 线程。默认 rollback 模式下两写相撞会立刻
+    `database is locked`（busy_timeout 默认 0=不重试）。故开 WAL（读不阻塞写）
+    + busy_timeout=5s（短锁竞争自动重试而非 500）。本地单用户、单文件库，零副作用。
+    """
     settings = get_settings()
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(settings.db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 

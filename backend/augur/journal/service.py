@@ -82,15 +82,11 @@ def update_entry(entry_id: int, entry_date: str | None = None, body: str | None 
         if sets:
             sets.append("updated_at = datetime('now')")
             params.append(entry_id)
-            cur = conn.execute(
-                f"UPDATE journal_entries SET {', '.join(sets)} WHERE id = ?", params
-            )
+            cur = conn.execute(f"UPDATE journal_entries SET {', '.join(sets)} WHERE id = ?", params)
             conn.commit()
             if cur.rowcount == 0:
                 raise NotFound(f"日记 {entry_id} 不存在")
-        row = conn.execute(
-            "SELECT * FROM journal_entries WHERE id = ?", (entry_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM journal_entries WHERE id = ?", (entry_id,)).fetchone()
         if row is None:
             raise NotFound(f"日记 {entry_id} 不存在")
         return _out(row)

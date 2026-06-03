@@ -46,6 +46,11 @@ def _daily_job() -> None:
         log.info("news daily clusters generated")
     except Exception:  # noqa: BLE001
         log.exception("news clusters generation failed")
+    try:
+        service.generate_opportunities()  # 今日机会 → 「资讯·总结」早晨即就绪（与日报/要点一致）
+        log.info("news daily opportunities generated")
+    except Exception:  # noqa: BLE001
+        log.exception("news opportunities generation failed")
 
 
 def start() -> None:

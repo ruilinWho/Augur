@@ -32,9 +32,7 @@ async def create_entry(body: JournalCreate) -> dict:
 @router.patch("/entries/{entry_id}", response_model=JournalEntry)
 async def update_entry(entry_id: int, body: JournalUpdate) -> dict:
     try:
-        return await run_in_threadpool(
-            service.update_entry, entry_id, body.entry_date, body.body
-        )
+        return await run_in_threadpool(service.update_entry, entry_id, body.entry_date, body.body)
     except service.NotFound as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:

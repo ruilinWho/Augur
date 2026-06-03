@@ -12,6 +12,8 @@ import time
 
 import yfinance as yf
 
+from .symbols import cn_exchange
+
 _CACHE: dict[str, tuple[float, dict]] = {}
 _LOCK = threading.Lock()
 _TTL = 6 * 3600.0  # 基本面 6 小时缓存足矣
@@ -28,7 +30,7 @@ def _yahoo_symbols(symbol: str) -> list[str]:
         digits = "".join(c for c in code if c.isdigit())
         return [f"{int(digits):04d}.HK"] if digits else []
     if market == "CN":
-        suffix = "SS" if code[:1] in ("6", "9") else "SZ"  # 沪 .SS / 深 .SZ
+        suffix = {"SSE": "SS", "SZSE": "SZ", "BSE": "BJ"}[cn_exchange(code)]  # 沪/深/北交所
         return [f"{code}.{suffix}"]
     if market == "KR":
         return [f"{code}.KS", f"{code}.KQ"]  # KOSPI / KOSDAQ
@@ -91,10 +93,15 @@ def _report_links(symbol: str, ysym: str) -> list[dict]:
         )
     elif market == "CN":
         links.append(
-            {"label": "巨潮公告", "url": f"http://www.cninfo.com.cn/new/fulltextSearch?keyWord={code}"}
+            {
+                "label": "巨潮公告",
+                "url": f"http://www.cninfo.com.cn/new/fulltextSearch?keyWord={code}",
+            }
         )
     elif market == "HK":
-        links.append({"label": "披露易", "url": "https://www1.hkexnews.hk/search/titlesearch.xhtml"})
+        links.append(
+            {"label": "披露易", "url": "https://www1.hkexnews.hk/search/titlesearch.xhtml"}
+        )
     elif market == "KR":
         links.append({"label": "DART", "url": "https://dart.fss.or.kr/"})
     return links

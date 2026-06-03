@@ -24,8 +24,10 @@ themes:
     - AGI
     - machine learning
     - neural network
-    - inference
-    - agent
+    # 高歧义通用词加最小上下文（inference 统计/法律、agent 旅行社/特工 都会整词误命中）
+    - AI inference
+    - AI agent
+    - agentic
     - 大模型
     - 人工智能
     - 生成式
@@ -44,7 +46,8 @@ themes:
     - foundry
     - lithography
     - EUV
-    - node
+    # 'node' 移除：Node.js/网络节点/选区 等整词误命中过多；制程节点用「process node」更准
+    - process node
     - Nvidia
     - NVDA
     - TSMC

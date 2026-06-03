@@ -1,8 +1,9 @@
 """「设置」域 HTTP 路由：UI 里配 LLM 连接（动态列表）/ 角色路由 / 数据信源 key。
 
-护栏（§11）：密钥经 `runtime_config` 落 gitignored `data/config.local.json`，**只回脱敏状态**、
-从不回明文、绝不打日志。数据信源 secret 仅接受**凭证形状**的 env 名（白名单 + 后缀模式）。
-LLM 连接的 base_url/model 非密可回显；api_key 只回布尔/脱敏。改动即时生效。
+护栏（§11）：密钥经 `runtime_config` 落 gitignored `data/config.local.json`，**绝不入 git、
+绝不打日志**。本地单用户 UI **以明文回显** LLM 连接 api_key 与数据信源 key（主人明确要求
+「反正只有我自己用」——key 仅在 localhost 后端↔前端间流动，见 §6）。数据信源 secret 仅接受
+**凭证形状**的 env 名（白名单 + 后缀模式）。改动即时生效，无需重启。
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ def _allowed_names() -> set[str]:
 # ───────────────────────── 快照 ─────────────────────────
 @router.get("/config")
 async def get_config() -> dict:
-    """设置页快照：LLM 连接列表 + 角色路由 + 数据信源状态（全脱敏，无明文 key）。"""
+    """设置页快照：LLM 连接列表 + 角色路由 + 数据信源状态。本地单用户 UI 明文回显 key（§6/§11）。"""
     return {
         "llm": {
             "connections": runtime_config.list_connections(),

@@ -26,9 +26,12 @@ _VALID_KINDS = {
     "forum",
     "fin_site",
 }
-_KIND_ORDER = {k: i for i, k in enumerate(
-    ["official", "ir", "official_x", "influencer_x", "reddit", "forum", "fin_site"]
-)}
+_KIND_ORDER = {
+    k: i
+    for i, k in enumerate(
+        ["official", "ir", "official_x", "influencer_x", "reddit", "forum", "fin_site"]
+    )
+}
 
 
 def _row_out(r) -> dict:
@@ -49,9 +52,7 @@ def list_sources(symbol: str) -> list[dict]:
     """某股的信源清单（启用在前，再按类别、id）。"""
     conn = get_conn()
     try:
-        rows = conn.execute(
-            "SELECT * FROM stock_sources WHERE symbol = ?", (symbol,)
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM stock_sources WHERE symbol = ?", (symbol,)).fetchall()
     finally:
         conn.close()
     out = [_row_out(r) for r in rows]
@@ -84,11 +85,7 @@ def discover(symbol: str, role: str = "deep_research") -> dict:
     """
     gateway.check_ready(role)
     name = search.display_name(symbol)
-    prompt = (
-        _load_prompt("stock_sources")
-        .replace("{{NAME}}", name)
-        .replace("{{SYMBOL}}", symbol)
-    )
+    prompt = _load_prompt("stock_sources").replace("{{NAME}}", name).replace("{{SYMBOL}}", symbol)
     raw = gateway.complete(
         [{"role": "user", "content": prompt}],
         role=role,

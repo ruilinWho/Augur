@@ -9,7 +9,7 @@ import FinanceDataReader as fdr
 import pandas as pd
 
 from .base import OHLCV_COLUMNS, MarketAdapter
-from .symbols import Symbol
+from .symbols import Symbol, cn_exchange
 
 
 class FdrAdapter(MarketAdapter):
@@ -24,9 +24,8 @@ class FdrAdapter(MarketAdapter):
             digits = "".join(ch for ch in code if ch.isdigit())
             return f"{int(digits):04d}.HK"
         if m == "CN":
-            # 沪 / 深：6、9 开头 → 上证(SSE)；0、3 开头 → 深证(SZSE)
-            exch = "SSE" if code[:1] in ("6", "9") else "SZSE"
-            return f"{exch}:{code}"
+            # 沪(SSE)/深(SZSE)/北交所(BSE)——共享 cn_exchange，避免与 fundamentals 双份漂移
+            return f"{cn_exchange(code)}:{code}"
         raise ValueError(f"FdrAdapter 不支持市场 {m!r}（韩股用 pykrx）")
 
     def get_ohlcv(self, sym: Symbol, start: str, end: str | None) -> pd.DataFrame:

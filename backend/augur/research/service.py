@@ -204,13 +204,16 @@ def generate_stream(symbol: str, role: str = "deep_research") -> Iterator[str]:
         buf.append(delta)
         yield delta
     body = "".join(buf).strip()
-    if body:
-        # 落库的 sources 去掉内部 kind/date 细节无妨，保留 n/title/source/url 供前端引用
-        srcs = [
-            {"n": s["n"], "title": s["title"], "source": s["source"], "url": s.get("url")}
-            for s in data["sources"]
-        ]
-        _save(data["symbol"], data["name"], body, srcs, model)
+    if not body:
+        # 模型返回空（限流空响应/被截/连接异常未抛）→ 抛错，让 router 的 sse 发 error 帧给前端，
+        # 避免「点了生成→placeholder 一闪→回空态」的无反馈黑洞（§11 暴露不确定性）。
+        raise ValueError("模型未返回内容，请重试或检查 deep_research 连接")
+    # 落库的 sources 去掉内部 kind/date 细节无妨，保留 n/title/source/url 供前端引用
+    srcs = [
+        {"n": s["n"], "title": s["title"], "source": s["source"], "url": s.get("url")}
+        for s in data["sources"]
+    ]
+    _save(data["symbol"], data["name"], body, srcs, model)
 
 
 # ───────────────────────── 导入研报（他人写的 markdown，一股可多份）─────────────────────────
@@ -229,13 +232,14 @@ def _imported_out(row) -> dict:
 
 
 def list_imported(symbol: str) -> list[dict]:
-    """某股的导入研报（按 sort_order、再新→旧）。"""
+    """某股的导入研报（按 sort_order、再新→旧）。symbol 规范化，与 add/get_report 一致。"""
+    sym = parse_symbol(symbol).canonical
     conn = get_conn()
     try:
         rows = conn.execute(
             "SELECT * FROM imported_reports WHERE symbol = ? "
             "ORDER BY sort_order, created_at DESC, id DESC",
-            (symbol,),
+            (sym,),
         ).fetchall()
         return [_imported_out(r) for r in rows]
     finally:
@@ -243,7 +247,7 @@ def list_imported(symbol: str) -> list[dict]:
 
 
 def add_imported(symbol: str, title: str = "", body: str = "") -> dict:
-    """导入一份研报（新建排到末尾）。标题空则给个占位。"""
+    """导入一份研报（新建排到末尾）。标题截断到 200 字、可空（前端用 placeholder 呈现空标题）。"""
     sym = parse_symbol(symbol).canonical
     conn = get_conn()
     try:
@@ -273,9 +277,7 @@ def update_imported(
     """改某份导入研报的标题/正文/评论（只改传入的字段）。"""
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT * FROM imported_reports WHERE id = ?", (report_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM imported_reports WHERE id = ?", (report_id,)).fetchone()
         if row is None:
             raise ValueError(f"研报 {report_id} 不存在")
         new_title = row["title"] if title is None else title.strip()[:200]

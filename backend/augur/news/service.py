@@ -146,14 +146,16 @@ def _window_bounds_utc(days: int) -> tuple[str, str]:
     )
 
 
-def items_for_window(
-    days: int = 1,
+def _items_between(
+    lo: str,
+    hi: str,
     theme: str | None = None,
     source_prefix: str | None = None,
     category: str | None = None,
 ) -> list[dict]:
-    """近 days 天的相关条目（relevance!=2），时间倒序。供「要点」按时间范围/主题/推特聚类。"""
-    lo, hi = _window_bounds_utc(days)
+    """[lo, hi)（UTC 字符串）内的相关条目（relevance!=2、lane='feed'），时间倒序。
+    共享 SQL，供 items_for_window / items_for_day（唯一差别是时间边界来源）。
+    """
     conn = get_conn()
     try:
         sql = (
@@ -175,6 +177,17 @@ def items_for_window(
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
     finally:
         conn.close()
+
+
+def items_for_window(
+    days: int = 1,
+    theme: str | None = None,
+    source_prefix: str | None = None,
+    category: str | None = None,
+) -> list[dict]:
+    """近 days 天的相关条目（relevance!=2），时间倒序。供「要点」按时间范围/主题/推特聚类。"""
+    lo, hi = _window_bounds_utc(days)
+    return _items_between(lo, hi, theme, source_prefix, category)
 
 
 def items_for_day(
@@ -188,27 +201,7 @@ def items_for_day(
     theme/source_prefix/category 过滤同 items_for_window——供「资讯·某天·新闻/推特」按天取。
     """
     lo, hi = _day_bounds_utc(day)
-    conn = get_conn()
-    try:
-        sql = (
-            "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed' "
-            "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
-            "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
-        )
-        args: list = [lo, hi]
-        if theme:
-            sql += " AND theme = ?"
-            args.append(theme)
-        if source_prefix:
-            sql += " AND source LIKE ?"
-            args.append(f"{source_prefix}%")
-        if category:
-            sql += " AND category = ?"
-            args.append(category)
-        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC"
-        return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
-    finally:
-        conn.close()
+    return _items_between(lo, hi, theme, source_prefix, category)
 
 
 def items_for_symbol(symbol: str, days: int = 0, limit: int = 60) -> list[dict]:
@@ -261,10 +254,17 @@ def _stock_terms(symbol: str) -> list[str]:
 
 
 def _feed_matches(symbol: str, limit: int = 20) -> list[dict]:
-    """聚合流里按公司名（中文展示名 + 英文名）匹配到的相关条目（含中文翻译）。"""
+    """聚合流里按公司名（中文展示名 + 英文名）匹配到的相关条目（含中文翻译）。
+
+    SQL LIKE 只做粗筛，再在 Python 侧用**词边界**二次过滤 ASCII 词（CJK 仍子串）——与 linker 同
+    口径，避免 'Arm'→harm/farm、'AMD'→子串 等短英文 token 误配把无关新闻塞进个股相关资讯。
+    """
     terms = _stock_terms(symbol)
     if not terms:
         return []
+    ascii_t = [t.lower() for t in terms if t.isascii()]
+    cjk_t = [t for t in terms if not t.isascii()]
+    pat = re.compile(rf"\b(?:{'|'.join(re.escape(t) for t in ascii_t)})\b") if ascii_t else None
     conn = get_conn()
     try:
         clause = " OR ".join(["title LIKE ? OR title_zh LIKE ?"] * len(terms))
@@ -272,15 +272,23 @@ def _feed_matches(symbol: str, limit: int = 20) -> list[dict]:
         for t in terms:
             like = f"%{t}%"
             args += [like, like]
-        args.append(limit)
+        # 多取些候选给 Python 词边界过滤后再截断（粗筛会带进 LIKE 误命中）
+        args.append(limit * 4)
         rows = conn.execute(
             f"SELECT * FROM news_items WHERE ({clause}) AND relevance != 2 "
             "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
             args,
         ).fetchall()
-        return [_item_out(r) for r in rows]
     finally:
         conn.close()
+    out: list[dict] = []
+    for r in rows:
+        text = f"{r['title']} {r['title_zh'] or ''}"
+        if (pat and pat.search(text.lower())) or any(t in text for t in cjk_t):
+            out.append(_item_out(r))
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _norm_url(u: str) -> str:
@@ -727,9 +735,7 @@ def get_narrative(symbol: str) -> dict | None:
     """取某股已生成的叙事；无 → None。"""
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT * FROM stock_narratives WHERE symbol = ?", (symbol,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM stock_narratives WHERE symbol = ?", (symbol,)).fetchone()
         if not row:
             return None
         return {

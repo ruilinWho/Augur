@@ -15,6 +15,9 @@ from .schemas import ResearchReport
 
 router = APIRouter(prefix="/research", tags=["research"])
 
+# SSE 响应头：禁缓存 + 关代理缓冲（保逐字到达，经 Vite 代理/未来 Tauri 外壳不被整段缓冲）
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
 
 @router.get("/stock", response_model=ResearchReport)
 async def get_report(symbol: str) -> dict:
@@ -37,12 +40,12 @@ async def generate(symbol: str) -> StreamingResponse:
         try:
             for delta in service.generate_stream(symbol):
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
         except Exception as e:  # noqa: BLE001 — 流中途出错也要让前端收到
             err = json.dumps({"error": f"{type(e).__name__}: {e}"}, ensure_ascii=False)
             yield f"data: {err}\n\n"
+        yield "data: [DONE]\n\n"  # 成功/出错都收尾
 
-    return StreamingResponse(sse(), media_type="text/event-stream")
+    return StreamingResponse(sse(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 # ───────────────────────── 导入研报（他人写的 markdown，一股可多份）─────────────────────────

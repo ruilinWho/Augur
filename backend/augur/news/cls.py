@@ -3,8 +3,10 @@
 取**科创电报**（depth/assembled/1111，最贴近主人的前沿科技关注）。该 API 需签名：
 `sign = MD5(SHA1(sorted_querystring))`，参数含 `appName=CailianpressWeb`。
 ⚠️ 坑（写进注释，未来会踩）：旧 `nodeapi/telegraphList` 路径 2026 已死；`sv` 与路径会
-不定期轮换，置于常量便于更新。失败一律降级返回 []（暴露不确定性，不抛）。归一化为
-news_items 同形条目，复用 classify + 噪音过滤；中文无需翻译。
+不定期轮换，置于常量便于更新。**网络/解析/反爬失败一律抛异常，由上层 ingest 捕获并记
+source_health 失败**（与 fetch_feed 一致）——errno 反爬挑战也抛，避免被误记为「成功 0 条」
+掩盖签名失效（§3 暴露不确定性）。归一化为 news_items 同形条目，复用 classify + 噪音过滤；
+中文无需翻译。
 """
 
 from __future__ import annotations
@@ -49,8 +51,10 @@ def fetch_cls(cutoff: datetime | None = None) -> list[dict]:
         r = c.get(url)
         r.raise_for_status()
     data = r.json()
-    if data.get("errno"):  # 反爬挑战 / 签名失效
-        return []
+    if data.get(
+        "errno"
+    ):  # 反爬挑战 / 签名失效 → 抛，让 source_health 记为失败（而非「成功 0 条」）
+        raise RuntimeError(f"cls errno={data.get('errno')}（签名失效/反爬，检查 sv/path）")
     rows = (data.get("data") or {}).get("depth_list") or []
     items: list[dict] = []
     for e in rows[:_MAX]:

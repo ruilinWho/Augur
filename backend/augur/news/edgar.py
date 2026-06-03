@@ -82,7 +82,7 @@ _ITEM_ZH = {
 }
 
 _sub_cache: dict[str, tuple[float, dict]] = {}
-_tickers_cache: dict[str, str] | None = None
+_tickers_cache: tuple[float, dict[str, str]] | None = None  # (加载时刻, 映射)
 _lock = threading.Lock()
 _last_req = 0.0
 
@@ -102,17 +102,25 @@ def _throttle() -> None:
 
 
 def _get(url: str) -> httpx.Response:
+    """GET 并内部 raise_for_status（与 cls/eastmoney 一致：get 即校验）。SEC 缺 UA→403、
+    错 CIK→404 都以清晰的 HTTPStatusError 暴露，而非伪装成下游 JSONDecodeError。"""
     _throttle()
     headers = {"User-Agent": _ua(), "Accept-Encoding": "gzip, deflate"}
     with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as c:
-        return c.get(url)
+        resp = c.get(url)
+    resp.raise_for_status()
+    return resp
 
 
 def _load_tickers() -> dict[str, str]:
-    """{TICKER(大写): CIK(10 位零填充)}。先用缓存文件（7 天），过期/缺失则拉官方 JSON。"""
+    """{TICKER(大写): CIK(10 位零填充)}。先用缓存文件（7 天），过期/缺失则拉官方 JSON。
+
+    内存缓存也带时间戳（1 天）——否则长跑 --reload 进程一旦加载过就永不刷新，
+    新上市/退市票的 CIK 查不到（恰是 directed「补齐新上市」的目标）。
+    """
     global _tickers_cache
-    if _tickers_cache is not None:
-        return _tickers_cache
+    if _tickers_cache is not None and time.time() - _tickers_cache[0] < _SUB_TTL * 4:
+        return _tickers_cache[1]
     path = get_settings().cache_dir / "edgar_company_tickers.json"
     fresh = path.exists() and (time.time() - path.stat().st_mtime) < _TICKERS_TTL
     raw: dict | None = None
@@ -123,9 +131,7 @@ def _load_tickers() -> dict[str, str]:
             raw = None
     if raw is None:
         try:
-            resp = _get(_TICKERS_URL)
-            resp.raise_for_status()
-            raw = resp.json()
+            raw = _get(_TICKERS_URL).json()
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
         except (httpx.HTTPError, json.JSONDecodeError, OSError):
@@ -142,7 +148,9 @@ def _load_tickers() -> dict[str, str]:
                 mapping[tk] = f"{int(row['cik_str']):010d}"
             except (KeyError, ValueError, TypeError):
                 continue
-    _tickers_cache = mapping
+    # 仅在拿到非空映射时落内存缓存（拉取失败返回的空 dict 不该被缓存 1 天）
+    if mapping:
+        _tickers_cache = (time.time(), mapping)
     return mapping
 
 
@@ -187,9 +195,7 @@ def filings_for(symbol: str, limit: int = 15) -> list[dict]:
         data = cached[1]
     else:
         try:
-            resp = _get(_SUBMISSIONS_URL.format(cik10=cik10))
-            resp.raise_for_status()
-            data = resp.json()
+            data = _get(_SUBMISSIONS_URL.format(cik10=cik10)).json()
             _sub_cache[cik10] = (now, data)
         except (httpx.HTTPError, json.JSONDecodeError):
             if cached:  # 失败退回陈旧缓存

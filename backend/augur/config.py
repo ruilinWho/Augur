@@ -1,7 +1,9 @@
 """应用配置：从 .env / 环境变量读取。路径解析到仓库根的 data/ resources/。
 
-约定见 CLAUDE.md §6。厂商 API key / base_url 用各自的环境变量（如 ANTHROPIC_API_KEY），
-由 litellm 网关直接读取；这里只管应用级设置与角色路由。
+约定见 CLAUDE.md §6 / ADR-0008。**LLM 连接与角色现由 `runtime_config`（data/config.local.json）
+动态管理**——增删连接、角色→连接 指派都在「设置 · 模型」里，gateway 走 runtime_config。
+本文件只管**应用级设置**（port/tz/sec_user_agent）；下方 `role_*` 字段仅作旧 .env→连接 的
+**一次性迁移种子**保留（_seed_from_legacy 读一次），非现行机制。
 """
 
 from __future__ import annotations
@@ -34,7 +36,8 @@ class Settings(BaseSettings):
     # AUGUR_SEC_USER_AGENT="你的名字 you@example.com" 以最稳妥地符合 SEC 规范。
     sec_user_agent: str = "Augur/0.1 personal-investment-research non-commercial"
 
-    # 角色 → "provider:model"（详见 §6）。为空表示未配置。
+    # 角色 → "provider:model"：legacy，仅供 runtime_config._seed_from_legacy 一次性迁移读取，
+    # 非现行机制（现行＝动态连接，见 runtime_config）。为空表示无旧配置可迁。
     role_chat: str = ""
     role_deep_research: str = ""
     role_summarize: str = ""
