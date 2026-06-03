@@ -124,7 +124,7 @@ function MorningBrief({ date, heading = '晨读 · 今日要事' }: { date?: str
       ) : clusters.isLoading ? (
         <div className="report-card faint">加载…</div>
       ) : (
-        <div className="opp-empty faint">点「生成晨读」，从今日新闻里挑出最要紧的 3 件事。</div>
+        <div className="opp-empty faint">还没有今日要事</div>
       )}
     </section>
   )
@@ -479,15 +479,6 @@ function StockNarrativeView() {
   return <StockNarrative key={symbol} symbol={symbol} />
 }
 
-// ── 机会 ──
-function OppsView() {
-  return (
-    <div className="know">
-      <OpportunitiesPanel />
-    </div>
-  )
-}
-
 export default function KnowView() {
   const primary = useNews((s) => s.primary)
   const secondary = useNews((s) => s.secondary)
@@ -504,7 +495,6 @@ export default function KnowView() {
       {primary === 'digest' && <DaySnapshotView />}
       {primary === 'news' && <FeedView />}
       {primary === 'twitter' && <TwitterView />}
-      {primary === 'opps' && <OppsView />}
     </motion.div>
   )
 }

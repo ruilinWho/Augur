@@ -122,9 +122,6 @@ export default function OpportunitiesPanel({ date = null }: { date?: string | nu
         ) : (
           <div className="opp-empty">
             <div className="oe-title">还没有今日机会</div>
-            <div className="faint">
-              点「识别机会」，由 LLM 从今日新闻里找出新的研究方向、关联到具体个股（已关注的会高亮）。
-            </div>
           </div>
         )}
       </Collapse>

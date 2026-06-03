@@ -4,7 +4,7 @@ import { create } from 'zustand'
 //   primary：一级分类（列1）。secondary：二级选项（列2），语义随 primary 变：
 //     digest  → 日期串（null=最新）   news → theme（null=全部）   twitter → 账号分类（null=全部）
 //     overview / opps → 无二级（secondary 恒 null）
-export type NewsPrimary = 'overview' | 'stocks' | 'digest' | 'news' | 'twitter' | 'opps'
+export type NewsPrimary = 'overview' | 'stocks' | 'digest' | 'news' | 'twitter'
 
 interface NewsState {
   primary: NewsPrimary

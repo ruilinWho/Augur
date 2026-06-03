@@ -7,7 +7,6 @@ export const PRIMARIES: { id: NewsPrimary; label: string; hasSub: boolean }[] = 
   { id: 'digest', label: '每日', hasSub: true },
   { id: 'news', label: '新闻', hasSub: true },
   { id: 'twitter', label: '推特', hasSub: true },
-  { id: 'opps', label: '机会', hasSub: false },
 ]
 
 // 新闻二级：主题。key='' = 全部。与后端 classify 主题键一致。

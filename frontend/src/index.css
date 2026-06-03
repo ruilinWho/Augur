@@ -3083,13 +3083,7 @@ input:focus:not(:focus-visible) {
   margin-top: 26px;
 }
 
-/* 总览 · 晨读 Top3（hero 卡）*/
-.brief {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 13px 16px 16px;
-}
+/* 总览 · 晨读 Top3（平铺段，与日报/机会同宽对齐，不再包卡片）*/
 .brief-list {
   list-style: none;
   margin: 11px 0 0;
