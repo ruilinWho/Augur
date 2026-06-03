@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -121,6 +122,12 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
   const [websearch, setWebsearch] = useState(conn?.web_search ?? false)
   const [result, setResult] = useState<TestResult | null>(null)
+  // 保存后刷新会带回已存明文 key → 回灌输入框，保证**长期明文可见**（主人要求）。
+  // 依赖 conn.api_key：仅它真正变化（即保存成功后）才同步，不会覆盖正在输入的内容。
+  useEffect(() => {
+    setKey(conn?.api_key ?? '')
+    setWebsearch(conn?.web_search ?? false)
+  }, [conn?.api_key, conn?.web_search])
   const isNew = !conn
   const canTest = !!base && !!model && (!isNew || !!key)
 

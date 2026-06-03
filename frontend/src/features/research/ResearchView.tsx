@@ -218,7 +218,7 @@ export default function ResearchView() {
           )}
         </div>
         <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
-          {streaming ? '研究中…' : data ? '重新生成' : '✨ 生成深度研究'}
+          {streaming ? '研究中…' : data ? '重新生成' : '生成深度研究'}
         </button>
       </div>
 

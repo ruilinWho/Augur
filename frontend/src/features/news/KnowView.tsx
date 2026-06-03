@@ -59,7 +59,7 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
         <h3>{data ? `${fmtDate(data.report_date)} · 趋势日报` : '趋势日报'}</h3>
         {showGenerate && (
           <button className="btn btn-primary jsm sec-gen" disabled={streaming} onClick={run}>
-            {streaming ? '生成中…' : data ? '重新生成' : '✨ 生成今日日报'}
+            {streaming ? '生成中…' : data ? '重新生成' : '生成今日日报'}
           </button>
         )}
       </div>
@@ -70,7 +70,6 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
       ) : data ? (
         <div className="report-card">
           <Digest body={data.body} />
-          <div className="report-foot faint">非投资建议</div>
         </div>
       ) : report.isLoading ? (
         <div className="report-card faint">加载日报…</div>
@@ -99,7 +98,7 @@ function MorningBrief({ date, heading = '晨读 · 今日要事' }: { date?: str
           disabled={gen.isPending}
           onClick={() => gen.mutate(params)}
         >
-          {gen.isPending ? '生成中…' : top.length ? '刷新' : '✨ 生成晨读'}
+          {gen.isPending ? '生成中…' : top.length ? '刷新' : '生成晨读'}
         </button>
       </div>
       {gen.isPending ? (
@@ -283,7 +282,7 @@ function ClusterList({ params }: { params: ClusterParams }) {
           disabled={gen.isPending}
           onClick={() => gen.mutate(params)}
         >
-          {gen.isPending ? '聚类中…' : data ? '重新生成' : '✨ 生成要点'}
+          {gen.isPending ? '聚类中…' : data ? '重新生成' : '生成要点'}
         </button>
       </div>
       {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
@@ -402,7 +401,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
             disabled={gen.isPending}
             onClick={() => gen.mutate(symbol)}
           >
-            {gen.isPending ? '融合中…' : data ? '重新生成' : '✨ 生成叙事'}
+            {gen.isPending ? '融合中…' : data ? '重新生成' : '生成叙事'}
           </button>
         </div>
       </div>
@@ -437,14 +436,14 @@ function StockNarrative({ symbol }: { symbol: string }) {
               )
             })}
           </div>
-          <div className="report-foot faint">融合 {data.item_count} 条资讯 · 非投资建议</div>
+          <div className="report-foot faint">融合 {data.item_count} 条资讯</div>
         </>
       ) : nar.isLoading ? (
         <div className="report-card faint">加载…</div>
       ) : (
         <div className="know-empty">
           <div className="ke-title">还没有这只股的叙事</div>
-          <div className="faint">点「✨ 生成叙事」让 LLM 融合最近的资讯成主线与时间线</div>
+          <div className="faint">点「生成叙事」让 LLM 融合最近的资讯成主线与时间线</div>
         </div>
       )}
 

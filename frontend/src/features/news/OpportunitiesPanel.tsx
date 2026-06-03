@@ -96,7 +96,7 @@ export default function OpportunitiesPanel({ date = null }: { date?: string | nu
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>今日机会</h3>
         <button
-          className="btn btn-primary jsm opp-gen"
+          className="btn btn-primary jsm sec-gen"
           disabled={gen.isPending}
           onClick={(e) => {
             e.stopPropagation()
@@ -104,7 +104,7 @@ export default function OpportunitiesPanel({ date = null }: { date?: string | nu
             gen.mutate(date)
           }}
         >
-          {gen.isPending ? '识别中…' : list.length ? '重新识别' : '✨ 识别机会'}
+          {gen.isPending ? '识别中…' : list.length ? '重新识别' : '识别机会'}
         </button>
       </div>
       <Collapse open={open}>
@@ -118,7 +118,6 @@ export default function OpportunitiesPanel({ date = null }: { date?: string | nu
                 <OppCard key={i} o={o} />
               ))}
             </div>
-            {opps.data?.disclaimer && <div className="opp-foot faint">{opps.data.disclaimer}</div>}
           </>
         ) : (
           <div className="opp-empty">

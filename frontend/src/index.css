@@ -3075,6 +3075,9 @@ input:focus:not(:focus-visible) {
 /* 总览/某天快照：段头生成按钮一律右对齐；相邻段统一间距（根治日报段与上段重叠/挤压） */
 .sec-gen {
   margin-left: auto;
+  min-width: 108px; /* 总览三个生成按钮等宽（晨读/机会/日报）*/
+  text-align: center;
+  justify-content: center;
 }
 .know > section + section {
   margin-top: 26px;

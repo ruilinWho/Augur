@@ -127,7 +127,7 @@ export default function StockSourcesPanel({ symbol }: { symbol: string }) {
             disabled={discover.isPending}
             onClick={() => discover.mutate(symbol)}
           >
-            {discover.isPending ? '调研中…' : list.length ? '重新调研' : '✨ 调研信源'}
+            {discover.isPending ? '调研中…' : list.length ? '重新调研' : '调研信源'}
           </button>
         </div>
       </div>
