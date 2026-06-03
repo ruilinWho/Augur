@@ -11,6 +11,7 @@ import {
 import { useUI } from '../../store'
 import { useFundamentals, useOhlcv, useQuote } from '../../api'
 import { fmtMoney, fmtPctPlain } from '../../format'
+import AddToWatchlist from '../watchlist/AddToWatchlist'
 
 // 与 index.css 的 token 镜像（图表是 canvas，直接取色避免读 CSS 变量的时序问题）
 const PALETTE = {
@@ -128,6 +129,7 @@ export default function KLineView() {
           <div>
             <h2>
               {q?.name || code} <span className="sub">{code} · {mkt}</span>
+              <AddToWatchlist symbol={symbol} />
             </h2>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
               <span className="px">{q ? fmt(q.price) : '—'}</span>
