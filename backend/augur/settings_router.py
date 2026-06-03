@@ -48,6 +48,7 @@ class ConnIn(BaseModel):
     base_url: str = ""
     api_key: str | None = None  # 留空＝不改已存的 key
     model: str = ""
+    web_search: bool | None = None  # 联网检索（Qwen enable_search 等）
 
 
 @router.post("/llm/connection")

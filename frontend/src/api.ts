@@ -250,6 +250,7 @@ const connectionSchema = z.object({
   key_configured: z.boolean(),
   key_hint: z.string().default(''),
   api_key: z.string().default(''), // 明文（仅本地单用户 UI 回显）
+  web_search: z.boolean().default(false), // 联网检索（Qwen enable_search 等）
 })
 const roleTargetSchema = z.object({
   role: z.string(),
@@ -322,6 +323,7 @@ export function useUpsertConnection() {
       base_url: string
       api_key?: string | null
       model: string
+      web_search?: boolean
     }) => send('/settings/llm/connection', 'POST', v),
     onSuccess: invalidate,
   })

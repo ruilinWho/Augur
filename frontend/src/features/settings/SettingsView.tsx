@@ -119,18 +119,32 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   const [base, setBase] = useState(conn?.base_url ?? '')
   const [model, setModel] = useState(conn?.model ?? '')
   const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
+  const [websearch, setWebsearch] = useState(conn?.web_search ?? false)
   const [result, setResult] = useState<TestResult | null>(null)
   const isNew = !conn
   const canTest = !!base && !!model && (!isNew || !!key)
 
   const save = async () => {
     // 不清空 key：卡片按 id keyed 不重挂载，清空会让明文 key「看起来消失」（数据其实已存）
-    await upsert.mutateAsync({ id: conn?.id, name, base_url: base, model, api_key: key || null })
+    await upsert.mutateAsync({
+      id: conn?.id,
+      name,
+      base_url: base,
+      model,
+      api_key: key || null,
+      web_search: websearch,
+    })
     onDone?.()
   }
   const copy = async () => {
     // 不带 id ＝ 后端新建一条；名字加 (copy)，连 key 一并复制，方便快速加模型
-    await upsert.mutateAsync({ name: `${name} (copy)`, base_url: base, model, api_key: key || null })
+    await upsert.mutateAsync({
+      name: `${name} (copy)`,
+      base_url: base,
+      model,
+      api_key: key || null,
+      web_search: websearch,
+    })
   }
   const runTest = async () => {
     setResult(null)
@@ -155,6 +169,19 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
         value={key}
         onChange={(e) => setKey(e.target.value)}
       />
+      <label className="conn-ws">
+        <button
+          type="button"
+          className={`ssrc-toggle ${websearch ? 'on' : ''}`}
+          onClick={() => setWebsearch((v) => !v)}
+        >
+          <span className="ssrc-knob" />
+        </button>
+        <span>
+          联网检索
+          <span className="faint"> · Qwen/百炼 enable_search，供「研」「信源调研」</span>
+        </span>
+      </label>
       <div className="conn-actions">
         {result && (
           <span className={`conn-test ${result.ok ? 'ok' : 'err'}`}>

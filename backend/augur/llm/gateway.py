@@ -37,11 +37,20 @@ def _conn_for_role(role: str) -> dict:
 
 
 def _kwargs(conn: dict) -> dict:
-    return {
+    kw = {
         "model": f"openai/{conn['model']}",  # 一律 OpenAI 兼容
         "api_key": conn["api_key"],
         "api_base": conn["base_url"],
     }
+    # 联网检索（连接级开关）：Qwen/百炼 OpenAI 兼容用 extra_body.enable_search；
+    # search_strategy=max（全面，可改 agent 多轮）。其他厂商若不识别，会被服务端忽略/报错——
+    # 故该开关只该开在支持联网的连接上（设置页提示）。
+    if conn.get("web_search"):
+        kw["extra_body"] = {
+            "enable_search": True,
+            "search_options": {"search_strategy": "max", "forced_search": True},
+        }
+    return kw
 
 
 def resolve_role(role: str) -> tuple[str, str]:

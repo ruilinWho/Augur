@@ -168,6 +168,7 @@ def list_connections() -> list[dict]:
                 "key_configured": bool(c.get("api_key")),
                 "key_hint": _hint(c.get("api_key", "")),
                 "api_key": c.get("api_key", ""),  # 明文回显（仅本地单用户 UI；不入日志/git）
+                "web_search": bool(c.get("web_search")),  # 联网检索（Qwen enable_search 等）
             }
         )
     return out
@@ -201,6 +202,8 @@ def upsert_connection(payload: dict) -> str:
             cur["model"] = str(payload["model"]).strip()
         if payload.get("api_key"):  # 留空＝不改
             cur["api_key"] = str(payload["api_key"]).strip()
+        if payload.get("web_search") is not None:
+            cur["web_search"] = bool(payload["web_search"])
         _write(data)
         return cid
 
