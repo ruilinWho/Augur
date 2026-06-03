@@ -495,9 +495,13 @@ export default function WatchlistPanel() {
           {adding === 'top' && (
             <InlineAdd
               placeholder="一级板块名…"
-              onSubmit={(v) => {
-                createSection.mutate({ name: v })
+              onSubmit={async (v) => {
+                const sec = (await createSection.mutateAsync({ name: v })) as Section
                 setAdding(null)
+                // 新/空板块在具体市场会被剪枝隐藏（§8）→ 切「全部」并选中，让创建可见
+                if (market !== 'ALL') setMarket('ALL')
+                setSelL1(sec.id)
+                setSelSec(sec.id)
               }}
               onCancel={() => setAdding(null)}
             />
@@ -551,9 +555,15 @@ export default function WatchlistPanel() {
               {adding && adding !== 'top' && adding.id === l1.id && adding.kind === 'sub' && (
                 <InlineAdd
                   placeholder="子板块名…"
-                  onSubmit={(v) => {
-                    createSection.mutate({ name: v, parent_id: l1.id })
+                  onSubmit={async (v) => {
+                    const sub = (await createSection.mutateAsync({
+                      name: v,
+                      parent_id: l1.id,
+                    })) as Section
                     setAdding(null)
+                    if (market !== 'ALL') setMarket('ALL') // 空子板块同样会被剪枝 → 切全部可见
+                    setSelL1(l1.id)
+                    setSelSec(sub.id)
                   }}
                   onCancel={() => setAdding(null)}
                 />
