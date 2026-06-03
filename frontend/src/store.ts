@@ -39,6 +39,7 @@ interface UIState {
   setView: (v: View) => void
   select: (s: string) => void
   research: (s: string) => void // 选标的并直接进「研」（机会卡直通研）
+  pickInView: (s: string) => void // 选标的但**留在当前视图**（看/研）——左栏点股不再弹回看
   setMarket: (m: Market) => void
   setTheme: (t: Theme) => void
   setTextBase: (n: number) => void
@@ -80,6 +81,8 @@ export const useUI = create<UIState>()(
       setView: (view) => set({ view }),
       select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
       research: (selectedSymbol) => set({ selectedSymbol, view: 'yan' }),
+      pickInView: (selectedSymbol) =>
+        set((s) => ({ selectedSymbol, view: s.view === 'yan' ? 'yan' : 'kan' })),
       setMarket: (market) => set({ market }),
       setTheme: (theme) => set({ theme }),
       setTextBase: (textBase) => set({ textBase }),

@@ -8,6 +8,7 @@ import {
   type ResearchSource,
 } from '../../api'
 import { useUI } from '../../store'
+import ImportedReports from './ImportedReports'
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
@@ -240,6 +241,10 @@ export default function ResearchView() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: 24 }}>
+        <ImportedReports symbol={symbol} />
+      </div>
     </motion.div>
   )
 }

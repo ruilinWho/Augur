@@ -3141,6 +3141,156 @@ input:focus:not(:focus-visible) {
   line-height: 1.55;
 }
 
+/* 研 · 导入研报（多份 · 拖排序 · markdown · 评论）*/
+.imp {
+  margin-top: 8px;
+}
+.imp-n {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+}
+.imp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+.imp-add {
+  margin: 12px 0 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.imp-add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.imp-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px 14px 14px;
+}
+.imp-card.dragging {
+  box-shadow: var(--shadow);
+}
+.imp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.imp-grip {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: grab;
+  padding: 2px;
+  display: inline-flex;
+}
+.imp-grip:active {
+  cursor: grabbing;
+}
+.imp-title {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--text);
+  font-family: var(--font-display);
+}
+.imp-title:focus {
+  outline: none;
+}
+.imp-when {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.imp-edit,
+.imp-del {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+}
+.imp-edit:hover {
+  color: var(--accent);
+}
+.imp-del {
+  font-size: 1rem;
+}
+.imp-del:hover {
+  color: var(--down);
+}
+.imp-body {
+  font-size: 0.92rem;
+}
+.imp-body-edit {
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface-2);
+}
+.imp-body-edit:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.imp-comment {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.imp-comment-lbl {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-bottom: 5px;
+}
+.imp-comment-in {
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--surface-2);
+}
+.imp-comment-in:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.imp-empty {
+  padding: 14px 2px;
+  font-size: 0.85rem;
+}
+
 /* 连接卡 · 联网检索开关 */
 .conn-ws {
   display: flex;

@@ -192,7 +192,7 @@ function RowBody({ item }: { item: Item }) {
 
 function StockRow({ item }: { item: Item }) {
   const selected = useUI((s) => s.selectedSymbol)
-  const select = useUI((s) => s.select)
+  const pick = useUI((s) => s.pickInView)
   const delItem = useDeleteItem()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `item:${item.id}`,
@@ -202,7 +202,7 @@ function StockRow({ item }: { item: Item }) {
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }}
       className={`stk ${selected === item.symbol ? 'active' : ''}`}
-      onClick={() => select(item.symbol)}
+      onClick={() => pick(item.symbol)}
       {...attributes}
       {...listeners}
     >
@@ -225,12 +225,12 @@ function StockRow({ item }: { item: Item }) {
 // 「全部」聚合视图里的只读标的行（不可拖拽；点选/删除仍可用）
 function PlainStockRow({ item }: { item: Item }) {
   const selected = useUI((s) => s.selectedSymbol)
-  const select = useUI((s) => s.select)
+  const pick = useUI((s) => s.pickInView)
   const delItem = useDeleteItem()
   return (
     <div
       className={`stk ${selected === item.symbol ? 'active' : ''}`}
-      onClick={() => select(item.symbol)}
+      onClick={() => pick(item.symbol)}
     >
       <RowBody item={item} />
       <button

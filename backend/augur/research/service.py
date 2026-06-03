@@ -211,3 +211,107 @@ def generate_stream(symbol: str, role: str = "deep_research") -> Iterator[str]:
             for s in data["sources"]
         ]
         _save(data["symbol"], data["name"], body, srcs, model)
+
+
+# ───────────────────────── 导入研报（他人写的 markdown，一股可多份）─────────────────────────
+
+
+def _imported_out(row) -> dict:
+    return {
+        "id": row["id"],
+        "symbol": row["symbol"],
+        "title": row["title"],
+        "body": row["body"],
+        "comment": row["comment"],
+        "sort_order": row["sort_order"],
+        "created_at": row["created_at"],
+    }
+
+
+def list_imported(symbol: str) -> list[dict]:
+    """某股的导入研报（按 sort_order、再新→旧）。"""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM imported_reports WHERE symbol = ? "
+            "ORDER BY sort_order, created_at DESC, id DESC",
+            (symbol,),
+        ).fetchall()
+        return [_imported_out(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_imported(symbol: str, title: str = "", body: str = "") -> dict:
+    """导入一份研报（新建排到末尾）。标题空则给个占位。"""
+    sym = parse_symbol(symbol).canonical
+    conn = get_conn()
+    try:
+        n = conn.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM imported_reports WHERE symbol = ?",
+            (sym,),
+        ).fetchone()["n"]
+        cur = conn.execute(
+            "INSERT INTO imported_reports (symbol, title, body, sort_order) VALUES (?, ?, ?, ?)",
+            (sym, title.strip()[:200], body, n),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM imported_reports WHERE id = ?", (cur.lastrowid,)
+        ).fetchone()
+        return _imported_out(row)
+    finally:
+        conn.close()
+
+
+def update_imported(
+    report_id: int,
+    title: str | None = None,
+    body: str | None = None,
+    comment: str | None = None,
+) -> dict:
+    """改某份导入研报的标题/正文/评论（只改传入的字段）。"""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM imported_reports WHERE id = ?", (report_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"研报 {report_id} 不存在")
+        new_title = row["title"] if title is None else title.strip()[:200]
+        new_body = row["body"] if body is None else body
+        new_comment = row["comment"] if comment is None else comment
+        conn.execute(
+            "UPDATE imported_reports SET title = ?, body = ?, comment = ? WHERE id = ?",
+            (new_title, new_body, new_comment, report_id),
+        )
+        conn.commit()
+        return _imported_out(
+            conn.execute("SELECT * FROM imported_reports WHERE id = ?", (report_id,)).fetchone()
+        )
+    finally:
+        conn.close()
+
+
+def delete_imported(report_id: int) -> None:
+    conn = get_conn()
+    try:
+        cur = conn.execute("DELETE FROM imported_reports WHERE id = ?", (report_id,))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise ValueError(f"研报 {report_id} 不存在")
+    finally:
+        conn.close()
+
+
+def reorder_imported(ordered_ids: list[int]) -> None:
+    """按给定顺序写回 sort_order（拖拽后调用）。"""
+    conn = get_conn()
+    try:
+        conn.executemany(
+            "UPDATE imported_reports SET sort_order = ? WHERE id = ?",
+            [(idx, rid) for idx, rid in enumerate(ordered_ids)],
+        )
+        conn.commit()
+    finally:
+        conn.close()

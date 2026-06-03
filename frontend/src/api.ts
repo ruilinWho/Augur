@@ -1016,3 +1016,67 @@ export async function streamResearch(
     }
   }
 }
+
+// ───────────────────────── 研 · 导入研报（他人写的 markdown，一股可多份）─────────────────────────
+const importedReportSchema = z.object({
+  id: z.number(),
+  symbol: z.string(),
+  title: z.string().default(''),
+  body: z.string().default(''),
+  comment: z.string().default(''),
+  sort_order: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+})
+export type ImportedReport = z.infer<typeof importedReportSchema>
+
+export function useImportedReports(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['imported', symbol],
+    queryFn: async () =>
+      z
+        .array(importedReportSchema)
+        .parse(await getJSON(`/research/imported?symbol=${encodeURIComponent(symbol!)}`)),
+  })
+}
+
+export function useAddImported() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { symbol: string; title: string; body: string }) =>
+      send('/research/imported', 'POST', v),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
+  })
+}
+
+export function useUpdateImported() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: {
+      id: number
+      symbol: string
+      title?: string
+      body?: string
+      comment?: string
+    }) => send(`/research/imported/${v.id}`, 'PATCH', { title: v.title, body: v.body, comment: v.comment }),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
+  })
+}
+
+export function useDeleteImported() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; symbol: string }) =>
+      send(`/research/imported/${v.id}`, 'DELETE'),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
+  })
+}
+
+export function useReorderImported() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { symbol: string; orderedIds: number[] }) =>
+      send('/research/imported/reorder', 'POST', { ordered_ids: v.orderedIds }),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
+  })
+}
