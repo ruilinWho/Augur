@@ -107,7 +107,8 @@
   - ✅ **⑥ 晨读 Top3**：总览顶部 hero「晨读 · 今日要事」＝复用 news@1d 要点的前 3（重要性徽标 + 标题 + 为何要紧 + 序号），scheduler 每日预生成（早晨即就绪），可手动「✨ 生成晨读」。
   - ✅ **⑦「自上次以来」增量**：`useUI.lastSeenNewsAt`（持久化）+ `markNewsSeen`；总览「自上次以来 · N」列出打卡基准后发布的新条目（确定性、零成本、零 LLM），「标记已读」推进基准；首访给「标记此刻为已读」起点。
   - ✅ **⑧ 统一时间轴 · 「某天快照」**（主人：「每天信息不一样，怎么存/看某一天/更新」）：审计确认**存**(news_items 永不按龄删、按 published_at 沉淀；reports/opps 一天一份)与**更新**(refresh 累积去重 + scheduler 每日 + 自上次以来 diff)已扎实；**看某一天**原先只有日报兑现 → 现把「日历日」做成贯穿轴。修 `get/generate_clusters` **写死 `_today()` 的 bug**（历史要点不可达）→ 加 `day` 参（report_date=该日、`items_for_day(day)` 重建）；`recent_items(day=)` 取当日要闻；`/news/feed?day=`、`/news/clusters?date=` 加参。前端**「日报」Tab 改名「每日」**＝**某天快照**：二级列每天（今天置顶），主舞台＝那天的 趋势日报 + 要事 Top3 + 当日机会 + 当日要闻（`DaySnapshotView`，复用 `MorningBrief(date)`/`OpportunitiesPanel(date)`/`DigestBlock(date)`）。
-  - ⚪ **队列清空**（融合主线 ①–⑧ 全落地）。后续：分区日报、影响链、预期差、IR/官方 X 并入「一条龙」、研·Deep Research。
+  - 🟡 **⑨ 组件化信源 · 每股专属信源画像**（主人想法）：`stock_sources(symbol,kind,name,ref,enabled,verified,added_by)` 表 + `stock_sources.py`——LLM（`deep_research` 角色，**最好联网**如 Perplexity）调研某股该看哪些源（官网/IR/官方X/大V/Reddit/雪球/财经站）→ 落库**待确认候选**，主人在「知·个股」面板逐个 mark（启用/手动增删）。防幻觉：候选默认 `enabled=0 verified=0`、`ref` 须真实、主人拍板。`GET/POST /news/sources`、`/discover`、`PATCH/DELETE /sources/{id}`；前端 `StockSourcesPanel`（开关组件 + 类别徽标 + 可点 ref + 手动加）。**已落地**：表/调研/CRUD/UI。**待续（Phase 2）**：接 Perplexity 联网（主人加连接+key）、句柄/子版/URL 验证、Reddit 抓取器、**启用的源喂回定向 lane**。
+  - ⚪ **后续**：分区日报、影响链、预期差、研·Deep Research（接 Perplexity Sonar，与⑨共用联网模型）。
   - 测试自选库（28 个 US ticker：NVDA/MU/RMBS/CRDO/ALAB/SNDK + 光通信 LITE/CIEN/COHR/CLS + 航天 ASTS/RKLB/RDW/PL + AI云 ORCL/CRWV/NBIS/PLTR/GOOG/META/MSFT/AMZN + SOFI/HOOD + TSLA/AAPL + HIMS + QQQ，两级分区）已入本地库模拟真实环境。
 - ⚪ 华尔街见闻-tmt 焦点科技 lane、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、信源健康度前端。
 

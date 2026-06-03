@@ -21,6 +21,7 @@ import { useNews } from './store'
 import { TW_CATS, themeLabel } from './consts'
 import { Digest, FeedGroups } from './shared'
 import OpportunitiesPanel from './OpportunitiesPanel'
+import StockSourcesPanel from './StockSourcesPanel'
 
 const EASE = [0.22, 1, 0.36, 1] as const
 const fmtDate = (d: string) => {
@@ -442,6 +443,10 @@ function StockNarrative({ symbol }: { symbol: string }) {
           <div className="faint">点「✨ 生成叙事」让 LLM 融合最近的资讯成主线与时间线</div>
         </div>
       )}
+
+      <div style={{ marginTop: 20 }}>
+        <StockSourcesPanel symbol={symbol} />
+      </div>
 
       <section className="feed" style={{ marginTop: 18 }}>
         <div className="sec-head">

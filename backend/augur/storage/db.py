@@ -132,6 +132,23 @@ CREATE TABLE IF NOT EXISTS news_clusters (
     UNIQUE(report_date, theme)
 );
 
+-- 每股专属信源画像（M3「知·个股」）：LLM（最好联网）调研出某股该看哪些源 → 你策展 mark。
+-- 每只股一套、各不相同（官网/IR/官方X/大V/Reddit/雪球/财经站）。enabled 由主人拍板。
+CREATE TABLE IF NOT EXISTS stock_sources (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol      TEXT    NOT NULL,                  -- MARKET:CODE
+    kind        TEXT    NOT NULL,                  -- official/ir/official_x/influencer_x/reddit/...
+    name        TEXT    NOT NULL,
+    ref         TEXT    NOT NULL DEFAULT '',       -- URL / @handle / r/sub
+    note        TEXT    NOT NULL DEFAULT '',
+    enabled     INTEGER NOT NULL DEFAULT 0,        -- 0待确认/1已启用（主人拍板）
+    verified    INTEGER NOT NULL DEFAULT 0,        -- 0未验证/1已验证（X句柄/子版/URL 探活）
+    added_by    TEXT    NOT NULL DEFAULT 'llm',    -- llm/manual
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(symbol, kind, ref)
+);
+CREATE INDEX IF NOT EXISTS idx_stock_sources_symbol ON stock_sources(symbol);
+
 -- 标的叙事时间线（M3「知·个股」）：LLM 把某股定向抓取的新闻融成「当前主线 + 时间线」，
 -- 一股一份（重生成覆盖）。区别于 research_reports（深度研究）——这是轻量、增量的「在发生什么」。
 CREATE TABLE IF NOT EXISTS stock_narratives (

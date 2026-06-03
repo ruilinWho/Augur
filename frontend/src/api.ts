@@ -819,6 +819,72 @@ export function useRefreshDirected() {
   })
 }
 
+// ── 每股专属信源画像（组件化信源：LLM 调研 + 主人策展）──
+const stockSourceSchema = z.object({
+  id: z.number(),
+  symbol: z.string(),
+  kind: z.string(),
+  name: z.string().default(''),
+  ref: z.string().default(''),
+  note: z.string().default(''),
+  enabled: z.boolean().default(false),
+  verified: z.boolean().default(false),
+  added_by: z.string().default('llm'),
+})
+export type StockSource = z.infer<typeof stockSourceSchema>
+
+export function useStockSources(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['stock-sources', symbol],
+    queryFn: async () =>
+      z
+        .array(stockSourceSchema)
+        .parse(await getJSON(`/news/sources?symbol=${encodeURIComponent(symbol!)}`)),
+  })
+}
+
+export function useDiscoverSources() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (symbol: string) =>
+      send(`/news/sources/discover?symbol=${encodeURIComponent(symbol)}`, 'POST'),
+    onSuccess: (_d, symbol) => qc.invalidateQueries({ queryKey: ['stock-sources', symbol] }),
+  })
+}
+
+export function useAddStockSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { symbol: string; kind: string; name: string; ref: string; note?: string }) =>
+      send(`/news/sources?symbol=${encodeURIComponent(v.symbol)}`, 'POST', {
+        kind: v.kind,
+        name: v.name,
+        ref: v.ref,
+        note: v.note ?? '',
+      }),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['stock-sources', v.symbol] }),
+  })
+}
+
+export function useToggleStockSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; symbol: string; enabled: boolean }) =>
+      send(`/news/sources/${v.id}`, 'PATCH', { enabled: v.enabled }),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['stock-sources', v.symbol] }),
+  })
+}
+
+export function useDeleteStockSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; symbol: string }) =>
+      send(`/news/sources/${v.id}`, 'DELETE'),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['stock-sources', v.symbol] }),
+  })
+}
+
 export function useStockNews(symbol: string | null, days = 0) {
   return useQuery({
     enabled: !!symbol,

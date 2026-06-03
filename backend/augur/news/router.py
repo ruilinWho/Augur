@@ -7,9 +7,10 @@ import json
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from ..llm import gateway
-from . import ingest, linker, service
+from . import ingest, linker, service, stock_sources
 from .schemas import (
     ClustersResponse,
     Filing,
@@ -97,6 +98,64 @@ async def narrative_generate(symbol: str) -> dict:
         return await run_in_threadpool(service.generate_narrative, symbol)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+# ───────── 每股专属信源画像（组件化信源：LLM 调研 + 主人策展 mark）─────────
+@router.get("/sources")
+async def stock_sources_list(symbol: str) -> list[dict]:
+    """某股的专属信源清单（启用在前）。"""
+    return await run_in_threadpool(stock_sources.list_sources, symbol)
+
+
+@router.post("/sources/discover")
+async def stock_sources_discover(symbol: str) -> dict:
+    """LLM（deep_research 角色，最好联网）调研某股该看哪些信源 → 落库待确认。"""
+    try:
+        return await run_in_threadpool(stock_sources.discover, symbol)
+    except gateway.LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+class _SourceIn(BaseModel):
+    kind: str
+    name: str = ""
+    ref: str = ""
+    note: str = ""
+
+
+@router.post("/sources")
+async def stock_sources_add(symbol: str, body: _SourceIn) -> dict:
+    """手动加一个信源（默认启用）。"""
+    try:
+        return await run_in_threadpool(
+            stock_sources.add_source, symbol, body.kind, body.name, body.ref, body.note
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+class _EnabledIn(BaseModel):
+    enabled: bool
+
+
+@router.patch("/sources/{source_id}")
+async def stock_sources_toggle(source_id: int, body: _EnabledIn) -> dict:
+    """启用/停用某信源（主人拍板）。"""
+    try:
+        await run_in_threadpool(stock_sources.set_enabled, source_id, body.enabled)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return {"ok": True}
+
+
+@router.delete("/sources/{source_id}")
+async def stock_sources_delete(source_id: int) -> dict:
+    """删除某信源。"""
+    try:
+        await run_in_threadpool(stock_sources.delete_source, source_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return {"ok": True}
 
 
 @router.get("/reports", response_model=list[ReportMeta])
