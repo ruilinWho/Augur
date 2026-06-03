@@ -339,6 +339,114 @@ button {
   padding: 10px;
   font-size: 0.8rem;
 }
+
+/* 新闻：时间线/要点切换 + 要点卡片 */
+.feed-seg {
+  margin-left: auto;
+}
+.clusters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cl-bar {
+  margin-bottom: 4px;
+}
+.cl-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px 14px;
+}
+.cl-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+}
+.cl-imp {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  align-self: center;
+}
+.cl-imp.imp-high {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+.cl-imp.imp-med {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.cl-imp.imp-low {
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+.cl-headline {
+  flex: 1;
+  font-size: 0.96rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+.cl-n {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.cl-why {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+  padding-left: 2px;
+}
+.cl-members {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.cl-member {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.cl-member:hover {
+  background: var(--surface-2);
+}
+.cl-msrc {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--accent);
+  min-width: 72px;
+}
+.cl-mtitle {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.cl-morelow {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 6px 2px;
+  cursor: pointer;
+}
+.cl-morelow:hover {
+  color: var(--accent);
+}
 /* 左栏拖拽手柄：盖在 panel 右缘上，hover/拖拽时显出陶土细线 */
 .resize-handle {
   position: absolute;

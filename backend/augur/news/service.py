@@ -596,3 +596,102 @@ def generate_opportunities(report_date: str | None = None, role: str = "summariz
         "created_at": None,
         "opportunities": [],
     }
+
+
+# ───────────────────────── 新闻「要点」：去重聚类 + 按重要性排序 ─────────────────────────
+_IMP_ORDER = {"high": 0, "med": 1, "low": 2}
+
+
+def _save_clusters(rd: str, theme: str, clusters: list[dict], model: str, n: int) -> None:
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO news_clusters (report_date, theme, body, model, item_count) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(report_date, theme) DO UPDATE SET "
+            "body=excluded.body, model=excluded.model, item_count=excluded.item_count, "
+            "created_at=datetime('now')",
+            (rd, theme or "", json.dumps(clusters, ensure_ascii=False), model, n),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_clusters(report_date: str | None = None, theme: str | None = None) -> dict | None:
+    """取某日（默认今天）某主题（默认全部）的新闻要点；无 → None。"""
+    rd = report_date or _today()
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM news_clusters WHERE report_date = ? AND theme = ?",
+            (rd, theme or ""),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "report_date": rd,
+            "theme": theme or "",
+            "clusters": json.loads(row["body"] or "[]"),
+            "model": row["model"],
+            "item_count": row["item_count"],
+            "created_at": row["created_at"],
+        }
+    finally:
+        conn.close()
+
+
+def generate_clusters(
+    report_date: str | None = None, theme: str | None = None, role: str = "summarize"
+) -> dict:
+    """LLM 把当天（某主题）新闻去重聚类 + 按投资重要性排序。落库覆盖（date,theme）。"""
+    rd = report_date or _today()
+    items = items_for_day(rd, theme)[:200]  # 当天（主题内）全部，封顶 200 控 token
+    if not items:
+        raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
+    block, by_n = _items_block(items)
+    prompt = _load_prompt("news_clusters").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
+    _, model = gateway.resolve_role(role)
+    raw = gateway.complete(
+        [{"role": "user", "content": prompt}],
+        role=role,
+        response_format={"type": "json_object"},
+    )
+    data = _parse_json_lenient(raw)
+    raw_clusters = data.get("clusters", []) if isinstance(data, dict) else []
+    out: list[dict] = []
+    for c in raw_clusters:
+        members: list[dict] = []
+        seen: set[int] = set()
+        for nv in c.get("members") or []:
+            key = int(nv) if isinstance(nv, int) or (isinstance(nv, str) and nv.isdigit()) else None
+            it = by_n.get(key) if key is not None else None
+            if it and it["id"] not in seen:
+                seen.add(it["id"])
+                members.append(
+                    {
+                        "source": it["source"],
+                        "title": it.get("title_zh") or it["title"],
+                        "url": it["url"],
+                    }
+                )
+        if not members:
+            continue  # 丢弃空簇（序号全无效）
+        imp = c.get("importance", "med")
+        out.append(
+            {
+                "headline": (c.get("headline") or members[0]["title"])[:200],
+                "importance": imp if imp in _IMP_ORDER else "med",
+                "why": (c.get("why") or "")[:120],
+                "members": members,
+            }
+        )
+    out.sort(key=lambda c: _IMP_ORDER.get(c["importance"], 1))  # 稳定：同重要性保留 LLM 顺序
+    _save_clusters(rd, theme or "", out, model, len(items))
+    return get_clusters(rd, theme) or {
+        "report_date": rd,
+        "theme": theme or "",
+        "clusters": [],
+        "model": model,
+        "item_count": len(items),
+        "created_at": None,
+    }

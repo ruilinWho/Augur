@@ -91,3 +91,25 @@ class OpportunitiesResponse(BaseModel):
     created_at: str | None = None
     disclaimer: str = "研究辅助，非投资建议；基于所列新闻，可能有误，请回看原文核实。"
     opportunities: list[Opportunity] = []
+
+
+class ClusterMember(BaseModel):
+    source: str = ""
+    title: str = ""
+    url: str = ""
+
+
+class NewsCluster(BaseModel):
+    headline: str
+    importance: str = "med"  # high/med/low
+    why: str = ""
+    members: list[ClusterMember] = []
+
+
+class ClustersResponse(BaseModel):
+    report_date: str
+    theme: str = ""
+    model: str = ""
+    item_count: int = 0
+    created_at: str | None = None
+    clusters: list[NewsCluster] = []

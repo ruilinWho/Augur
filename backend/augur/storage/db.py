@@ -96,6 +96,18 @@ CREATE TABLE IF NOT EXISTS news_opportunities (
 );
 CREATE INDEX IF NOT EXISTS idx_opp_date ON news_opportunities(report_date, rank);
 
+-- 新闻「要点」：LLM 去重聚类 + 按投资重要性排序（一天一份/主题，重生成覆盖）
+CREATE TABLE IF NOT EXISTS news_clusters (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_date  TEXT    NOT NULL,                  -- 'YYYY-MM-DD'
+    theme        TEXT    NOT NULL DEFAULT '',       -- ''=全部，否则某主题
+    body         TEXT    NOT NULL DEFAULT '[]',     -- JSON：[{headline,importance,why,members[]}]
+    model        TEXT    NOT NULL DEFAULT '',
+    item_count   INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(report_date, theme)
+);
+
 -- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
 CREATE TABLE IF NOT EXISTS research_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,

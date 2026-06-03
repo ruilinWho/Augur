@@ -679,6 +679,54 @@ export function useGenerateOpportunities() {
   })
 }
 
+// ── 新闻「要点」：去重聚类 + 按投资重要性排序 ──
+const clusterMemberSchema = z.object({
+  source: z.string().default(''),
+  title: z.string().default(''),
+  url: z.string().default(''),
+})
+const newsClusterSchema = z.object({
+  headline: z.string(),
+  importance: z.string().default('med'),
+  why: z.string().default(''),
+  members: z.array(clusterMemberSchema).default([]),
+})
+const clustersSchema = z.object({
+  report_date: z.string(),
+  theme: z.string().default(''),
+  model: z.string().default(''),
+  item_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+  clusters: z.array(newsClusterSchema).default([]),
+})
+export type NewsCluster = z.infer<typeof newsClusterSchema>
+
+export function useClusters(theme?: string) {
+  const t = theme || ''
+  return useQuery({
+    queryKey: ['news-clusters', t],
+    queryFn: async () => {
+      try {
+        return clustersSchema.parse(await getJSON(`/news/clusters${t ? `?theme=${t}` : ''}`))
+      } catch (e) {
+        if ((e as Error).message.includes('暂无')) return null
+        throw e
+      }
+    },
+  })
+}
+
+export function useGenerateClusters() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (theme?: string) =>
+      clustersSchema.parse(
+        await send(`/news/clusters/generate${theme ? `?theme=${theme}` : ''}`, 'POST'),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['news-clusters'] }),
+  })
+}
+
 // 生成趋势日报（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
 export async function streamReport(
   date: string | null,

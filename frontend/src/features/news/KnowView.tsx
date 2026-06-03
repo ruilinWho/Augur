@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { streamReport, useNewsFeed, useNewsReport } from '../../api'
+import {
+  streamReport,
+  useClusters,
+  useGenerateClusters,
+  useNewsFeed,
+  useNewsReport,
+  type NewsCluster,
+} from '../../api'
+import Collapse from '../../components/Collapse'
 import { useNews } from './store'
 import { TW_CATS, themeLabel } from './consts'
 import { Digest, FeedGroups } from './shared'
@@ -95,17 +103,105 @@ function DigestView() {
   )
 }
 
-// ── 新闻（按主题）──
+// ── 新闻：时间线（原始流）/ 要点（去重聚类+重要性排序）切换 ──
+const IMP: Record<string, { label: string; cls: string }> = {
+  high: { label: '重要', cls: 'imp-high' },
+  med: { label: '一般', cls: 'imp-med' },
+  low: { label: '次要', cls: 'imp-low' },
+}
+
+function ClusterCard({ c }: { c: NewsCluster }) {
+  const [open, setOpen] = useState(false)
+  const imp = IMP[c.importance] ?? IMP.med
+  return (
+    <article className="cl-card">
+      <header className="cl-head" onClick={() => setOpen((v) => !v)} role="button">
+        <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
+        <span className="cl-headline">{c.headline}</span>
+        {c.members.length > 1 && <span className="cl-n">{c.members.length}</span>}
+      </header>
+      {c.why && <div className="cl-why">{c.why}</div>}
+      <Collapse open={open}>
+        <div className="cl-members">
+          {c.members.map((m, i) => (
+            <a key={i} className="cl-member" href={m.url} target="_blank" rel="noreferrer">
+              <span className="cl-msrc">{m.source}</span>
+              <span className="cl-mtitle">{m.title}</span>
+            </a>
+          ))}
+        </div>
+      </Collapse>
+    </article>
+  )
+}
+
+function ClusterList({ theme }: { theme: string }) {
+  const clusters = useClusters(theme)
+  const gen = useGenerateClusters()
+  const [showLow, setShowLow] = useState(false)
+  const data = clusters.data
+  const all = data?.clusters ?? []
+  const list = all.filter((c) => showLow || c.importance !== 'low')
+  const lowN = all.filter((c) => c.importance === 'low').length
+
+  return (
+    <div className="clusters">
+      <div className="cl-bar">
+        <button
+          className="btn btn-primary jsm"
+          disabled={gen.isPending}
+          onClick={() => gen.mutate(theme || undefined)}
+        >
+          {gen.isPending ? '聚类中…' : data ? '重新生成' : '✨ 生成要点'}
+        </button>
+      </div>
+      {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
+      {gen.isPending ? (
+        <div className="opp-empty faint">正在按事件去重合并、按重要性排序…</div>
+      ) : data ? (
+        <>
+          {list.map((c, i) => (
+            <ClusterCard key={i} c={c} />
+          ))}
+          {lowN > 0 && !showLow && (
+            <button className="cl-morelow" onClick={() => setShowLow(true)}>
+              显示 {lowN} 条次要
+            </button>
+          )}
+        </>
+      ) : clusters.isLoading ? (
+        <div className="report-card faint">加载…</div>
+      ) : (
+        <div className="know-empty">
+          <div className="ke-title">还没有今日要点</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FeedView() {
   const theme = useNews((s) => s.secondary)
+  const [mode, setMode] = useState<'time' | 'key'>('time')
   const feed = useNewsFeed(200, { theme: theme || undefined })
   return (
     <div className="know">
       <div className="know-head">
-        <h2>{themeLabel(theme || '')} · 要闻</h2>
-        <span className="feed-count">{feed.data?.length ?? 0} 条</span>
+        <h2>{themeLabel(theme || '')}</h2>
+        <div className="seg feed-seg">
+          <button aria-pressed={mode === 'time'} onClick={() => setMode('time')}>
+            时间线
+          </button>
+          <button aria-pressed={mode === 'key'} onClick={() => setMode('key')}>
+            要点
+          </button>
+        </div>
       </div>
-      <FeedGroups items={feed.data ?? []} empty="该主题暂无要闻" />
+      {mode === 'time' ? (
+        <FeedGroups items={feed.data ?? []} empty="该主题暂无要闻" />
+      ) : (
+        <ClusterList theme={theme || ''} />
+      )}
     </div>
   )
 }

@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from ..llm import gateway
 from . import service
 from .schemas import (
+    ClustersResponse,
     Filing,
     NewsItem,
     NewsReport,
@@ -80,6 +81,25 @@ async def generate_opportunities(date: str | None = None) -> dict:
     except gateway.LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     return await run_in_threadpool(service.generate_opportunities, date)
+
+
+@router.get("/clusters", response_model=ClustersResponse)
+async def clusters(theme: str | None = None, date: str | None = None) -> dict:
+    """某日（默认今天）某主题（默认全部）的新闻要点（去重聚类+重要性排序）。无 → 404。"""
+    data = await run_in_threadpool(service.get_clusters, date, theme)
+    if data is None:
+        raise HTTPException(status_code=404, detail="暂无要点，先生成")
+    return data
+
+
+@router.post("/clusters/generate", response_model=ClustersResponse)
+async def generate_clusters(theme: str | None = None, date: str | None = None) -> dict:
+    """生成新闻要点：LLM 去重聚类+按投资重要性排序（阻塞，约 20–40s）。落库覆盖。"""
+    try:
+        gateway.check_ready("summarize")
+    except gateway.LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return await run_in_threadpool(service.generate_clusters, date, theme)
 
 
 @router.post("/report/generate")
