@@ -54,11 +54,11 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
   const data = report.data
   const streaming = genState === 'loading'
   return (
-    <>
-      <div className="know-head">
-        <h2>{data ? `${fmtDate(data.report_date)} · 趋势日报` : '趋势日报'}</h2>
+    <section className="ovsec">
+      <div className="sec-head">
+        <h3>{data ? `${fmtDate(data.report_date)} · 趋势日报` : '趋势日报'}</h3>
         {showGenerate && (
-          <button className="btn btn-primary jsm" disabled={streaming} onClick={run}>
+          <button className="btn btn-primary jsm sec-gen" disabled={streaming} onClick={run}>
             {streaming ? '生成中…' : data ? '重新生成' : '✨ 生成今日日报'}
           </button>
         )}
@@ -79,7 +79,7 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
           <div className="ke-title">还没有这天的日报</div>
         </div>
       )}
-    </>
+    </section>
   )
 }
 
@@ -94,7 +94,11 @@ function MorningBrief({ date, heading = '晨读 · 今日要事' }: { date?: str
     <section className="brief">
       <div className="sec-head">
         <h3>{heading}</h3>
-        <button className="btn btn-primary jsm" disabled={gen.isPending} onClick={() => gen.mutate(params)}>
+        <button
+          className="btn btn-primary jsm sec-gen"
+          disabled={gen.isPending}
+          onClick={() => gen.mutate(params)}
+        >
           {gen.isPending ? '生成中…' : top.length ? '刷新' : '✨ 生成晨读'}
         </button>
       </div>

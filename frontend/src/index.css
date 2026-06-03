@@ -2914,7 +2914,7 @@ input:focus:not(:focus-visible) {
 
 /* 今日机会 */
 .opps {
-  margin-top: 30px;
+  /* 段间距由 .know > section + section 统一接管 */
 }
 .opp-gen {
   margin-left: auto;
@@ -3072,13 +3072,20 @@ input:focus:not(:focus-visible) {
   color: #fff;
 }
 
+/* 总览/某天快照：段头生成按钮一律右对齐；相邻段统一间距（根治日报段与上段重叠/挤压） */
+.sec-gen {
+  margin-left: auto;
+}
+.know > section + section {
+  margin-top: 26px;
+}
+
 /* 总览 · 晨读 Top3（hero 卡）*/
 .brief {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 13px 16px 16px;
-  margin-bottom: 18px;
 }
 .brief-list {
   list-style: none;
@@ -3290,10 +3297,7 @@ input:focus:not(:focus-visible) {
   min-width: 0;
 }
 
-/* 总览 · 自上次以来 */
-.since {
-  margin-bottom: 18px;
-}
+/* 总览 · 自上次以来（段间距由 .know > section + section 统一接管）*/
 .since-bar {
   display: flex;
   align-items: center;
