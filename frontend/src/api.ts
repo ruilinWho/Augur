@@ -1080,3 +1080,18 @@ export function useReorderImported() {
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
   })
 }
+
+// ── 数据信源「测试」（轻量真实探活）──
+export type SourceTestResult = {
+  ok: boolean
+  latency_ms?: number
+  count?: number
+  note?: string
+  error?: string
+}
+export function useTestSource() {
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await send(`/settings/source/test?id=${encodeURIComponent(id)}`, 'POST')) as SourceTestResult,
+  })
+}

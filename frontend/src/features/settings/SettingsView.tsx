@@ -13,6 +13,7 @@ import {
   useSetSourceConfig,
   useSettingsConfig,
   useTestConnection,
+  useTestSource,
   useUpsertConnection,
   type Connection,
   type RoleTarget,
@@ -275,15 +276,33 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
 // 信源详情子页：只放名称 + 状态 + 可操作项（key / 账户 / 关键词）。不写任何说明性文案。
 function SourceDetail({ s }: { s: SourceStatus }) {
   const setSecret = useSetSecret()
+  const test = useTestSource()
   const [key, setKey] = useState(s.key_value ?? '') // 明文预填（仅本地）
+  const [tres, setTres] = useState<Awaited<ReturnType<typeof test.mutateAsync>> | null>(null)
+  // 保存后刷新带回已存明文 key → 回灌输入框，保证长期明文可见（主人要求）。
+  useEffect(() => setKey(s.key_value ?? ''), [s.key_value])
   const isToken = s.cred === 'token'
   const hasNothing = !s.key_env && s.config.length === 0
+  const runTest = async () => {
+    setTres(null)
+    setTres(await test.mutateAsync(s.id))
+  }
   return (
     <div className="src2-page">
       <div className="src2-phead">
         <h2>{s.name}</h2>
         <span className={`badge ${s.configured ? 'on' : ''}`}>{s.status}</span>
+        <button className="btn jsm src2-test" disabled={test.isPending} onClick={runTest}>
+          {test.isPending ? '测试中…' : '测试'}
+        </button>
       </div>
+      {tres && (
+        <div className={`conn-test ${tres.ok ? 'ok' : 'err'} src2-tres`}>
+          {tres.ok
+            ? `✓ 可用 · ${tres.latency_ms}ms${tres.count != null ? ` · ${tres.count} 条` : ''}${tres.note ? ` · ${tres.note}` : ''}`
+            : `✗ ${tres.error}`}
+        </div>
+      )}
 
       {s.key_env && (
         <div className="src2-field">
@@ -309,10 +328,7 @@ function SourceDetail({ s }: { s: SourceStatus }) {
             <button
               className="btn jsm"
               disabled={!key.trim() || setSecret.isPending}
-              onClick={() => {
-                setSecret.mutate({ name: s.key_env!, value: key.trim() })
-                setKey('')
-              }}
+              onClick={() => setSecret.mutate({ name: s.key_env!, value: key.trim() })}
             >
               保存
             </button>

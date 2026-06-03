@@ -3141,6 +3141,15 @@ input:focus:not(:focus-visible) {
   line-height: 1.55;
 }
 
+/* 数据信源 · 测试按钮 + 结果 */
+.src2-test {
+  margin-left: auto;
+}
+.src2-tres {
+  display: inline-block;
+  margin: 0 0 12px;
+}
+
 /* 研 · 导入研报（多份 · 拖排序 · markdown · 评论）*/
 .imp {
   margin-top: 8px;
