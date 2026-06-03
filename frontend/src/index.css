@@ -210,6 +210,131 @@ button {
   min-height: 0;
   position: relative;
 }
+/* 「知」两列纵向导航：rail（一级）+ 条件二级卡 + 主舞台 */
+.layout.know-2 {
+  grid-template-columns: 92px 1fr;
+}
+.layout.know-3 {
+  grid-template-columns: 92px 196px 1fr;
+}
+
+/* 列1 · 一级 rail */
+.news-rail {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+}
+.nrail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.nrail-item {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 10px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.14s ease;
+}
+.nrail-item:hover {
+  color: var(--text);
+}
+.nrail-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+.nrail-pill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent-weak);
+  border-radius: 9px;
+  z-index: 0;
+}
+.nrail-label {
+  position: relative;
+  z-index: 1;
+}
+.nrail-refresh {
+  margin-top: auto;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 7px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.nrail-refresh:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nrail-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.nrail-note {
+  font-size: 0.68rem;
+  text-align: center;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* 列2 · 二级卡片 */
+.news-sub {
+  padding: 12px 10px;
+}
+.nsub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nsub-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.nsub-row:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nsub-row.active {
+  background: var(--surface-2);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nsub-n {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.nsub-row.active .nsub-n {
+  color: var(--accent);
+}
+.nsub-empty {
+  padding: 10px;
+  font-size: 0.8rem;
+}
 /* 左栏拖拽手柄：盖在 panel 右缘上，hover/拖拽时显出陶土细线 */
 .resize-handle {
   position: absolute;

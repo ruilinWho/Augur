@@ -23,9 +23,11 @@ router = APIRouter(prefix="/news", tags=["news"])
 
 
 @router.get("/feed", response_model=list[NewsItem])
-async def feed(limit: int = 60, theme: str | None = None) -> list[dict]:
-    """最近新闻条目（可按 theme=ai/chips/robotics/space/... 过滤）。"""
-    return await run_in_threadpool(service.recent_items, limit, theme)
+async def feed(
+    limit: int = 60, theme: str | None = None, source_prefix: str | None = None
+) -> list[dict]:
+    """最近新闻条目（可按 theme=ai/chips/... 过滤；source_prefix='X·' 取推特源）。"""
+    return await run_in_threadpool(service.recent_items, limit, theme, source_prefix)
 
 
 @router.post("/refresh", response_model=RefreshResult)

@@ -94,6 +94,7 @@
 - ✅ **个股相关新闻接 API + LLM 清洗**：`ticker_news.py`（yfinance `.news` 逐 ticker，四市场）∪ 聚合流按名匹配，再经 cheap LLM **清洗**（`stock_news_clean.md`：去标题党/无关、译非中文、去重，缓存 1h）。真机验证 NVDA 5 条全中文、去重、无标题党。
 - ✅ **前端打磨（主人反馈）**：① 看·K 线下方模块（财报/相关资讯/判断日记）**可拖拽重排**（dnd-kit + 持久化 `kanOrder`，手柄顶部居中 hover 浮现，仅手柄可拖、模块内交互不受影响）；② 移除「官方文件·SEC」UI 段（一般不看；`edgar.py` 后端保留）；③ **设置页重做为卡片网格**（填满舞台宽度、按钮内联，修「没拉伸/按钮换行/不美观」）。真机验证、零控制台错。
 - ✅ **免费中文科技源接入**：`cls.py`（财联社科创电报 `depth/assembled/1111`，sign=MD5(SHA1(sorted_qs))、appName=CailianpressWeb；旧 nodeapi 路径已死）+ `eastmoney_news.py`（东财 `search-api-web` JSONP，按 人工智能/半导体/算力/机器人/大模型/芯片 关键词检索）。非 RSS 适配器并发并入 `ingest_all`，`source` 名（财联社/东方财富）经 `_prune_removed_sources` **豁免**（否则不在 feeds.yaml 会被误删）；复用 classify + 噪音过滤、中文免翻。真机验证：财联社 25 + 东财 42 条、二次 ingest 不被 prune 删。
+- ✅ **「知」两列纵向导航重构（主人驱动）**：左栏改为 **Miller 两列**——列1 一级 rail（总览/日报/新闻/推特/机会，motion 选中 pill），选中后列2 弹出二级卡（**日报→按天 · 新闻→主题 · 推特→账号分类**；**总览/机会无二级**，layout 2 列）。主舞台按 (一级,二级) 路由到子视图：总览=日报+机会+要闻、日报=某天 digest、新闻=主题要闻流、推特=X 源按账号分类流、机会=机会卡。`features/news/{NewsNav,consts,shared,KnowView}.tsx` + store 改 `primary/secondary`；`.layout.know-2/know-3` grid。后端 `/news/feed` 加 `theme` + `source_prefix`（'X·' 取推特源）。tsc+build+ruff 全过。
 - ⚪ 华尔街见闻-tmt 焦点科技 lane、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、按**自选分区**聚合、信源健康度。
 
 ## M4 · 原生打包 + 打磨 ⚪

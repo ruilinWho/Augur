@@ -77,8 +77,13 @@ def refresh() -> dict:
     return result
 
 
-def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:
-    """最近条目（按发布时间倒序，缺发布时间用抓取时间兜底）。可按 theme 过滤。"""
+def recent_items(
+    limit: int = 60, theme: str | None = None, source_prefix: str | None = None
+) -> list[dict]:
+    """最近条目（按发布时间倒序，缺发布时间用抓取时间兜底）。可按 theme / source 前缀过滤。
+
+    source_prefix 供「推特」视图取 X·<handle> 源（传 "X·"）。
+    """
     conn = get_conn()
     try:
         # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
@@ -87,6 +92,9 @@ def recent_items(limit: int = 60, theme: str | None = None) -> list[dict]:
         if theme:
             sql += " AND theme = ?"
             args.append(theme)
+        if source_prefix:
+            sql += " AND source LIKE ?"
+            args.append(f"{source_prefix}%")
         sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
         args.append(limit)
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]

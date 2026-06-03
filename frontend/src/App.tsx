@@ -28,8 +28,10 @@ import KLineView from './features/kline/KLineView'
 import FinancialsPanel from './features/analysis/FinancialsPanel'
 import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
-import NewsListPanel from './features/news/NewsListPanel'
+import NewsNav from './features/news/NewsNav'
 import KnowView from './features/news/KnowView'
+import { useNews } from './features/news/store'
+import { PRIMARIES } from './features/news/consts'
 import StockNews from './features/news/StockNews'
 import ResearchView from './features/research/ResearchView'
 
@@ -191,7 +193,13 @@ export default function App() {
   const view = useUI((s) => s.view)
   const setView = useUI((s) => s.setView)
   const selectedSymbol = useUI((s) => s.selectedSymbol)
+  const newsPrimary = useNews((s) => s.primary)
   const { theme, textBase, leading, displayFont, convention, panelW } = useUI()
+
+  // 「知」用两列纵向导航（rail + 条件二级卡）；无二级时 2 列，有二级 3 列
+  const newsHasSub = view === 'zhi' && (PRIMARIES.find((p) => p.id === newsPrimary)?.hasSub ?? false)
+  const layoutClass =
+    view === 'zhi' ? `layout ${newsHasSub ? 'know-3' : 'know-2'}` : 'layout'
 
   useEffect(() => {
     const el = document.documentElement
@@ -242,16 +250,20 @@ export default function App() {
         </button>
       </header>
 
-      <div className="layout">
+      <div className={layoutClass}>
         {view === 'kan' || view === 'yan' ? (
-          <WatchlistPanel />
+          <>
+            <WatchlistPanel />
+            <ResizeHandle />
+          </>
         ) : view === 'zhi' ? (
-          <NewsListPanel />
+          <NewsNav />
         ) : (
-          <SettingsNav />
+          <>
+            <SettingsNav />
+            <ResizeHandle />
+          </>
         )}
-
-        <ResizeHandle />
 
         <main className="stage">
           {/* 视图切换：keyed motion.div 只做进场动画。刻意不用 AnimatePresence——

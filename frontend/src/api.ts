@@ -525,15 +525,17 @@ export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
 export type Filing = z.infer<typeof filingSchema>
 
-export function useNewsFeed(limit = 60, category?: string) {
+export function useNewsFeed(limit = 60, opts?: { theme?: string; sourcePrefix?: string }) {
+  const theme = opts?.theme
+  const sp = opts?.sourcePrefix
   return useQuery({
-    queryKey: ['news-feed', limit, category ?? 'all'],
-    queryFn: async () =>
-      z
-        .array(newsItemSchema)
-        .parse(
-          await getJSON(`/news/feed?limit=${limit}${category ? `&category=${category}` : ''}`),
-        ),
+    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? ''],
+    queryFn: async () => {
+      const q = new URLSearchParams({ limit: String(limit) })
+      if (theme) q.set('theme', theme)
+      if (sp) q.set('source_prefix', sp)
+      return z.array(newsItemSchema).parse(await getJSON(`/news/feed?${q.toString()}`))
+    },
     staleTime: 5 * 60_000,
   })
 }
