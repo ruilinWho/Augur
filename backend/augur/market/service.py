@@ -11,7 +11,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from ..storage import cache
-from . import eastmoney_hk, search
+from . import hk_backfill, search
 from .resolver import get_adapter
 from .symbols import Symbol
 
@@ -38,11 +38,11 @@ def _fetch_daily(sym: Symbol) -> tuple[pd.DataFrame, str, bool]:
         recently = now - _refresh_ts.get(sym.canonical, 0.0) < _REFRESH_TTL_SEC
         # 港股缓存异常稀疏（回收代码 FDR 只吐 1 根）→ 东财回填（带 TTL，不狂打）
         if sym.market == "HK" and len(cached) < _HK_THIN_ROWS and not recently:
-            fb = eastmoney_hk.hk_history(sym.code)
+            fb = hk_backfill.hk_history(sym.code)
             _refresh_ts[sym.canonical] = now
             if fb is not None and len(fb) > len(cached):
                 cache.save(sym.market, sym.code, "1d", fb)
-                return fb, "eastmoney", False
+                return fb, "hk_backfill", False
         # 近期刚回源过，或已是最新交易日 → 直接用缓存，不打数据源
         last = cached.index.max().date()
         if recently or last >= today - timedelta(days=1):
@@ -62,9 +62,9 @@ def _fetch_daily(sym: Symbol) -> tuple[pd.DataFrame, str, bool]:
     _refresh_ts[sym.canonical] = now
     # 港股首取若过于稀疏 → 东财兜底（修回收代码历史损坏）
     if sym.market == "HK" and (df is None or len(df) < _HK_THIN_ROWS):
-        fb = eastmoney_hk.hk_history(sym.code)
+        fb = hk_backfill.hk_history(sym.code)
         if fb is not None and (df is None or len(fb) > len(df)):
-            df, source = fb, "eastmoney"
+            df, source = fb, "hk_backfill"
     if df is not None and not df.empty:
         cache.save(sym.market, sym.code, "1d", df)
     return df, source, False
