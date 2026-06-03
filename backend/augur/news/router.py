@@ -64,6 +64,38 @@ async def official(symbol: str, limit: int = 15) -> list[dict]:
     return await run_in_threadpool(service.stock_official, symbol, limit)
 
 
+# ───────── 个股：定向抓取 lane + 标的叙事时间线（知·个股）─────────
+@router.post("/directed/refresh")
+async def directed_refresh(symbol: str | None = None) -> dict:
+    """自选股定向抓取（按 ticker 直取该公司新闻、落库挂钩）。symbol 省略=全部自选。"""
+    syms = [symbol] if symbol else None
+    return await run_in_threadpool(service.refresh_directed, syms)
+
+
+@router.get("/stock", response_model=list[NewsItem])
+async def stock_feed(symbol: str, days: int = 0, limit: int = 60) -> list[dict]:
+    """某自选股持久化挂钩的新闻流（定向 lane ∪ 聚合挂钩），时间倒序。"""
+    return await run_in_threadpool(service.items_for_symbol, symbol, days, limit)
+
+
+@router.get("/narrative")
+async def narrative(symbol: str) -> dict:
+    """某股已生成的叙事（当前主线 + 时间线）；暂无 → 404。"""
+    data = await run_in_threadpool(service.get_narrative, symbol)
+    if data is None:
+        raise HTTPException(status_code=404, detail="暂无叙事")
+    return data
+
+
+@router.post("/narrative/generate")
+async def narrative_generate(symbol: str) -> dict:
+    """生成/重生成某股叙事（LLM 融合定向抓取的近况）。"""
+    try:
+        return await run_in_threadpool(service.generate_narrative, symbol)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.get("/reports", response_model=list[ReportMeta])
 async def reports(limit: int = 30) -> list[dict]:
     """日报列表（按日期倒序，带预览）。"""

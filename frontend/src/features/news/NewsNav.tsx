@@ -1,7 +1,22 @@
+import { useMemo } from 'react'
 import { motion } from 'motion/react'
-import { useNewsReports, useRefreshNews } from '../../api'
+import { useNewsReports, useQuote, useRefreshNews, useSections, type Section } from '../../api'
 import { useNews } from './store'
 import { PRIMARIES, THEMES, TW_CATS } from './consts'
+
+// 自选分区树 → 去重 symbol 列表（保持分区顺序）
+function flattenSymbols(sections: Section[]): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const walk = (s: Section) => {
+    for (const it of s.items) if (!seen.has(it.symbol)) (seen.add(it.symbol), out.push(it.symbol))
+    s.children.forEach(walk)
+  }
+  sections.forEach(walk)
+  return out
+}
+
+const MKT_BADGE: Record<string, string> = { US: '美', HK: '港', CN: 'A', KR: '韩' }
 
 const fmtDay = (d: string) => {
   const [, m, day] = d.split('-')
@@ -55,7 +70,45 @@ function KeySub({ opts }: { opts: { key: string; label: string }[] }) {
   )
 }
 
-const SUB_TITLE: Record<string, string> = { digest: '按天', news: '主题', twitter: '账号' }
+// 列2 · 个股（自选股列表，选中→主舞台看叙事）
+function StockSubRow({ symbol, active, onClick }: { symbol: string; active: boolean; onClick: () => void }) {
+  const q = useQuote(symbol)
+  const [mkt, code] = symbol.split(':')
+  return (
+    <button className={`nsub-row ${active ? 'active' : ''}`} onClick={onClick}>
+      <span className="nsub-main">{q.data?.name || code}</span>
+      <span className="nsub-badge">{MKT_BADGE[mkt] ?? mkt}</span>
+    </button>
+  )
+}
+
+function StocksSub() {
+  const sections = useSections('ALL')
+  const secondary = useNews((s) => s.secondary)
+  const setSecondary = useNews((s) => s.setSecondary)
+  const syms = useMemo(() => flattenSymbols(sections.data ?? []), [sections.data])
+  if (sections.isLoading) return <div className="nsub-row faint">加载…</div>
+  if (!syms.length) return <div className="nsub-empty faint">先在「看」里自选标的</div>
+  return (
+    <div className="nsub-list">
+      {syms.map((sym) => (
+        <StockSubRow
+          key={sym}
+          symbol={sym}
+          active={secondary === sym}
+          onClick={() => setSecondary(sym)}
+        />
+      ))}
+    </div>
+  )
+}
+
+const SUB_TITLE: Record<string, string> = {
+  stocks: '标的',
+  digest: '按天',
+  news: '主题',
+  twitter: '账号',
+}
 
 export default function NewsNav() {
   const primary = useNews((s) => s.primary)
@@ -94,6 +147,7 @@ export default function NewsNav() {
       {hasSub && (
         <aside className="panel news-sub">
           <div className="lbl">{SUB_TITLE[primary] ?? ''}</div>
+          {primary === 'stocks' && <StocksSub />}
           {primary === 'digest' && <DigestSub />}
           {primary === 'news' && <KeySub opts={THEMES} />}
           {primary === 'twitter' && <KeySub opts={TW_CATS} />}

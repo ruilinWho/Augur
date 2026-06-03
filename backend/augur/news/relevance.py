@@ -40,7 +40,7 @@ def _select_pending(limit: int) -> list[tuple[int, str, str, str]]:
     try:
         rows = conn.execute(
             "SELECT id, COALESCE(NULLIF(title_zh, ''), title) AS t, source, theme "
-            "FROM news_items WHERE relevance = 0 "
+            "FROM news_items WHERE relevance = 0 AND lane = 'feed' "
             "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
             (limit,),
         ).fetchall()

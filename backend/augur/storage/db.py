@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS news_items (
     classified_by TEXT   NOT NULL DEFAULT '',         -- ''=未分类 / rule / llm
     title_zh     TEXT,                                -- 中文标题（cheap 翻译缓存；NULL=未翻）
     relevance    INTEGER NOT NULL DEFAULT 0,  -- 0未判/1保留/2丢弃 见 relevance.py
-    linked       INTEGER NOT NULL DEFAULT 0   -- 0未挂钩/1已挂钩 ticker 见 linker.py
+    linked       INTEGER NOT NULL DEFAULT 0,  -- 0未挂钩/1已挂钩 ticker 见 linker.py
+    lane         TEXT    NOT NULL DEFAULT 'feed'  -- feed=RSS聚合流 / ticker=自选股定向抓取
 );
 
 -- 新闻↔标的挂钩（每条新闻确定性接地到 MARKET:CODE）——三支柱融合地基（linker.py）
@@ -131,6 +132,18 @@ CREATE TABLE IF NOT EXISTS news_clusters (
     UNIQUE(report_date, theme)
 );
 
+-- 标的叙事时间线（M3「知·个股」）：LLM 把某股定向抓取的新闻融成「当前主线 + 时间线」，
+-- 一股一份（重生成覆盖）。区别于 research_reports（深度研究）——这是轻量、增量的「在发生什么」。
+CREATE TABLE IF NOT EXISTS stock_narratives (
+    symbol      TEXT    PRIMARY KEY,            -- MARKET:CODE
+    name        TEXT    NOT NULL DEFAULT '',
+    summary     TEXT    NOT NULL DEFAULT '',     -- 当前主线（一段中文综述）
+    timeline    TEXT    NOT NULL DEFAULT '[]',   -- JSON：[{date,title,importance,refs[]}]
+    model       TEXT    NOT NULL DEFAULT '',
+    item_count  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
 CREATE TABLE IF NOT EXISTS research_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -164,6 +177,7 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "title_zh", "TEXT"),
     ("news_items", "relevance", "INTEGER NOT NULL DEFAULT 0"),
     ("news_items", "linked", "INTEGER NOT NULL DEFAULT 0"),
+    ("news_items", "lane", "TEXT NOT NULL DEFAULT 'feed'"),
 ]
 
 
@@ -174,6 +188,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
     # 新列上的索引须在补列之后建（不能放进 SCHEMA：已存在的表 executescript 时还没这列）
     conn.execute("CREATE INDEX IF NOT EXISTS idx_news_theme ON news_items(theme)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_news_lane ON news_items(lane)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_nis_symbol ON news_item_symbols(symbol)")
     conn.commit()
 

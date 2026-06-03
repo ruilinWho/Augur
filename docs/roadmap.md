@@ -101,7 +101,9 @@
 - 🟡 **「知」融合主线 + 速赢（主人拍板，6 视角头脑风暴 57 点子合成的菜单 → 选定「融合主线+速赢组合」分批落地）**：
   - ✅ **① Ticker 挂钩层（底座）**：`news_item_symbols(news_id,symbol,name,confidence,matched_by)` + `linker.py`——**零幻觉**只用自选股的 中文名/英文名首词/代码 对标题(含中文译题)做词边界/子串命中，不调 LLM；`linked` 列增量幂等、`relink_all` 重挂、`attach_symbols` 给 feed 批量挂股。并入 `refresh`+scheduler。`POST /news/relink`。前端 feed 每条带**可点 ticker chip → 跳「看」**(看×知融合)。实测：2583 条→244 挂钩/8s、零 LLM，NVDA 105/MSFT 50/RKLB 32，feed 11/120 带股。这是分区日报/个股时间线/K线锚点/影响链/预期差等的共同前置。
   - ✅ **② 信源健康度**：`source_health` 表 + `ingest_all` 记录每源成败/条数/最近成功时间；`GET /news/source-health`（纯统计无 LLM）。前端展示待补。
-  - ⚪ **队列中**：自选股驱动定向抓取 lane（遍历 watchlist 主动搜每股 雅虎/EDGAR/X 灌入主流并挂钩，补齐新上市票名字不在列表的盲区）、标的叙事时间线（增量融合）、Top3 极简晨读、机会卡直通「研」、「自上次以来」增量 Diff 日报。
+  - ✅ **③ 自选股驱动定向抓取 lane（`directed.py`）**：对每只自选股按 ticker 直取雅虎逐-ticker 新闻、落库 `lane='ticker'` 并**确定性挂钩**（`matched_by='targeted'`，零幻觉）——补齐新上市/冷门票（CRWV/NBIS/ALAB）名字不在本地目录的盲区。新增 `news_items.lane` 列：`feed`（RSS 策展流）/`ticker`（定向）；全局流/日报/要点/翻译/相关性判定**只扫 `lane='feed'`**，prune 豁免定向源——28 只股不淹没宏观流。`POST /news/directed/refresh`、并入 scheduler 每日。
+  - ✅ **④ 标的叙事时间线（`stock_narratives` + `service.generate_narrative`）**：把某股近 45 天挂钩资讯（定向 ∪ 名字挂钩聚合）喂 summarize → JSON `{summary 当前主线, timeline:[{date,title,importance,refs[]}]}`，事件提炼合并、refs 接真实条目、防幻觉。`GET /news/narrative`、`POST /news/narrative/generate`、`GET /news/stock`。前端**「知」新增一级「个股」**（二级=自选股列表，主舞台=综述 + 左轴时间线 + 抓取/重生成 + 资讯流）。真机 US:CRWV：主线 + 3 事件，refs 混合 Simply Wall St.(定向)＋Bloomberg·科技(挂钩)。
+  - ⚪ **队列中**：Top3 极简晨读、机会卡直通「研」、「自上次以来」增量 Diff 日报。
   - 测试自选库（28 个 US ticker：NVDA/MU/RMBS/CRDO/ALAB/SNDK + 光通信 LITE/CIEN/COHR/CLS + 航天 ASTS/RKLB/RDW/PL + AI云 ORCL/CRWV/NBIS/PLTR/GOOG/META/MSFT/AMZN + SOFI/HOOD + TSLA/AAPL + HIMS + QQQ，两级分区）已入本地库模拟真实环境。
 - ⚪ 华尔街见闻-tmt 焦点科技 lane、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、信源健康度前端。
 

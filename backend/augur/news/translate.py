@@ -38,7 +38,7 @@ def _passthrough_zh() -> int:
     try:
         cur = conn.execute(
             "UPDATE news_items SET title_zh = title "
-            "WHERE title_zh IS NULL AND lang = 'zh'"
+            "WHERE title_zh IS NULL AND lang = 'zh' AND lane = 'feed'"
         )
         conn.commit()
         return cur.rowcount
@@ -52,6 +52,7 @@ def _select_pending(limit: int) -> list[tuple[int, str]]:
         # 与 feed 同序（按发布时间）：让用户最先看到的条目最先被翻译
         rows = conn.execute(
             "SELECT id, title FROM news_items WHERE title_zh IS NULL AND lang != 'zh' "
+            "AND lane = 'feed' "
             "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
             (limit,),
         ).fetchall()

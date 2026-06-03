@@ -749,6 +749,88 @@ export function useGenerateClusters() {
   })
 }
 
+// ── 个股：定向抓取 lane + 标的叙事时间线（知·个股）──
+const narrativeRefSchema = z.object({
+  source: z.string().default(''),
+  title: z.string().default(''),
+  url: z.string().default(''),
+})
+const narrativeEventSchema = z.object({
+  date: z.string().default(''),
+  title: z.string().default(''),
+  importance: z.string().default('med'),
+  refs: z.array(narrativeRefSchema).default([]),
+})
+const narrativeSchema = z.object({
+  symbol: z.string(),
+  name: z.string().default(''),
+  summary: z.string().default(''),
+  timeline: z.array(narrativeEventSchema).default([]),
+  model: z.string().default(''),
+  item_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+})
+export type StockNarrative = z.infer<typeof narrativeSchema>
+export type NarrativeEvent = z.infer<typeof narrativeEventSchema>
+
+export function useNarrative(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['narrative', symbol],
+    queryFn: async () => {
+      try {
+        return narrativeSchema.parse(
+          await getJSON(`/news/narrative?symbol=${encodeURIComponent(symbol!)}`),
+        )
+      } catch (e) {
+        if ((e as Error).message.includes('暂无')) return null // 未生成 → null（非错误）
+        throw e
+      }
+    },
+  })
+}
+
+export function useGenerateNarrative() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (symbol: string) =>
+      narrativeSchema.parse(
+        await send(`/news/narrative/generate?symbol=${encodeURIComponent(symbol)}`, 'POST'),
+      ),
+    onSuccess: (_d, symbol) => {
+      qc.invalidateQueries({ queryKey: ['narrative', symbol] })
+      qc.invalidateQueries({ queryKey: ['stock-news', symbol] })
+    },
+  })
+}
+
+export function useRefreshDirected() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (symbol?: string) =>
+      send(`/news/directed/refresh${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`, 'POST'),
+    onSuccess: (_d, symbol) => {
+      if (symbol) qc.invalidateQueries({ queryKey: ['stock-news', symbol] })
+    },
+  })
+}
+
+export function useStockNews(symbol: string | null, days = 0) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['stock-news', symbol, days],
+    queryFn: async () =>
+      z
+        .array(newsItemSchema)
+        .parse(
+          await getJSON(
+            `/news/stock?symbol=${encodeURIComponent(symbol!)}&days=${days}&limit=80`,
+          ),
+        ),
+    staleTime: 5 * 60_000,
+  })
+}
+
 // 生成趋势日报（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
 export async function streamReport(
   date: string | null,

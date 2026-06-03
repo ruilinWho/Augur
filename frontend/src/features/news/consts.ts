@@ -3,6 +3,7 @@ import type { NewsPrimary } from './store'
 // 一级分类（列1）。hasSub=是否有二级卡片（列2）。
 export const PRIMARIES: { id: NewsPrimary; label: string; hasSub: boolean }[] = [
   { id: 'overview', label: '总览', hasSub: false },
+  { id: 'stocks', label: '个股', hasSub: true },
   { id: 'digest', label: '日报', hasSub: true },
   { id: 'news', label: '新闻', hasSub: true },
   { id: 'twitter', label: '推特', hasSub: true },

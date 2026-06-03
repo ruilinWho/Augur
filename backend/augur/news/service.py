@@ -18,7 +18,7 @@ from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
 from ..watchlist import service as wl
-from . import edgar, ingest, linker, relevance, ticker_news, translate
+from . import directed, edgar, ingest, linker, relevance, ticker_news, translate
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -95,7 +95,8 @@ def recent_items(
     conn = get_conn()
     try:
         # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
-        sql = "SELECT * FROM news_items WHERE relevance != 2"
+        # lane='feed'：全局流只含 RSS 策展源，定向抓取（lane='ticker'）只服务个股视图
+        sql = "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed'"
         args: list = []
         if theme:
             sql += " AND theme = ?"
@@ -152,7 +153,7 @@ def items_for_window(
     conn = get_conn()
     try:
         sql = (
-            "SELECT * FROM news_items WHERE relevance != 2 "
+            "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed' "
             "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
             "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
         )
@@ -178,7 +179,7 @@ def items_for_day(day: str | None = None, theme: str | None = None) -> list[dict
     conn = get_conn()
     try:
         sql = (
-            "SELECT * FROM news_items WHERE relevance != 2 "
+            "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed' "
             "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
             "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
         )
@@ -190,6 +191,36 @@ def items_for_day(day: str | None = None, theme: str | None = None) -> list[dict
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
     finally:
         conn.close()
+
+
+def items_for_symbol(symbol: str, days: int = 0, limit: int = 60) -> list[dict]:
+    """某自选股**持久化挂钩**的新闻流（定向 lane ∪ 任何挂到它的聚合条目），时间倒序。
+
+    供个股「标的叙事」与个股新闻流。不按 relevance 过滤——主人主动跟踪的票，全给他看。
+    days>0 限近 N 天（日对齐，主人时区）。
+    """
+    conn = get_conn()
+    try:
+        sql = (
+            "SELECT ni.* FROM news_items ni "
+            "JOIN news_item_symbols nis ON nis.news_id = ni.id "
+            "WHERE nis.symbol = ?"
+        )
+        args: list = [symbol]
+        if days and days > 0:
+            lo, _ = _window_bounds_utc(days)
+            sql += " AND datetime(COALESCE(ni.published_at, ni.fetched_at)) >= datetime(?)"
+            args.append(lo)
+        sql += " ORDER BY COALESCE(ni.published_at, ni.fetched_at) DESC LIMIT ?"
+        args.append(limit)
+        return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
+    finally:
+        conn.close()
+
+
+def refresh_directed(symbols: list[str] | None = None) -> dict:
+    """触发自选股定向抓取（薄封装 directed lane）。"""
+    return directed.refresh_watchlist(symbols)
 
 
 def _stock_terms(symbol: str) -> list[str]:
@@ -651,6 +682,123 @@ def generate_opportunities(report_date: str | None = None, role: str = "summariz
         "item_count": len(items),
         "created_at": None,
         "opportunities": [],
+    }
+
+
+# ───────────────────────── 标的叙事时间线（个股，融合定向抓取 + 申报）─────────────────────────
+
+
+def _save_narrative(
+    symbol: str, name: str, summary: str, timeline: list[dict], model: str, n: int
+) -> None:
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO stock_narratives (symbol, name, summary, timeline, model, item_count) "
+            "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(symbol) DO UPDATE SET "
+            "name=excluded.name, summary=excluded.summary, timeline=excluded.timeline, "
+            "model=excluded.model, item_count=excluded.item_count, created_at=datetime('now')",
+            (symbol, name, summary, json.dumps(timeline, ensure_ascii=False), model, n),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_narrative(symbol: str) -> dict | None:
+    """取某股已生成的叙事；无 → None。"""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM stock_narratives WHERE symbol = ?", (symbol,)
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "symbol": row["symbol"],
+            "name": row["name"],
+            "summary": row["summary"],
+            "timeline": json.loads(row["timeline"] or "[]"),
+            "model": row["model"],
+            "item_count": row["item_count"],
+            "created_at": row["created_at"],
+        }
+    finally:
+        conn.close()
+
+
+def generate_narrative(symbol: str, role: str = "summarize") -> dict:
+    """把某股近况（定向抓取 ∪ 挂钩聚合条目）融成「当前主线 + 时间线」。落库覆盖。
+
+    若该股暂无挂钩资讯 → 先触发一次定向抓取再读。仍无 → ValueError。
+    """
+    items = items_for_symbol(symbol, days=45, limit=80)
+    if not items:
+        try:
+            directed.refresh_watchlist([symbol])  # 现抓一次该股
+        except Exception:  # noqa: BLE001
+            pass
+        items = items_for_symbol(symbol, days=45, limit=80)
+    if not items:
+        raise ValueError("该标的暂无可用资讯（试试右上「↻ 抓取最新」或在「看」里确认已自选）")
+    # 叙事需要日期建时间线 → 用带日期的条目块（[n] (YYYY-MM-DD) [source] 标题）
+    by_n: dict[int, dict] = {}
+    lines: list[str] = []
+    for n, it in enumerate(items, start=1):
+        by_n[n] = it
+        day = (it.get("published_at") or it.get("fetched_at") or "")[:10]
+        title = it.get("title_zh") or it["title"]
+        lines.append(f"[{n}] ({day or '日期不详'}) [{it['source']}] {title}")
+    block = "\n".join(lines)
+    name = search.display_name(symbol)
+    prompt = (
+        _load_prompt("stock_narrative")
+        .replace("{{NAME}}", name)
+        .replace("{{SYMBOL}}", symbol)
+        .replace("{{ITEMS}}", block)
+    )
+    _, model = gateway.resolve_role(role)
+    raw = gateway.complete(
+        [{"role": "user", "content": prompt}],
+        role=role,
+        response_format={"type": "json_object"},
+    )
+    data = _parse_json_lenient(raw)
+    summary = (data.get("summary") if isinstance(data, dict) else "") or ""
+    timeline: list[dict] = []
+    for ev in (data.get("timeline") or [])[:20] if isinstance(data, dict) else []:
+        refs: list[dict] = []
+        seen: set[int] = set()
+        for nv in ev.get("refs") or []:
+            key = int(nv) if isinstance(nv, int) or (isinstance(nv, str) and nv.isdigit()) else None
+            it = by_n.get(key) if key is not None else None
+            if it and it["id"] not in seen:
+                seen.add(it["id"])
+                refs.append(
+                    {
+                        "source": it["source"],
+                        "title": it.get("title_zh") or it["title"],
+                        "url": it["url"],
+                    }
+                )
+        imp = ev.get("importance", "med")
+        timeline.append(
+            {
+                "date": (ev.get("date") or "")[:10],
+                "title": (ev.get("title") or "")[:200],
+                "importance": imp if imp in _IMP_ORDER else "med",
+                "refs": refs,
+            }
+        )
+    _save_narrative(symbol, name, summary.strip()[:600], timeline, model, len(items))
+    return get_narrative(symbol) or {
+        "symbol": symbol,
+        "name": name,
+        "summary": "",
+        "timeline": [],
+        "model": model,
+        "item_count": len(items),
+        "created_at": None,
     }
 
 

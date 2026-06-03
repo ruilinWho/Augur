@@ -551,6 +551,127 @@ button {
   padding: 10px;
   font-size: 0.8rem;
 }
+.nsub-main {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nsub-badge {
+  flex: none;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 4px;
+  line-height: 1.55;
+}
+.nsub-row.active .nsub-badge {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 知·个股：标的叙事（当前主线 + 时间线）*/
+.narr-sub {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  font-weight: 400;
+}
+.narr-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.narr-summary {
+  margin-top: 4px;
+  padding: 13px 16px 13px 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  font-size: 0.93rem;
+  line-height: 1.72;
+  color: var(--text);
+}
+.narr-timeline {
+  position: relative;
+  margin-top: 16px;
+  padding-left: 18px;
+}
+.narr-timeline::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--border);
+}
+.narr-ev {
+  position: relative;
+  padding-bottom: 16px;
+}
+.narr-ev::before {
+  content: '';
+  position: absolute;
+  left: -17px;
+  top: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.narr-ev-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.narr-date {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.narr-ev-title {
+  flex: 1 1 60%;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.5;
+}
+.narr-refs {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.narr-ref {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  text-decoration: none;
+  padding: 2px 0;
+}
+.narr-ref-src {
+  flex: none;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.narr-ref-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+}
+.narr-ref:hover .narr-ref-title {
+  color: var(--accent);
+}
 
 /* 新闻：时间范围 + 时间线/要点切换 + 要点卡片 */
 .know-segs {

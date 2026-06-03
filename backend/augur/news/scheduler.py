@@ -25,6 +25,11 @@ def _daily_job() -> None:
         log.info("news ingest: %s", res)
     except Exception:  # noqa: BLE001
         log.exception("news ingest failed")
+    try:
+        dres = service.refresh_directed()  # 自选股定向抓取（按 ticker 直取，喂个股叙事）
+        log.info("directed fetch: %s", dres)
+    except Exception:  # noqa: BLE001
+        log.exception("directed fetch failed")
     # 仅当 summarize 角色就绪时才生成日报（未配置 LLM → 静默跳过，不报错）
     try:
         gateway.check_ready("summarize")

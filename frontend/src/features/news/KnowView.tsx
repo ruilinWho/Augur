@@ -5,8 +5,13 @@ import {
   streamReport,
   useClusters,
   useGenerateClusters,
+  useGenerateNarrative,
+  useNarrative,
   useNewsFeed,
   useNewsReport,
+  useQuote,
+  useRefreshDirected,
+  useStockNews,
   type ClusterParams,
   type NewsCluster,
 } from '../../api'
@@ -254,6 +259,104 @@ function TwitterView() {
   )
 }
 
+// ── 个股：标的叙事时间线（融合定向抓取 + 申报）──
+function StockNarrative({ symbol }: { symbol: string }) {
+  const nar = useNarrative(symbol)
+  const gen = useGenerateNarrative()
+  const fetchD = useRefreshDirected()
+  const news = useStockNews(symbol, 0)
+  const q = useQuote(symbol)
+  const [mkt, code] = symbol.split(':')
+  const data = nar.data
+  return (
+    <div className="know">
+      <div className="know-head">
+        <h2>
+          {q.data?.name || code} <span className="narr-sub">{code} · {mkt}</span>
+        </h2>
+        <div className="narr-actions">
+          <button className="btn jsm" disabled={fetchD.isPending} onClick={() => fetchD.mutate(symbol)}>
+            {fetchD.isPending ? '抓取中…' : '↻ 抓取最新'}
+          </button>
+          <button
+            className="btn btn-primary jsm"
+            disabled={gen.isPending}
+            onClick={() => gen.mutate(symbol)}
+          >
+            {gen.isPending ? '融合中…' : data ? '重新生成' : '✨ 生成叙事'}
+          </button>
+        </div>
+      </div>
+      {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
+
+      {gen.isPending ? (
+        <div className="report-card faint">正在融合该股近况、提炼主线与时间线…</div>
+      ) : data ? (
+        <>
+          {data.summary && <div className="narr-summary">{data.summary}</div>}
+          <div className="narr-timeline">
+            {data.timeline.map((ev, i) => {
+              const imp = IMP[ev.importance] ?? IMP.med
+              return (
+                <div className="narr-ev" key={i}>
+                  <div className="narr-ev-head">
+                    <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
+                    {ev.date && <span className="narr-date">{ev.date}</span>}
+                    <span className="narr-ev-title">{ev.title}</span>
+                  </div>
+                  {ev.refs.length > 0 && (
+                    <div className="narr-refs">
+                      {ev.refs.map((r, j) => (
+                        <a key={j} className="narr-ref" href={r.url} target="_blank" rel="noreferrer">
+                          <span className="narr-ref-src">{r.source}</span>
+                          <span className="narr-ref-title">{r.title}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="report-foot faint">融合 {data.item_count} 条资讯 · 非投资建议</div>
+        </>
+      ) : nar.isLoading ? (
+        <div className="report-card faint">加载…</div>
+      ) : (
+        <div className="know-empty">
+          <div className="ke-title">还没有这只股的叙事</div>
+          <div className="faint">点「✨ 生成叙事」让 LLM 融合最近的资讯成主线与时间线</div>
+        </div>
+      )}
+
+      <section className="feed" style={{ marginTop: 18 }}>
+        <div className="sec-head">
+          <h3>资讯流</h3>
+          <span className="feed-count">{news.data?.length ?? 0} 条</span>
+        </div>
+        <FeedGroups
+          items={news.data ?? []}
+          empty={news.isLoading ? '加载…' : '点「↻ 抓取最新」按 ticker 直取该股新闻'}
+        />
+      </section>
+    </div>
+  )
+}
+
+function StockNarrativeView() {
+  const symbol = useNews((s) => s.secondary)
+  if (!symbol)
+    return (
+      <div className="know">
+        <div className="know-empty">
+          <div className="ke-title">从左侧选择一支自选股</div>
+          <div className="faint">看它最近在发生什么——LLM 融合的主线与时间线</div>
+        </div>
+      </div>
+    )
+  return <StockNarrative key={symbol} symbol={symbol} />
+}
+
 // ── 机会 ──
 function OppsView() {
   return (
@@ -275,6 +378,7 @@ export default function KnowView() {
       style={{ minHeight: '100%' }}
     >
       {primary === 'overview' && <OverviewView />}
+      {primary === 'stocks' && <StockNarrativeView />}
       {primary === 'digest' && <DigestView />}
       {primary === 'news' && <FeedView />}
       {primary === 'twitter' && <TwitterView />}
