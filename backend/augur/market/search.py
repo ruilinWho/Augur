@@ -32,11 +32,12 @@ def _norm(s: str) -> str:
 
 
 # 英文公司/证券类型后缀（结尾整词）：Redwire Corp→Redwire、Planet Labs PBC→Planet Labs、
-# Apple Inc.→Apple、Alphabet Inc. Class C→Alphabet。仅作用结尾、需前置空格/逗号 → 不误伤
-# 词内（Costco/Cisco 安全）；CJK 名不含这些词 → 不受影响。展示用清洗名，搜索仍保留原名。
+# Apple Inc.→Apple、Micron Technology→Micron、Credo Technology Group Holding→Credo。
+# 仅作用结尾、需前置空格/逗号 → 不误伤词内（Costco/Cisco、Vishay Intertechnology 安全）；
+# CJK 名不含这些词 → 不受影响。展示用清洗名，搜索仍保留原名（迭代去多重后缀）。
 _CORP_SUFFIX = re.compile(
     r"[\s,]+(?:corp(?:oration)?|inc(?:orporated)?|company|co|limited|ltd|llc|"
-    r"l\.?p\.?|lp|plc|pbc|holdings?|group|n\.?v\.?|s\.?a\.?|ag|se)\.?$",
+    r"l\.?p\.?|lp|plc|pbc|holdings?|group|technolog(?:y|ies)|n\.?v\.?|s\.?a\.?|ag|se)\.?$",
     re.IGNORECASE,
 )
 _SHARE_SUFFIX = re.compile(
