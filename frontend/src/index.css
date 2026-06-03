@@ -3016,6 +3016,151 @@ input:focus:not(:focus-visible) {
   border-color: var(--border);
   color: var(--text-faint);
 }
+/* 拆分胶囊：[• 名字 → 看 | 研 → 研] */
+.opp-chip2 {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface-2);
+  font-size: 0.78rem;
+}
+.opp-chip2.watched {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.opp-chip2 .oc-nm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  padding: 3px 9px 3px 11px;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+.opp-chip2 .oc-nm:hover {
+  color: var(--accent);
+}
+.opp-chip2.watched .oc-nm {
+  color: var(--accent);
+}
+.opp-chip2 .oc-nm .wdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.opp-chip2 .oc-go {
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.opp-chip2.watched .oc-go {
+  border-left-color: color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.opp-chip2 .oc-go:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 总览 · 晨读 Top3（hero 卡）*/
+.brief {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 16px 16px;
+  margin-bottom: 18px;
+}
+.brief-list {
+  list-style: none;
+  margin: 11px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.brief-item {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+.brief-n {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brief-body {
+  flex: 1;
+  min-width: 0;
+}
+.brief-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.brief-head {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.5;
+}
+.brief-why {
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+/* 总览 · 自上次以来 */
+.since {
+  margin-bottom: 18px;
+}
+.since-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 0.84rem;
+}
+.since-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .opp-body {
   padding-top: 11px;
 }

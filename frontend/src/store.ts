@@ -34,9 +34,11 @@ interface UIState {
   kanColClosed: [boolean, boolean, boolean] // 「看」三列是否收起
   kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
   settingsPage: SettingsPage // 「设置」当前页（左栏导航选择，瞬时不持久化）
+  lastSeenNewsAt: string | null // 「知」上次查看时间（ISO，持久化）——用于「自上次以来」增量
 
   setView: (v: View) => void
   select: (s: string) => void
+  research: (s: string) => void // 选标的并直接进「研」（机会卡直通研）
   setMarket: (m: Market) => void
   setTheme: (t: Theme) => void
   setTextBase: (n: number) => void
@@ -50,6 +52,7 @@ interface UIState {
   toggleKanCol: (i: 0 | 1 | 2) => void
   setKanOrder: (o: string[]) => void
   setSettingsPage: (p: SettingsPage) => void
+  markNewsSeen: () => void // 把「自上次以来」基准推到此刻
 }
 
 export const KAN_MODULES = ['financials', 'news', 'journal'] as const
@@ -72,9 +75,11 @@ export const useUI = create<UIState>()(
       kanColClosed: [false, false, false],
       kanOrder: [...KAN_MODULES],
       settingsPage: 'appearance',
+      lastSeenNewsAt: null,
 
       setView: (view) => set({ view }),
       select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
+      research: (selectedSymbol) => set({ selectedSymbol, view: 'yan' }),
       setMarket: (market) => set({ market }),
       setTheme: (theme) => set({ theme }),
       setTextBase: (textBase) => set({ textBase }),
@@ -101,6 +106,7 @@ export const useUI = create<UIState>()(
         }),
       setKanOrder: (kanOrder) => set({ kanOrder }),
       setSettingsPage: (settingsPage) => set({ settingsPage }),
+      markNewsSeen: () => set({ lastSeenNewsAt: new Date().toISOString() }),
     }),
     {
       name: 'augur-ui',
@@ -117,6 +123,7 @@ export const useUI = create<UIState>()(
         kanColW: s.kanColW,
         kanColClosed: s.kanColClosed,
         kanOrder: s.kanOrder,
+        lastSeenNewsAt: s.lastSeenNewsAt,
       }),
     },
   ),

@@ -14,9 +14,10 @@ const CONF: Record<string, { label: string; cls: string }> = {
   low: { label: '低', cls: 'cf-low' },
 }
 
-// 关联标的 chip：已解析→可点（跳去看/研）；已关注→陶土描边+圆点；未解析→灰、不可点
+// 关联标的 chip：已解析→拆分胶囊「名字→看 · 研→深度研究」；已关注→陶土描边+圆点；未解析→灰
 function Chip({ r }: { r: RelatedSymbol }) {
   const select = useUI((s) => s.select)
+  const research = useUI((s) => s.research)
   if (!r.resolved || !r.symbol) {
     return (
       <span className="opp-chip unresolved" title="未能解析到具体上市公司代码">
@@ -24,15 +25,20 @@ function Chip({ r }: { r: RelatedSymbol }) {
       </span>
     )
   }
+  const sym = r.symbol
   return (
-    <button
-      className={`opp-chip ${r.in_watchlist ? 'watched' : ''}`}
-      title={r.in_watchlist ? `已关注 · ${r.sections.join(' / ')}` : r.symbol}
-      onClick={() => select(r.symbol!)}
+    <span
+      className={`opp-chip2 ${r.in_watchlist ? 'watched' : ''}`}
+      title={r.in_watchlist ? `已关注 · ${r.sections.join(' / ')}` : sym}
     >
-      {r.in_watchlist && <span className="wdot" />}
-      {r.name}
-    </button>
+      <button className="oc-nm" onClick={() => select(sym)} title="在「看」里查看 K 线">
+        {r.in_watchlist && <span className="wdot" />}
+        {r.name}
+      </button>
+      <button className="oc-go" onClick={() => research(sym)} title="深度研究这只股">
+        研
+      </button>
+    </span>
   )
 }
 

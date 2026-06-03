@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useUI } from '../../store'
 import {
   streamReport,
   useClusters,
@@ -81,13 +82,107 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
   )
 }
 
-// ── 总览：日报 + 今日机会 + 今日要闻 ──
+// ── 晨读 · 今日要事（Top3）：复用 news@1d 要点的前 3 条，scheduler 每日预生成 ──
+function MorningBrief() {
+  const clusters = useClusters({ days: 1 })
+  const gen = useGenerateClusters()
+  const top = (clusters.data?.clusters ?? []).slice(0, 3)
+  return (
+    <section className="brief">
+      <div className="sec-head">
+        <h3>晨读 · 今日要事</h3>
+        <button className="btn btn-primary jsm" disabled={gen.isPending} onClick={() => gen.mutate({ days: 1 })}>
+          {gen.isPending ? '生成中…' : top.length ? '刷新' : '✨ 生成晨读'}
+        </button>
+      </div>
+      {gen.isPending ? (
+        <div className="opp-empty faint">正在挑出今天最要紧的几件事…</div>
+      ) : top.length ? (
+        <ol className="brief-list">
+          {top.map((c, i) => {
+            const imp = IMP[c.importance] ?? IMP.med
+            return (
+              <li className="brief-item" key={i}>
+                <span className="brief-n">{i + 1}</span>
+                <div className="brief-body">
+                  <div className="brief-line">
+                    <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
+                    <span className="brief-head">{c.headline}</span>
+                  </div>
+                  {c.why && <div className="brief-why">{c.why}</div>}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      ) : clusters.isLoading ? (
+        <div className="report-card faint">加载…</div>
+      ) : (
+        <div className="opp-empty faint">点「生成晨读」，从今日新闻里挑出最要紧的 3 件事。</div>
+      )}
+    </section>
+  )
+}
+
+// ── 自上次以来：自打卡基准以来发布的新条目（确定性、零成本）──
+function SinceLast() {
+  const lastSeen = useUI((s) => s.lastSeenNewsAt)
+  const markSeen = useUI((s) => s.markNewsSeen)
+  const feed = useNewsFeed(150, { days: 7 })
+  const [open, setOpen] = useState(true)
+  const fresh = useMemo(() => {
+    if (!lastSeen) return []
+    const lo = new Date(lastSeen).getTime()
+    return (feed.data ?? []).filter((it) => {
+      const t = new Date(it.published_at ?? '').getTime()
+      return !Number.isNaN(t) && t > lo
+    })
+  }, [feed.data, lastSeen])
+
+  if (!lastSeen)
+    return (
+      <section className="since">
+        <div className="since-bar">
+          <span className="faint">想追踪「自上次以来」的新增？先设个基准。</span>
+          <button className="btn jsm" onClick={markSeen}>
+            标记此刻为已读
+          </button>
+        </div>
+      </section>
+    )
+  if (!fresh.length) return null // 无新增 → 不占位
+  return (
+    <section className="since">
+      <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
+        <h3>
+          自上次以来 <span className="since-n">{fresh.length}</span>
+        </h3>
+        <button
+          className="btn jsm"
+          onClick={(e) => {
+            e.stopPropagation()
+            markSeen()
+          }}
+        >
+          标记已读
+        </button>
+      </div>
+      <Collapse open={open}>
+        <FeedGroups items={fresh} />
+      </Collapse>
+    </section>
+  )
+}
+
+// ── 总览：晨读 Top3 + 自上次以来 + 机会 + 日报 + 今日要闻 ──
 function OverviewView() {
   const feed = useNewsFeed(80)
   return (
     <div className="know">
-      <DigestBlock date={null} />
+      <MorningBrief />
+      <SinceLast />
       <OpportunitiesPanel />
+      <DigestBlock date={null} />
       <section className="feed">
         <div className="sec-head">
           <h3>今日要闻</h3>
