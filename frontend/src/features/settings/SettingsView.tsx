@@ -124,9 +124,13 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   const canTest = !!base && !!model && (!isNew || !!key)
 
   const save = async () => {
+    // 不清空 key：卡片按 id keyed 不重挂载，清空会让明文 key「看起来消失」（数据其实已存）
     await upsert.mutateAsync({ id: conn?.id, name, base_url: base, model, api_key: key || null })
-    setKey('')
     onDone?.()
+  }
+  const copy = async () => {
+    // 不带 id ＝ 后端新建一条；名字加 (copy)，连 key 一并复制，方便快速加模型
+    await upsert.mutateAsync({ name: `${name} (copy)`, base_url: base, model, api_key: key || null })
   }
   const runTest = async () => {
     setResult(null)
@@ -159,9 +163,14 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
         )}
         <span className="conn-actions-sp" />
         {!isNew && (
-          <button className="btn btn-ghost jsm" onClick={() => del.mutate(conn.id)}>
-            删除
-          </button>
+          <>
+            <button className="btn btn-ghost jsm" onClick={copy} disabled={upsert.isPending}>
+              复制
+            </button>
+            <button className="btn btn-ghost jsm" onClick={() => del.mutate(conn.id)}>
+              删除
+            </button>
+          </>
         )}
         <button className="btn jsm" onClick={runTest} disabled={test.isPending || !canTest}>
           {test.isPending ? '测试中…' : '测试连接'}
