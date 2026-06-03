@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'motion/react'
-import Collapse from '../../components/Collapse'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -11,11 +9,11 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   SortableContext,
+  arrayMove,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -25,8 +23,8 @@ import { useUI, type Market } from '../../store'
 import {
   useAddItem,
   useCreateSection,
-  useDeleteSection,
   useDeleteItem,
+  useDeleteSection,
   useMoveItem,
   useQuote,
   useRenameSection,
@@ -45,17 +43,16 @@ const MARKETS: { v: Market; label: string }[] = [
   { v: 'KR', label: '韩股' },
 ]
 const MKT_LABEL: Record<string, string> = { US: '美', HK: '港', CN: 'A', KR: '韩' }
-// 各市场「裸代码」直输模式（点了某市场就只敲代码即可加入）
 const CODE_RE: Record<string, RegExp> = {
   US: /^[A-Za-z][A-Za-z.]{0,5}$/,
   HK: /^\d{1,5}$/,
   CN: /^\d{6}$/,
   KR: /^\d{6}$/,
 }
-
-const EASE = [0.22, 1, 0.36, 1] as const
 const fmtPrice = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
-const countSymbols = (s: Section) => s.items.length + s.children.reduce((a, c) => a + c.items.length, 0)
+const countSymbols = (s: Section) =>
+  s.items.length + s.children.reduce((a, c) => a + c.items.length, 0)
+const DIRECT = -1 // col2 里「直属标的」伪条目的 id
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
@@ -66,7 +63,7 @@ function useDebounced<T>(value: T, ms: number): T {
   return v
 }
 
-// ───────────────────────── 检索式添加：点哪个市场就搜哪个；ALL=全市场 ─────────────────────────
+// ───────── 检索式加股（点哪个市场搜哪个；ALL=全市场）─────────
 function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => void }) {
   const market = useUI((s) => s.market)
   const select = useUI((s) => s.select)
@@ -76,7 +73,6 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
   const { data, isFetching } = useSearch(dq, market)
   const [hi, setHi] = useState(0)
 
-  // 选了具体市场且输入像代码 → 提供「直接添加」入口（无需出现在目录里）
   const direct = useMemo(() => {
     const t = q.trim()
     if (market === 'ALL' || !t || !CODE_RE[market]?.test(t)) return null
@@ -85,16 +81,13 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
   }, [q, market])
 
   const results = data?.results ?? []
-  const options = direct
-    ? [direct, ...results.filter((r) => r.symbol !== direct.symbol)]
-    : results
+  const options = direct ? [direct, ...results.filter((r) => r.symbol !== direct.symbol)] : results
   const indexing = data?.indexing ?? false
-
   useEffect(() => setHi(0), [dq, market])
 
   const add = (symbol: string) => {
     addItem.mutate({ sectionId, symbol })
-    select(symbol) // 立即选中 → 主舞台马上加载它的 K 线（不等 POST 回执）
+    select(symbol)
     onDone()
   }
 
@@ -104,9 +97,7 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
         className="input"
         autoFocus
         value={q}
-        placeholder={
-          market === 'ALL' ? '搜代码 / 名称 / 拼音（全市场）…' : `在${MARKETS.find((m) => m.v === market)?.label}内搜代码或名称…`
-        }
+        placeholder={market === 'ALL' ? '搜代码 / 名称 / 拼音…' : '搜代码或名称…'}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') onDone()
@@ -116,9 +107,7 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
           } else if (e.key === 'ArrowUp') {
             e.preventDefault()
             setHi((h) => Math.max(h - 1, 0))
-          } else if (e.key === 'Enter' && options[hi]) {
-            add(options[hi].symbol)
-          }
+          } else if (e.key === 'Enter' && options[hi]) add(options[hi].symbol)
         }}
         onBlur={() => setTimeout(onDone, 140)}
       />
@@ -134,7 +123,9 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
                 add(o.symbol)
               }}
             >
-              <span className={`mbadge m-${o.market.toLowerCase()}`}>{MKT_LABEL[o.market] ?? o.market}</span>
+              <span className={`mbadge m-${o.market.toLowerCase()}`}>
+                {MKT_LABEL[o.market] ?? o.market}
+              </span>
               <span className="scode mono">{o.code}</span>
               <span className="sname">{o.name}</span>
               {o.sub && <span className="ssub">{o.sub}</span>}
@@ -142,11 +133,11 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
           ))}
           {!options.length &&
             (indexing ? (
-              <div className="shint">正在建立标的索引，请稍候…</div>
+              <div className="shint">正在建立索引…</div>
             ) : isFetching ? (
               <div className="shint">搜索中…</div>
             ) : (
-              <div className="shint">无匹配。试试「全部」市场，或输入精确代码。</div>
+              <div className="shint">无匹配。试「全部」或输入精确代码。</div>
             ))}
         </div>
       )}
@@ -154,15 +145,22 @@ function StockSearch({ sectionId, onDone }: { sectionId: number; onDone: () => v
   )
 }
 
-function InlineAdd({ placeholder, onSubmit, onCancel }: { placeholder: string; onSubmit: (v: string) => void; onCancel: () => void }) {
+function InlineAdd({
+  placeholder,
+  onSubmit,
+  onCancel,
+}: {
+  placeholder: string
+  onSubmit: (v: string) => void
+  onCancel: () => void
+}) {
   const [v, setV] = useState('')
   return (
     <input
-      className="input"
+      className="input kc-inlineadd"
       autoFocus
       placeholder={placeholder}
       value={v}
-      style={{ margin: '4px 6px', width: 'calc(100% - 12px)' }}
       onChange={(e) => setV(e.target.value)}
       onBlur={onCancel}
       onKeyDown={(e) => {
@@ -173,7 +171,7 @@ function InlineAdd({ placeholder, onSubmit, onCancel }: { placeholder: string; o
   )
 }
 
-// ───────────────────────── 标的行（可拖拽换区 / 排序）─────────────────────────
+// ───────── 标的行（col3，可拖拽排序/换区）─────────
 function RowBody({ item }: { item: Item }) {
   const [market, code] = item.symbol.split(':')
   const q = useQuote(item.symbol)
@@ -199,15 +197,10 @@ function StockRow({ item }: { item: Item }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `item:${item.id}`,
   })
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0.35 : 1,
-  }
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }}
       className={`stk ${selected === item.symbol ? 'active' : ''}`}
       onClick={() => select(item.symbol)}
       {...attributes}
@@ -229,23 +222,19 @@ function StockRow({ item }: { item: Item }) {
   )
 }
 
-// 板块标题行：整行点击折叠；右侧操作按钮 stopPropagation；本身是拖拽落点
-function SectionHeader({
+// ───────── 板块行（col1/col2，可选中、双击重命名、拖股票落入即换区）─────────
+function SecRow({
   section,
-  level,
-  open,
+  active,
   count,
-  onToggle,
-  onAddStock,
+  onSelect,
   onAddSub,
   onDelete,
 }: {
   section: Section
-  level: 1 | 2
-  open: boolean
+  active: boolean
   count: number
-  onToggle: () => void
-  onAddStock: () => void
+  onSelect: () => void
   onAddSub?: () => void
   onDelete: () => void
 }) {
@@ -258,13 +247,12 @@ function SectionHeader({
     e.stopPropagation()
     fn()
   }
-  // 单击折叠 / 双击改名 消歧：单击延后 190ms，若紧接双击则取消（避免改名时误折叠）
   const handleClick = () => {
     if (editing) return
     if (clickT.current) window.clearTimeout(clickT.current)
     clickT.current = window.setTimeout(() => {
       clickT.current = null
-      onToggle()
+      onSelect()
     }, 190)
   }
   const startEdit = () => {
@@ -286,11 +274,10 @@ function SectionHeader({
     },
     [],
   )
-
   return (
     <div
       ref={setNodeRef}
-      className={`row${level} ${isOver ? 'drop-into' : ''}`}
+      className={`secrow ${active ? 'active' : ''} ${isOver ? 'drop-into' : ''}`}
       onClick={handleClick}
       role="button"
     >
@@ -300,7 +287,6 @@ function SectionHeader({
           autoFocus
           value={draft}
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
@@ -314,25 +300,76 @@ function SectionHeader({
         />
       ) : (
         <>
-          <span className="nm" title="双击重命名" onDoubleClick={stop(startEdit)}>
+          <span className="secname" title="双击重命名" onDoubleClick={stop(startEdit)}>
             {section.name}
           </span>
+          <span className="seccount">{count}</span>
           {onAddSub && (
-            <span className="add" title="加子板块" onClick={stop(onAddSub)}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <span className="secact" title="加子板块" onClick={stop(onAddSub)}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="2.5" y="2.5" width="9" height="9" rx="2.2" />
                 <path d="M7 5v4M5 7h4" />
               </svg>
             </span>
           )}
-          <span className="add" title="加标的" onClick={stop(onAddStock)}>
-            ＋
-          </span>
-          <span className="del" title="删板块" onClick={stop(onDelete)}>
+          <span className="secact del" title="删板块" onClick={stop(onDelete)}>
             ×
           </span>
         </>
       )}
+    </div>
+  )
+}
+
+// ───────── 可拖宽 / 可收起的列容器 ─────────
+function Column({
+  i,
+  title,
+  action,
+  children,
+}: {
+  i: 0 | 1 | 2
+  title: string
+  action?: ReactNode
+  children: ReactNode
+}) {
+  const w = useUI((s) => s.kanColW[i])
+  const closed = useUI((s) => s.kanColClosed[i])
+  const setW = useUI((s) => s.setKanColW)
+  const toggle = useUI((s) => s.toggleKanCol)
+
+  if (closed) {
+    return (
+      <button className="kcol-closed" onClick={() => toggle(i)} title="展开">
+        <span className="kcol-closed-t">{title}</span>
+      </button>
+    )
+  }
+  const onResize = (e: React.PointerEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = w
+    const move = (ev: PointerEvent) => setW(i, startW + (ev.clientX - startX))
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.classList.remove('resizing')
+    }
+    document.body.classList.add('resizing')
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  return (
+    <div className="kcol" style={{ width: w }}>
+      <div className="kcol-head">
+        <span className="kcol-title">{title}</span>
+        <span className="kcol-act">{action}</span>
+        <button className="kcol-fold" onClick={() => toggle(i)} title="收起">
+          ‹
+        </button>
+      </div>
+      <div className="kcol-body">{children}</div>
+      <div className="kcol-resize" onPointerDown={onResize} title="拖动调整列宽" />
     </div>
   )
 }
@@ -345,273 +382,241 @@ export default function WatchlistPanel() {
   const { data: sections, isLoading, error } = useSections(market)
   const createSection = useCreateSection()
   const delSection = useDeleteSection()
+  const delSectionFn = delSection.mutate
   const moveItem = useMoveItem()
   const reorder = useReorder()
 
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+  const [selL1, setSelL1] = useState<number | null>(null)
+  const [selSec, setSelSec] = useState<number | null>(null) // col3 显示哪个 section 的标的
   const [adding, setAdding] = useState<Adding>(null)
 
-  // ── 拖拽：本地乐观态（order: 区→标的id序；holder: 标的id→所在区）──
-  const [order, setOrder] = useState<Record<number, number[]>>({})
-  const [holder, setHolder] = useState<Record<number, number>>({})
+  // col3 的标的顺序乐观态
+  const [ord, setOrd] = useState<number[]>([])
   const [itemData, setItemData] = useState<Record<number, Item>>({})
   const [activeId, setActiveId] = useState<number | null>(null)
   const dragging = useRef(false)
-  const startSec = useRef<number | null>(null)
 
-  const resync = useMemo(
-    () => () => {
-      if (!sections) return
-      const ord: Record<number, number[]> = {}
-      const hold: Record<number, number> = {}
-      const data: Record<number, Item> = {}
-      const walk = (s: Section) => {
-        ord[s.id] = s.items.map((i) => i.id)
-        s.items.forEach((i) => {
-          hold[i.id] = s.id
-          data[i.id] = i
-        })
-        s.children.forEach(walk)
-      }
-      sections.forEach(walk)
-      setOrder(ord)
-      setHolder(hold)
-      setItemData(data)
-    },
-    [sections],
-  )
+  const l1 = useMemo(() => sections?.find((s) => s.id === selL1) ?? null, [sections, selL1])
+  // col3 的 section（一级直属 = l1 自身；否则某二级）
+  const col3 = useMemo(() => {
+    if (!l1) return null
+    if (selSec === l1.id || selSec == null) return l1
+    return l1.children.find((c) => c.id === selSec) ?? l1
+  }, [l1, selSec])
 
+  // 选择合法化：sections 变化时保证 selL1/selSec 有效
   useEffect(() => {
-    if (!dragging.current) resync()
-  }, [resync])
+    if (!sections || !sections.length) return
+    if (!sections.some((s) => s.id === selL1)) {
+      setSelL1(sections[0].id)
+      setSelSec(sections[0].id)
+    }
+  }, [sections, selL1])
+
+  // 同步 col3 标的顺序（非拖拽时）
+  useEffect(() => {
+    if (dragging.current || !col3) return
+    setOrd(col3.items.map((i) => i.id))
+    setItemData(Object.fromEntries(col3.items.map((i) => [i.id, i])))
+  }, [col3])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const containerOf = (id: string): number | null => {
-    if (id.startsWith('sec:')) return Number(id.slice(4))
-    return holder[Number(id.slice(5))] ?? null
-  }
-
   const onDragStart = (e: DragStartEvent) => {
-    const id = Number(String(e.active.id).slice(5))
     dragging.current = true
-    startSec.current = holder[id] ?? null
-    setActiveId(id)
+    setActiveId(Number(String(e.active.id).slice(5)))
   }
-
-  const onDragOver = (e: DragOverEvent) => {
-    const { active, over } = e
-    if (!over) return
-    const id = Number(String(active.id).slice(5))
-    const from = holder[id]
-    const to = containerOf(String(over.id))
-    if (from == null || to == null || from === to) return
-    setHolder((h) => ({ ...h, [id]: to }))
-    setOrder((o) => {
-      const fromIds = (o[from] ?? []).filter((x) => x !== id)
-      const toIds = [...(o[to] ?? [])]
-      let idx = toIds.length
-      if (String(over.id).startsWith('item:')) {
-        const p = toIds.indexOf(Number(String(over.id).slice(5)))
-        if (p >= 0) idx = p
-      }
-      toIds.splice(idx, 0, id)
-      return { ...o, [from]: fromIds, [to]: toIds }
-    })
-  }
-
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
     dragging.current = false
     setActiveId(null)
-    if (!over) return resync()
+    if (!over) return
     const id = Number(String(active.id).slice(5))
-    const to = containerOf(String(over.id))
-    if (to == null) return resync()
-
-    // 重算目标区顺序：移除拖拽项后，按落点（在某标的上→其位；在标题上→末尾）精确插回
-    const without = (order[to] ?? []).filter((x) => x !== id)
-    let insertAt = without.length
-    if (String(over.id).startsWith('item:')) {
-      const p = without.indexOf(Number(String(over.id).slice(5)))
-      if (p >= 0) insertAt = p
+    const overId = String(over.id)
+    if (overId.startsWith('sec:')) {
+      const to = Number(overId.slice(4))
+      if (col3 && to !== col3.id) {
+        setOrd((o) => o.filter((x) => x !== id)) // 乐观移出 col3
+        moveItem.mutate({ itemId: id, sectionId: to })
+      }
+      return
     }
-    const toIds = [...without.slice(0, insertAt), id, ...without.slice(insertAt)]
-    setOrder((o) => ({ ...o, [to]: toIds }))
-
-    const orig = startSec.current
-    startSec.current = null
-    const persist = async () => {
-      if (orig != null && orig !== to) await moveItem.mutateAsync({ itemId: id, sectionId: to })
-      await reorder.mutateAsync({ kind: 'item', orderedIds: toIds })
-    }
-    persist().catch(() => resync())
+    // 列内重排
+    const overItem = Number(overId.slice(5))
+    const from = ord.indexOf(id)
+    const to = ord.indexOf(overItem)
+    if (from < 0 || to < 0 || from === to) return
+    const next = arrayMove(ord, from, to)
+    setOrd(next)
+    reorder.mutate({ kind: 'item', orderedIds: next })
   }
 
-  const toggle = (id: number) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const col3Items = ord.map((id) => itemData[id]).filter(Boolean)
+  const activeItem = activeId != null ? itemData[activeId] : null
 
-  const itemsOf = (s: Section): Item[] => {
-    const ids = order[s.id]
-    if (!ids) return s.items
-    return ids.map((id) => itemData[id]).filter(Boolean)
+  const selectL1 = (id: number) => {
+    setSelL1(id)
+    setSelSec(id)
+    setAdding(null)
   }
 
-  const stockAdder = (id: number) =>
-    adding && adding !== 'top' && adding.id === id && adding.kind === 'stock' ? (
-      <StockSearch sectionId={id} onDone={() => setAdding(null)} />
-    ) : null
-
-  const renderItems = (s: Section) => {
-    const items = itemsOf(s)
-    return (
-      <SortableContext items={items.map((i) => `item:${i.id}`)} strategy={verticalListSortingStrategy}>
-        {items.map((it) => (
-          <StockRow key={it.id} item={it} />
-        ))}
-      </SortableContext>
-    )
-  }
-
-  const renderL2 = (s: Section) => {
-    const open = !collapsed.has(s.id)
-    return (
-      <div className="l2grp" key={s.id}>
-        <SectionHeader
-          section={s}
-          level={2}
-          open={open}
-          count={itemsOf(s).length}
-          onToggle={() => toggle(s.id)}
-          onAddStock={() => setAdding({ id: s.id, kind: 'stock' })}
-          onDelete={() => delSection.mutate(s.id)}
-        />
-        <Collapse open={open}>
-          {renderItems(s)}
-          {stockAdder(s.id)}
-        </Collapse>
-      </div>
-    )
-  }
-
-  const renderL1 = (s: Section, idx: number) => {
-    const open = !collapsed.has(s.id)
-    return (
-      <motion.div
-        className="l1grp"
-        key={s.id}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.2), ease: EASE }}
-      >
-        <SectionHeader
-          section={s}
-          level={1}
-          open={open}
-          count={countSymbols(s)}
-          onToggle={() => toggle(s.id)}
-          onAddStock={() => setAdding({ id: s.id, kind: 'stock' })}
-          onAddSub={() => setAdding({ id: s.id, kind: 'sub' })}
-          onDelete={() => delSection.mutate(s.id)}
-        />
-        <Collapse open={open}>
-          {renderItems(s)}
-          {stockAdder(s.id)}
-          {s.children.map(renderL2)}
-          {adding && adding !== 'top' && adding.id === s.id && adding.kind === 'sub' && (
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => {
+        dragging.current = false
+        setActiveId(null)
+      }}
+    >
+      <div className="kan-nav">
+        {/* ── 列1：市场过滤 + 一级板块 ── */}
+        <Column
+          i={0}
+          title="分区"
+          action={
+            <button className="kc-add" title="新建一级板块" onClick={() => setAdding('top')}>
+              ＋
+            </button>
+          }
+        >
+          <div className="mkt kc-mkt">
+            {MARKETS.map((m) => (
+              <button key={m.v} aria-pressed={market === m.v} onClick={() => setMarket(m.v)}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {adding === 'top' && (
             <InlineAdd
-              placeholder="子板块名…"
+              placeholder="一级板块名…"
               onSubmit={(v) => {
-                createSection.mutate({ name: v, parent_id: s.id })
+                createSection.mutate({ name: v })
                 setAdding(null)
               }}
               onCancel={() => setAdding(null)}
             />
           )}
-        </Collapse>
-      </motion.div>
-    )
-  }
+          {isLoading && <div className="kc-skel skeleton" />}
+          {error && <div className="faint kc-msg">{(error as Error).message}</div>}
+          {sections?.map((s) => (
+            <SecRow
+              key={s.id}
+              section={s}
+              active={selL1 === s.id}
+              count={countSymbols(s)}
+              onSelect={() => selectL1(s.id)}
+              onAddSub={() => {
+                setSelL1(s.id)
+                setAdding({ id: s.id, kind: 'sub' })
+              }}
+              onDelete={() => delSectionFn(s.id)}
+            />
+          ))}
+          {sections && sections.length === 0 && (
+            <div className="faint kc-msg">还没有板块，点上方 ＋ 新建。</div>
+          )}
+        </Column>
 
-  const activeItem = activeId != null ? itemData[activeId] : null
+        {/* ── 列2：选中一级板块的 二级板块 + 直属 ── */}
+        <Column i={1} title={l1 ? l1.name : '子板块'}>
+          {l1 ? (
+            <>
+              <div
+                className={`secrow ${selSec === l1.id ? 'active' : ''}`}
+                onClick={() => setSelSec(l1.id)}
+                role="button"
+              >
+                <span className="secname">直属</span>
+                <span className="seccount">{l1.items.length}</span>
+              </div>
+              {l1.children.map((c) => (
+                <SecRow
+                  key={c.id}
+                  section={c}
+                  active={selSec === c.id}
+                  count={c.items.length}
+                  onSelect={() => setSelSec(c.id)}
+                  onDelete={() => {
+                    delSectionFn(c.id)
+                    if (selSec === c.id) setSelSec(l1.id)
+                  }}
+                />
+              ))}
+              {adding && adding !== 'top' && adding.id === l1.id && adding.kind === 'sub' && (
+                <InlineAdd
+                  placeholder="子板块名…"
+                  onSubmit={(v) => {
+                    createSection.mutate({ name: v, parent_id: l1.id })
+                    setAdding(null)
+                  }}
+                  onCancel={() => setAdding(null)}
+                />
+              )}
+              <button className="kc-addsub" onClick={() => setAdding({ id: l1.id, kind: 'sub' })}>
+                ＋ 子板块
+              </button>
+            </>
+          ) : (
+            <div className="faint kc-msg">选左侧板块</div>
+          )}
+        </Column>
 
-  return (
-    <aside className="panel">
-      <div className="lbl">市场</div>
-      <div className="mkt">
-        {MARKETS.map((m) => (
-          <button key={m.v} aria-pressed={market === m.v} onClick={() => setMarket(m.v)}>
-            {m.label}
-          </button>
-        ))}
+        {/* ── 列3：标的（可拖拽排序/换区）── */}
+        <Column
+          i={2}
+          title={col3 ? (col3.id === l1?.id ? `${l1?.name} · 直属` : col3.name) : '标的'}
+          action={
+            col3 && (
+              <button
+                className="kc-add"
+                title="加标的"
+                onClick={() =>
+                  setAdding(
+                    adding && adding !== 'top' && adding.id === col3.id && adding.kind === 'stock'
+                      ? null
+                      : { id: col3.id, kind: 'stock' },
+                  )
+                }
+              >
+                ＋
+              </button>
+            )
+          }
+        >
+          {col3 ? (
+            <>
+              {adding && adding !== 'top' && adding.id === col3.id && adding.kind === 'stock' && (
+                <StockSearch sectionId={col3.id} onDone={() => setAdding(null)} />
+              )}
+              <SortableContext
+                items={col3Items.map((i) => `item:${i.id}`)}
+                strategy={verticalListSortingStrategy}
+              >
+                {col3Items.map((it) => (
+                  <StockRow key={it.id} item={it} />
+                ))}
+              </SortableContext>
+              {!col3Items.length && <div className="faint kc-msg">该板块暂无标的，点 ＋ 添加。</div>}
+            </>
+          ) : (
+            <div className="faint kc-msg">选板块看标的</div>
+          )}
+        </Column>
       </div>
 
-      <div className="lbl">
-        自选分区
-        <span className="act" onClick={() => setAdding('top')}>
-          ＋ 板块
-        </span>
-      </div>
-      {adding === 'top' && (
-        <InlineAdd
-          placeholder="新一级板块名…"
-          onSubmit={(v) => {
-            createSection.mutate({ name: v })
-            setAdding(null)
-          }}
-          onCancel={() => setAdding(null)}
-        />
-      )}
-
-      {isLoading && (
-        <div className="wl-skel">
-          <div className="line skeleton" />
-          <div className="line short skeleton" />
-          <div className="line skeleton" />
-          <div className="line short skeleton" />
-        </div>
-      )}
-      {error && (
-        <div className="faint" style={{ padding: 10, fontSize: '.82rem', color: 'var(--down)' }}>
-          {(error as Error).message}
-        </div>
-      )}
-
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => {
-          dragging.current = false
-          setActiveId(null)
-          resync()
-        }}
-      >
-        <div className="tree">{sections?.map(renderL1)}</div>
-        <DragOverlay dropAnimation={null}>
-          {activeItem ? (
-            <div className="stk drag-ghost">
-              <RowBody item={activeItem} />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-
-      {sections && sections.length === 0 && (
-        <div className="faint" style={{ padding: 10, fontSize: '.82rem' }}>
-          还没有板块。点上方「＋ 板块」新建。
-        </div>
-      )}
-    </aside>
+      <DragOverlay dropAnimation={null}>
+        {activeItem ? (
+          <div className="stk drag-ghost">
+            <RowBody item={activeItem} />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }

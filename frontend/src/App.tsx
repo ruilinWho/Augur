@@ -218,7 +218,11 @@ export default function App() {
   // 「知」用两列纵向导航（rail + 条件二级卡）；无二级时 2 列，有二级 3 列
   const newsHasSub = view === 'zhi' && (PRIMARIES.find((p) => p.id === newsPrimary)?.hasSub ?? false)
   const layoutClass =
-    view === 'zhi' ? `layout ${newsHasSub ? 'know-3' : 'know-2'}` : 'layout'
+    view === 'zhi'
+      ? `layout ${newsHasSub ? 'know-3' : 'know-2'}`
+      : view === 'kan' || view === 'yan'
+        ? 'layout kan'
+        : 'layout'
 
   useEffect(() => {
     const el = document.documentElement
@@ -272,10 +276,7 @@ export default function App() {
 
       <div className={layoutClass}>
         {view === 'kan' || view === 'yan' ? (
-          <>
-            <WatchlistPanel />
-            <ResizeHandle />
-          </>
+          <WatchlistPanel />
         ) : view === 'zhi' ? (
           <>
             <NewsNav />

@@ -14,6 +14,8 @@ export const NEWS_SUB_MIN = 140
 export const NEWS_SUB_MAX = 360
 export const SRC_NAV_MIN = 120
 export const SRC_NAV_MAX = 320
+export const KAN_COL_MIN = 96
+export const KAN_COL_MAX = 420
 
 interface UIState {
   view: View
@@ -28,6 +30,8 @@ interface UIState {
   panelW: number // 左栏宽度（px），可拖拽调整
   newsSubW: number // 「知」二级卡宽度（px），可拖拽调整
   srcNavW: number // 「设置·数据/信源」二级菜单宽度（px），可拖拽调整
+  kanColW: [number, number, number] // 「看」自选三列宽度 [一级,二级,标的]，可拖拽
+  kanColClosed: [boolean, boolean, boolean] // 「看」三列是否收起
   kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
   settingsPage: SettingsPage // 「设置」当前页（左栏导航选择，瞬时不持久化）
 
@@ -42,6 +46,8 @@ interface UIState {
   setPanelW: (n: number) => void
   setNewsSubW: (n: number) => void
   setSrcNavW: (n: number) => void
+  setKanColW: (i: 0 | 1 | 2, n: number) => void
+  toggleKanCol: (i: 0 | 1 | 2) => void
   setKanOrder: (o: string[]) => void
   setSettingsPage: (p: SettingsPage) => void
 }
@@ -62,6 +68,8 @@ export const useUI = create<UIState>()(
       panelW: 268,
       newsSubW: 196,
       srcNavW: 184,
+      kanColW: [156, 150, 248],
+      kanColClosed: [false, false, false],
       kanOrder: [...KAN_MODULES],
       settingsPage: 'appearance',
 
@@ -79,6 +87,18 @@ export const useUI = create<UIState>()(
         set({ newsSubW: Math.max(NEWS_SUB_MIN, Math.min(NEWS_SUB_MAX, Math.round(newsSubW))) }),
       setSrcNavW: (srcNavW) =>
         set({ srcNavW: Math.max(SRC_NAV_MIN, Math.min(SRC_NAV_MAX, Math.round(srcNavW))) }),
+      setKanColW: (i, n) =>
+        set((s) => {
+          const w = [...s.kanColW] as [number, number, number]
+          w[i] = Math.max(KAN_COL_MIN, Math.min(KAN_COL_MAX, Math.round(n)))
+          return { kanColW: w }
+        }),
+      toggleKanCol: (i) =>
+        set((s) => {
+          const c = [...s.kanColClosed] as [boolean, boolean, boolean]
+          c[i] = !c[i]
+          return { kanColClosed: c }
+        }),
       setKanOrder: (kanOrder) => set({ kanOrder }),
       setSettingsPage: (settingsPage) => set({ settingsPage }),
     }),
@@ -94,6 +114,8 @@ export const useUI = create<UIState>()(
         panelW: s.panelW,
         newsSubW: s.newsSubW,
         srcNavW: s.srcNavW,
+        kanColW: s.kanColW,
+        kanColClosed: s.kanColClosed,
         kanOrder: s.kanOrder,
       }),
     },

@@ -222,6 +222,213 @@ button {
   left: calc(92px + var(--news-sub-w, 196px));
 }
 
+/* ───────── 「看」自选三列（Miller：一级|二级|标的），每列可拖宽/收起 ───────── */
+.layout.kan {
+  grid-template-columns: auto 1fr;
+}
+.kan-nav {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+.kcol {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.kcol-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 8px 7px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.kcol-title {
+  flex: 1;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 600;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kcol-act {
+  display: flex;
+  flex: none;
+}
+.kc-add {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.kcol-fold {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.kcol-fold:hover {
+  color: var(--text);
+}
+.kcol-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px 12px;
+}
+.kcol-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -5px;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 3;
+}
+.kcol-resize::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.kcol-resize:hover::after {
+  background: var(--accent);
+}
+/* 收起的列：竖排细条，点击展开 */
+.kcol-closed {
+  flex: none;
+  width: 26px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.kcol-closed:hover {
+  background: var(--surface);
+}
+.kcol-closed-t {
+  writing-mode: vertical-rl;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.kc-mkt {
+  margin: 2px 0 8px;
+}
+.kc-mkt button {
+  font-size: 0.74rem;
+  padding: 4px 2px;
+}
+.kc-msg {
+  padding: 10px 6px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.kc-skel {
+  height: 60px;
+  margin: 8px 4px;
+  border-radius: 8px;
+}
+.kc-inlineadd {
+  margin: 4px 2px;
+  width: calc(100% - 4px);
+}
+.kc-addsub {
+  margin: 6px 2px 0;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: calc(100% - 4px);
+}
+.kc-addsub:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+/* 板块行（col1/col2） */
+.secrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.secrow:hover {
+  background: var(--surface-2);
+}
+.secrow.active {
+  background: var(--accent-weak);
+}
+.secrow.active .secname {
+  color: var(--accent);
+  font-weight: 600;
+}
+.secrow.drop-into {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.secname {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seccount {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.secact {
+  flex: none;
+  display: none;
+  align-items: center;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.secrow:hover .secact {
+  display: inline-flex;
+}
+.secact:hover {
+  color: var(--text);
+}
+.secact.del:hover {
+  color: var(--down);
+}
+
 /* 列1 · 一级 rail */
 .news-rail {
   display: flex;
