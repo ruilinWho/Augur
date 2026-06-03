@@ -163,6 +163,7 @@ cd frontend && pnpm dev
 - **缓存优先：** OHLCV 缓存为 Parquet 到 `data/cache/`，键为 `MARKET:CODE/interval`。只抓缺失的尾巴。尊重限流。
 - 各市场的交易日历、币种、代码格式都不同——存进适配器元数据，**别假设美股惯例**。
 - **检索（`search.py` + `listings.py`）= 本地目录 ∪ 东方财富实时联想，统一打分去重。** 本地目录（FDR 列表 + akshare A股中文名 + KOSPI/KOSDAQ 韩文名，缓存 Parquet）管美股英文名 + 韩股 + 离线兜底；东财 suggest 管港股/A股/新股 + 拼音（MiniMax/智谱 也搜得到）；跨语言别名靠 `resources/sources/aliases.yaml`（海力士→KR:000660）。带缓存/超时/失败降级。**坑见 [docs/memory/search-data-sources.md](docs/memory/search-data-sources.md)**（东财无韩股、`push2` 被代理拦截、FDR 港股列表未实现…）。
+- **港股回收代码兜底（`eastmoney_hk.py`）**：HKEX 代码退市后会被**回收再分配**（如 `00100`＝老 Clear Media 退市 → 2026-01 给 MiniMax-W），雅虎/FDR 把新旧历史搅在一起、**只吐最新 1 根**。`service._fetch_daily`：HK 的 FDR 结果 `< _HK_THIN_ROWS(10)` 根时回退东财 `akshare.stock_hk_hist`（完整港股历史，source 记 `eastmoney`），带 TTL 不狂打、东财不可达（push2 被代理拦截）则静默回退 FDR。前端 K 线对 `≤3` 根的标的显「新股 · 仅 N 个交易日」标注（区分真新股 vs 数据缺）。K 线区间＝**1月/3月/6月/1年**（`3m` 走通用 range 解析）。
 - **基本面（`fundamentals.py`）= yfinance（雅虎）一库覆盖四市场**：① 快照 `get_fundamentals`（市值/P-E/净利率，缺 P/E 用 市值/净利润 兜底）→ 前端置于 **K 线上方** 的指标条；② 历史 `get_financials(symbol, period)`（营收/营收增长/净利/净利率/EPS/EPS增长/自由现金流 + 财报链接）→ **K 线下方「财报分析」趋势表**（默认显示关键行、「更多指标」展开其余；**最新一期在右边缘**，列定宽、过宽则横向滚动并默认滚到最新）。**季度（默认，~5–7 期）/ 年度（~4–5 年）段控可切**；**增长率一律同比**（季度 vs 去年同季＝回退 4 列、年度 vs 上一年），避开季节性误导。本币原值，前端按亿/万亿格式化；缺数据置 null → 「—」。6h 缓存（key 含 period）。**LongBridge OpenAPI 已调研、暂不采用**（偏交易、需账号/凭证、基本面薄——见 ADR-0004）。
 
 ---

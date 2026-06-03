@@ -11,12 +11,15 @@ from datetime import date, timedelta
 import pandas as pd
 
 from ..storage import cache
-from . import search
+from . import eastmoney_hk, search
 from .resolver import get_adapter
 from .symbols import Symbol
 
 _DEFAULT_HISTORY_DAYS = 365 * 5
 _REFRESH_TTL_SEC = 600  # 同一标的最多每 10 分钟回源补尾，避免狂打数据源（CLAUDE.md §11）
+# 港股 FDR（雅虎源）若只吐极少几根，多半是**回收代码**历史损坏（如 00100=MiniMax-W）→
+# 回退到东财补全。阈值取小：真新股本就稀疏、回退只在更多时才替换，误触发也无害。
+_HK_THIN_ROWS = 10
 _refresh_ts: dict[str, float] = {}
 _RANGE_UNIT_DAYS = {"y": 365, "m": 30, "w": 7, "d": 1}
 _RESAMPLE_RULE = {"1w": "W", "1M": "ME"}
@@ -32,8 +35,15 @@ def _fetch_daily(sym: Symbol) -> tuple[pd.DataFrame, str, bool]:
 
     if cached is not None and not cached.empty:
         cached.index = pd.to_datetime(cached.index)
-        # 近期刚回源过，或已是最新交易日 → 直接用缓存，不打数据源
         recently = now - _refresh_ts.get(sym.canonical, 0.0) < _REFRESH_TTL_SEC
+        # 港股缓存异常稀疏（回收代码 FDR 只吐 1 根）→ 东财回填（带 TTL，不狂打）
+        if sym.market == "HK" and len(cached) < _HK_THIN_ROWS and not recently:
+            fb = eastmoney_hk.hk_history(sym.code)
+            _refresh_ts[sym.canonical] = now
+            if fb is not None and len(fb) > len(cached):
+                cache.save(sym.market, sym.code, "1d", fb)
+                return fb, "eastmoney", False
+        # 近期刚回源过，或已是最新交易日 → 直接用缓存，不打数据源
         last = cached.index.max().date()
         if recently or last >= today - timedelta(days=1):
             return cached, adapter.name, True
@@ -48,10 +58,16 @@ def _fetch_daily(sym: Symbol) -> tuple[pd.DataFrame, str, bool]:
 
     start = (today - timedelta(days=_DEFAULT_HISTORY_DAYS)).isoformat()
     df = adapter.get_ohlcv(sym, start, None)
+    source = adapter.name
     _refresh_ts[sym.canonical] = now
+    # 港股首取若过于稀疏 → 东财兜底（修回收代码历史损坏）
+    if sym.market == "HK" and (df is None or len(df) < _HK_THIN_ROWS):
+        fb = eastmoney_hk.hk_history(sym.code)
+        if fb is not None and (df is None or len(fb) > len(df)):
+            df, source = fb, "eastmoney"
     if df is not None and not df.empty:
         cache.save(sym.market, sym.code, "1d", df)
-    return df, adapter.name, False
+    return df, source, False
 
 
 def _apply_range(df: pd.DataFrame, rng: str) -> pd.DataFrame:

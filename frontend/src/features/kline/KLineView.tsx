@@ -20,9 +20,9 @@ const PALETTE = {
 
 const TF = [
   { label: '1月', interval: '1d', range: '1m' },
+  { label: '3月', interval: '1d', range: '3m' },
   { label: '6月', interval: '1d', range: '6m' },
   { label: '1年', interval: '1d', range: '1y' },
-  { label: '5年', interval: '1w', range: '5y' },
 ]
 
 const EASE = [0.22, 1, 0.36, 1] as const
@@ -34,7 +34,7 @@ export default function KLineView() {
   const symbol = useUI((s) => s.selectedSymbol)
   const theme = useUI((s) => s.theme)
   const conv = useUI((s) => s.convention)
-  const [tf, setTf] = useState(TF[2])
+  const [tf, setTf] = useState(TF[3]) // 默认 1 年
 
   const ohlcv = useOhlcv(symbol, tf.interval, tf.range)
   const quote = useQuote(symbol)
@@ -110,6 +110,9 @@ export default function KLineView() {
   const up = q ? q.change >= 0 : true
   const [mkt, code] = symbol ? symbol.split(':') : ['', '']
   const last = ohlcv.data?.candles.at(-1)
+  const candleCount = ohlcv.data?.candles.length ?? 0
+  // 新股：可选区间内只有极少 K 线（如刚 IPO 仅 1 个交易日）——平静标注，避免看似坏掉（§11）
+  const thin = !!symbol && !!ohlcv.data && candleCount > 0 && candleCount <= 3
   const showSkeleton = !!symbol && ohlcv.isLoading && !ohlcv.data
 
   return (
@@ -138,6 +141,7 @@ export default function KLineView() {
                   高 {fmt(last.high)} · 低 {fmt(last.low)}
                 </span>
               )}
+              {thin && <span className="ipo-note">新股 · 仅 {candleCount} 个交易日</span>}
             </div>
           </div>
           <div className="tf">

@@ -1052,6 +1052,14 @@ body.resizing * {
   gap: 6px;
   margin-left: auto;
 }
+.ipo-note {
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--accent-weak);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
 /* 快照指标条（K 线上方）：市值 · 市盈率 · 净利率 */
 .snapshot {
   display: flex;
