@@ -16,11 +16,16 @@ import feedparser
 import httpx
 
 from ..storage import get_conn
-from . import classify, cls, eastmoney_news, sources
+from . import classify, cls, eastmoney_news, sources, twtapi
 from . import filter as noise_filter
 
-# 非 RSS 专用适配器（中文科技源）：source 名 → 抓取函数。其 source 名在 prune 时要豁免。
-_ADAPTERS = {"财联社": cls.fetch_cls, "东方财富": eastmoney_news.fetch_eastmoney}
+# 非 RSS 专用适配器：source 名 → 抓取函数(cutoff)。其 source 名在 prune 时要豁免。
+# X(Twitter) 经 twtapi 桥拉官方号推文，产出多个 source 名（X·<handle>），见 twtapi.source_names()。
+_ADAPTERS = {
+    "财联社": cls.fetch_cls,
+    "东方财富": eastmoney_news.fetch_eastmoney,
+    "X(Twitter)": twtapi.fetch_all,
+}
 
 _UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
@@ -124,8 +129,9 @@ def _prune_removed_sources(feed_names: set[str]) -> int:
 def ingest_all() -> dict:
     """并发遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
     feeds = sources.load_feeds()
-    # prune 时豁免专用适配器 source，否则其条目（不在 feeds.yaml）会被当"已移除源"删掉
-    _prune_removed_sources({f["name"] for f in feeds} | set(_ADAPTERS))
+    # prune 时豁免专用适配器 source（含 twtapi 的每账号 X·<handle> 名），否则其条目
+    # （不在 feeds.yaml）会被当"已移除源"删掉
+    _prune_removed_sources({f["name"] for f in feeds} | set(_ADAPTERS) | twtapi.source_names())
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
     failures: list[str] = []

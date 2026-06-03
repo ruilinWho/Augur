@@ -1,0 +1,26 @@
+# X/Twitter 官方账号清单（twtapi 桥拉取，喂「知」）——版本化、主人可编辑。
+# 只放**官方机构/关键人物**账号（一手信号），避免噪音大户。
+#   screen_name: 不带 @ 的句柄
+#   category:    主题（同 feeds：ai 大模型 · chips 芯片 · space 航天 · robotics 机器人 · tech 泛科技）
+# 想加：照抄一行改 screen_name + category 即可。失效账号 ingest 时自动跳过、不阻断。
+
+accounts:
+  # —— 大模型 / AI 实验室 ——
+  - { screen_name: OpenAI, category: ai }
+  - { screen_name: AnthropicAI, category: ai }
+  - { screen_name: GoogleDeepMind, category: ai }
+  - { screen_name: sama, category: ai }
+  - { screen_name: xai, category: ai }
+  - { screen_name: MistralAI, category: ai }
+  # —— 芯片 ——
+  - { screen_name: nvidia, category: chips }
+  - { screen_name: AMD, category: chips }
+  - { screen_name: intel, category: chips }
+  - { screen_name: Arm, category: chips }
+  # —— 航天 ——
+  - { screen_name: SpaceX, category: space }
+  - { screen_name: NASA, category: space }
+  - { screen_name: RocketLab, category: space }
+  # —— 机器人 / 终端 ——
+  - { screen_name: Tesla, category: robotics }
+  - { screen_name: BostonDynamics, category: robotics }

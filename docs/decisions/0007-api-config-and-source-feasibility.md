@@ -55,7 +55,7 @@
 - **候选源可行性（均先「登记留槽」、不写适配器、由主人定夺）**：
   - **行情类（必盈 `BIYING_API_LICENCE` / iTick `ITICK_API_KEY` / Tushare `TUSHARE_TOKEN`）**：A/港/美/全球行情+基本面**已被 FDR/akshare/yfinance/pykrx 免费覆盖**；免费档过严（iTick 5 次/分；Tushare 仅 A 股日线 50 次/月）或需付费，且每次查询把标的外泄给第三方（增隐私面）。→ 登记备选、不默认启用。
   - **雪球 pysnowball（`XUEQIU_TOKEN`，论坛）**：社区情绪/组合独特，但需**手动登录 token（周级失效）**且把持仓查询**绑主人真实账号泄露**给雪球——触 §11 本地优先私密底线。→ 登记留槽并显式标注权衡，主人知情后自配。
-  - **Twitter 桥：改选 twtapi（`TWTAPI_KEY`）取代 TwitterAPI.io**。原选 TwitterAPI.io（纯按量更省）但**需国际银行卡，主人办不了**；twtapi 有免费试用 + 月付套餐，主人可付。二者隐私权衡等同（仅看公开官方号、不涉持仓）。`TWITTERAPI_KEY` 槽换为 `TWTAPI_KEY`，适配器待主人配 key 后接。
+  - **Twitter 桥：改选 twtapi（`TWTAPI_KEY`）取代 TwitterAPI.io，并已实现适配器**。原选 TwitterAPI.io（纯按量更省）但**需国际银行卡，主人办不了**；twtapi 有免费试用 + 月付套餐，主人可付。二者隐私权衡等同（仅看公开官方号、不涉持仓）。`news/twtapi.py` 已接：base `https://api.twtapi.com/api/v1/twitter`、头 `X-API-Key`、两步 `UserResultByScreenName`(username→rest_id) + `UserTweets`(user_id→GraphQL 时间线)；递归取 Tweet、按 `legacy.user_id_str` 滤本人推、`rest_id` 去重、长推取 `note_tweet`，归一进 `ingest_all`（source=`X·<handle>`、prune 豁免、复用 classify/噪音过滤/翻译）。账号清单 `resources/sources/x_accounts.yaml`（15 官方号，可编辑）。docs 为 SPA、端点经实测得出；OpenAPI(`/openapi.json`) 是 catch-all `{path}` 代理。真机验证 15 账号 280 推、英文标题自动翻中。**MCP**：twtapi 另提供 MCP server（`https://mcp.twtapi.com/sse?mcp_key=…`，工具 UserTweets/Search/FollowersLight），MCP key 已存 `TWTAPI_MCP_KEY`——MCP 原生支持作单独架构议题评估（见正文/后续 ADR）。
 
 ## 后果
 
