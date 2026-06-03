@@ -12,6 +12,8 @@ export const PANEL_MIN = 208
 export const PANEL_MAX = 520
 export const NEWS_SUB_MIN = 140
 export const NEWS_SUB_MAX = 360
+export const SRC_NAV_MIN = 120
+export const SRC_NAV_MAX = 320
 
 interface UIState {
   view: View
@@ -25,6 +27,7 @@ interface UIState {
   convention: Convention
   panelW: number // 左栏宽度（px），可拖拽调整
   newsSubW: number // 「知」二级卡宽度（px），可拖拽调整
+  srcNavW: number // 「设置·数据/信源」二级菜单宽度（px），可拖拽调整
   kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
   settingsPage: SettingsPage // 「设置」当前页（左栏导航选择，瞬时不持久化）
 
@@ -38,6 +41,7 @@ interface UIState {
   setConvention: (c: Convention) => void
   setPanelW: (n: number) => void
   setNewsSubW: (n: number) => void
+  setSrcNavW: (n: number) => void
   setKanOrder: (o: string[]) => void
   setSettingsPage: (p: SettingsPage) => void
 }
@@ -57,6 +61,7 @@ export const useUI = create<UIState>()(
       convention: 'us',
       panelW: 268,
       newsSubW: 196,
+      srcNavW: 184,
       kanOrder: [...KAN_MODULES],
       settingsPage: 'appearance',
 
@@ -72,6 +77,8 @@ export const useUI = create<UIState>()(
         set({ panelW: Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.round(panelW))) }),
       setNewsSubW: (newsSubW) =>
         set({ newsSubW: Math.max(NEWS_SUB_MIN, Math.min(NEWS_SUB_MAX, Math.round(newsSubW))) }),
+      setSrcNavW: (srcNavW) =>
+        set({ srcNavW: Math.max(SRC_NAV_MIN, Math.min(SRC_NAV_MAX, Math.round(srcNavW))) }),
       setKanOrder: (kanOrder) => set({ kanOrder }),
       setSettingsPage: (settingsPage) => set({ settingsPage }),
     }),
@@ -86,6 +93,7 @@ export const useUI = create<UIState>()(
         market: s.market,
         panelW: s.panelW,
         newsSubW: s.newsSubW,
+        srcNavW: s.srcNavW,
         kanOrder: s.kanOrder,
       }),
     },

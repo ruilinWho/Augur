@@ -1,7 +1,8 @@
 """运行时可配置项的本地存储：LLM 连接列表 / 角色路由 / 数据信源 key——供「设置」页 UI 改。
 
-护栏（CLAUDE.md §11）：**密钥永不入库**。存 gitignored `data/config.local.json`（0600），
-**绝不打日志**，GET 只回脱敏（末 4 位），POST 从不回明文。
+护栏（CLAUDE.md §11）：**密钥永不入 git、永不打日志**。存 gitignored `data/config.local.json`
+（0600）。主人明确要求**本地单用户「设置」UI 直接回显明文 key**（"反正只有我自己用"）——故
+GET 会带明文，仅在 localhost 后端↔前端间流动；硬护栏（不入 git/日志）不变。
 
 LLM 模型 = **可动态增删的连接列表**：每个连接 `{id, name, base_url, api_key, model}`（一律按
 OpenAI 兼容，覆盖 DeepSeek / 中转站 / OpenRouter / 国产模型）。4 个角色
@@ -145,6 +146,14 @@ def secret_hint(name: str) -> str:
     return _hint(_raw_secret(name))
 
 
+def get_secret(name: str) -> str:
+    """明文取某数据信源 key——**仅供本地单用户「设置」UI 回显**（主人明确要求直接看原文）。
+
+    护栏不变：key 只在 localhost 后端↔前端间流动，**永不打日志、永不入 git**（data/ 被忽略）。
+    """
+    return _raw_secret(name)
+
+
 # ───────────────────────── LLM 连接（动态列表）─────────────────────────
 def list_connections() -> list[dict]:
     """脱敏的连接列表（不含明文 key）。"""
@@ -158,6 +167,7 @@ def list_connections() -> list[dict]:
                 "model": c.get("model", ""),
                 "key_configured": bool(c.get("api_key")),
                 "key_hint": _hint(c.get("api_key", "")),
+                "api_key": c.get("api_key", ""),  # 明文回显（仅本地单用户 UI；不入日志/git）
             }
         )
     return out

@@ -219,6 +219,7 @@ def status_list() -> list[dict]:
                 "configured": configured,
                 "status": status,
                 "hint": runtime_config.secret_hint(key_env) if key_env else "",
+                "key_value": runtime_config.get_secret(key_env) if key_env else "",
                 "config": _config_for(s),
             }
         )

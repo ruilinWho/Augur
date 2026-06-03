@@ -1,4 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import {
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 import { useUI } from '../../store'
 import {
   useDeleteConnection,
@@ -72,7 +77,6 @@ function AppearancePage() {
   } = useUI()
   return (
     <>
-      <h1 className="set2-title">外观</h1>
       <Section title="排版">
         <Row label="正文字号">
           <input type="range" min={14} max={19} step={1} value={textBase} onChange={(e) => setTextBase(+e.target.value)} />
@@ -114,7 +118,7 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   const [name, setName] = useState(conn?.name ?? '')
   const [base, setBase] = useState(conn?.base_url ?? '')
   const [model, setModel] = useState(conn?.model ?? '')
-  const [key, setKey] = useState('')
+  const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
   const [result, setResult] = useState<TestResult | null>(null)
   const isNew = !conn
   const canTest = !!base && !!model && (!isNew || !!key)
@@ -139,10 +143,11 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
         <input className="cfg-input mono" placeholder="model id（如 deepseek-chat）" value={model} onChange={(e) => setModel(e.target.value)} />
       </div>
       <input
-        className="cfg-input"
-        type="password"
+        className="cfg-input mono"
+        type="text"
         autoComplete="off"
-        placeholder={conn?.key_configured ? `API key（已配 ${conn.key_hint}，留空＝不改）` : '粘贴 API key'}
+        spellCheck={false}
+        placeholder="API key"
         value={key}
         onChange={(e) => setKey(e.target.value)}
       />
@@ -200,7 +205,6 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
   const [adding, setAdding] = useState(false)
   return (
     <>
-      <h1 className="set2-title">模型</h1>
       <Section title="LLM 连接">
         <div className="conn-list">
           {conns.map((c) => (
@@ -228,7 +232,7 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
 // 信源详情子页：只放名称 + 状态 + 可操作项（key / 账户 / 关键词）。不写任何说明性文案。
 function SourceDetail({ s }: { s: SourceStatus }) {
   const setSecret = useSetSecret()
-  const [key, setKey] = useState('')
+  const [key, setKey] = useState(s.key_value ?? '') // 明文预填（仅本地）
   const isToken = s.cred === 'token'
   const hasNothing = !s.key_env && s.config.length === 0
   return (
@@ -243,10 +247,11 @@ function SourceDetail({ s }: { s: SourceStatus }) {
           <div className="src2-flabel">{isToken ? '登录 token' : 'API key'}</div>
           <div className="src-keyrow">
             <input
-              className="cfg-input"
-              type="password"
+              className="cfg-input mono"
+              type="text"
               autoComplete="off"
-              placeholder={s.configured ? '留空＝不改' : isToken ? '粘贴 token' : '粘贴 key'}
+              spellCheck={false}
+              placeholder={isToken ? 'token' : 'API key'}
               value={key}
               onChange={(e) => setKey(e.target.value)}
             />
@@ -392,39 +397,55 @@ const GROUP_FALLBACK: SourceGroup[] = [
   { id: 'forum', label: '论坛', blurb: '' },
 ]
 
-// 二级菜单：左侧按 财经/新闻/论坛 分组列出信源，右侧是选中源的子页面
+// 二级菜单：左侧按 财经/新闻/论坛 分组列出信源，右侧是选中源的子页面；中缝可拖拽调宽
 function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: SourceGroup[] }) {
   const order = groups.length ? groups : GROUP_FALLBACK
   const [selId, setSelId] = useState<string>('')
   const sel = sources.find((s) => s.id === selId) ?? sources[0]
+  const srcNavW = useUI((s) => s.srcNavW)
+  const setSrcNavW = useUI((s) => s.setSrcNavW)
+
+  const onResize = (e: ReactPointerEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = srcNavW
+    const move = (ev: globalThis.PointerEvent) => setSrcNavW(startW + (ev.clientX - startX))
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.classList.remove('resizing')
+    }
+    document.body.classList.add('resizing')
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
   return (
-    <>
-      <h1 className="set2-title">数据 / 信源</h1>
-      <div className="src2">
-        <nav className="src2-nav">
-          {order.map((g) => {
-            const items = sources.filter((s) => s.group === g.id)
-            if (!items.length) return null
-            return (
-              <div key={g.id} className="src2-group">
-                <div className="src2-glabel">{g.label}</div>
-                {items.map((s) => (
-                  <button
-                    key={s.id}
-                    className={`src2-item ${sel?.id === s.id ? 'active' : ''}`}
-                    onClick={() => setSelId(s.id)}
-                  >
-                    <span className="src2-iname">{s.name}</span>
-                    <span className={`src2-dot ${s.configured ? 'on' : ''}`} />
-                  </button>
-                ))}
-              </div>
-            )
-          })}
-        </nav>
-        <div className="src2-detail">{sel && <SourceDetail s={sel} />}</div>
-      </div>
-    </>
+    <div className="src2" style={{ '--src-nav-w': `${srcNavW}px` } as CSSProperties}>
+      <nav className="src2-nav">
+        {order.map((g) => {
+          const items = sources.filter((s) => s.group === g.id)
+          if (!items.length) return null
+          return (
+            <div key={g.id} className="src2-group">
+              <div className="src2-glabel">{g.label}</div>
+              {items.map((s) => (
+                <button
+                  key={s.id}
+                  className={`src2-item ${sel?.id === s.id ? 'active' : ''}`}
+                  onClick={() => setSelId(s.id)}
+                >
+                  <span className="src2-iname">{s.name}</span>
+                  <span className={`src2-dot ${s.configured ? 'on' : ''}`} />
+                </button>
+              ))}
+            </div>
+          )
+        })}
+      </nav>
+      <div className="src2-resize" onPointerDown={onResize} title="拖动调整宽度" />
+      <div className="src2-detail">{sel && <SourceDetail key={sel.id} s={sel} />}</div>
+    </div>
   )
 }
 

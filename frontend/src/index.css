@@ -1350,12 +1350,36 @@ body.resizing * {
   cursor: pointer;
 }
 
-/* 数据/信源：二级菜单（源列表）+ 子页面 */
+/* 数据/信源：二级菜单（源列表）+ 子页面，中缝可拖拽调宽 */
 .src2 {
   display: grid;
-  grid-template-columns: 184px 1fr;
+  grid-template-columns: var(--src-nav-w, 184px) 1fr;
   gap: 22px;
   align-items: start;
+  position: relative;
+}
+.src2-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--src-nav-w, 184px);
+  width: 11px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  z-index: 2;
+}
+.src2-resize::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.src2-resize:hover::after {
+  background: var(--accent);
 }
 .src2-nav {
   display: flex;

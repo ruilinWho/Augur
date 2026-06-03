@@ -249,6 +249,7 @@ const connectionSchema = z.object({
   model: z.string().default(''),
   key_configured: z.boolean(),
   key_hint: z.string().default(''),
+  api_key: z.string().default(''), // 明文（仅本地单用户 UI 回显）
 })
 const roleTargetSchema = z.object({
   role: z.string(),
@@ -275,6 +276,7 @@ const sourceStatusSchema = z.object({
   configured: z.boolean(),
   status: z.string(),
   hint: z.string().default(''),
+  key_value: z.string().default(''), // 明文 key（仅本地单用户 UI 回显）
   config: z.array(sourceConfigFieldSchema).default([]),
 })
 export type SourceConfigField = z.infer<typeof sourceConfigFieldSchema>
