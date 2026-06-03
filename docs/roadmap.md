@@ -71,7 +71,9 @@
 - ✅ **自选分区去重**：`create_section` 同层同名幂等（重复提交返回既有），根治"两个大模型"。
 - ✅ LongBridge OpenAPI 调研：暂不采用（偏交易/需凭证/基本面薄），见 [ADR-0004](decisions/0004-llm-live-fundamentals-longbridge.md)。
 - ✅ **「研 · 单股深度研究」编排器**（`research/`）：`gather(symbol)` 收集**已有确定性数据**（display_name + 价格摘要 1y + 基本面快照 + 季度财报趋势 + 个股相关新闻[已清洗] + SEC 申报）并给**编号引用源**（新闻+申报各带 `[n]`）→ `_format_data` 拼事实块 → **deep_research 角色（长上下文模型）SSE 流式** Markdown → 落库（`research_reports` 表，一股一份、重生成覆盖、ON CONFLICT(symbol)）。提示词 `resources/prompts/research_stock.md` 由 4-agent 设计 workflow（thesis/fundamentals/catalyst 三视角 → 评审合成）产出：**先一句话结论 + 多空核心看点 → 近期催化与动态（重心）→ 基本面与估值 → 财务趋势 → 多空逻辑 → 风险与不确定性 → 来源**；八条**防幻觉铁律**（只用所给数据、不编造数字、不假装有网络/分析师预期/估值模型/目标价、事实 vs 推断对冲、单源标题党对冲、内联 `[n]` 引用）。`GET /research/stock`（404=暂无）+ `POST /research/stock/generate`（SSE，check_ready deep_research）。前端**「研」Tab** = `ResearchView`：选中标的 → 生成按钮 → 流式渲染（自写轻量 Markdown：## 标题/`>` 引用块/`-` 列表/`|表格|`/**强调**/`[n]` 上标**可点跳来源 url**）+ 持久化报告加载 + 「重新生成」+ 空态引导；非投资建议免责。真机验证 US:NVDA 端到端（128 deltas、含财务表 + 12 条带 url 引用 + 诚实点出数据盲区）。ruff + tsc + build 全过。
-- ⚪ **research/ 深度增强（下一步）**：接入实时网络搜索 / Deep Research（多轮检索→综合）、按**自选分区**批量研究、报告版本历史、财报分析面板回归 AI 解读。
+- ✅ **研 · 导入研报**（主人需求）：`imported_reports` 表 + CRUD（list/add/update/delete/reorder）+ `/research/imported`；ResearchView 下方「导入研报」——粘贴他人 markdown 研报、**一股可多份**、记录创建时间、**dnd 拖拽排序**、删除、markdown 渲染（复用 `Digest`）、每份下方**「我的评论」**（blur 自动存）、正文可「编辑」。
+- ✅ **主人反馈批次（2026-06）**：① **「看」未自选股一键「＋ 自选」**（`AddToWatchlist`：头部按钮 → 下拉选一级/二级分区或现建新分区加入；已自选则不显）；② **修「研」点股弹回看**（`store.pickInView` 在研留研、在看留看，左栏 StockRow/PlainStockRow 改用之）；③ **数据信源「测试」按钮**（`source_test.test_source` + `POST /settings/source/test`：行情栈/财联社/东财/RSS/Bloomberg 真探活，候选源「未接入」，twtapi `ping()` 轻量 <1s）；④ **API key 长期明文**（ConnectionCard/SourceDetail 去 `setKey('')`+加 `useEffect` 回灌，保存后仍可见，见 [[single-user-local-convenience]]）；⑤ **连接级「联网检索」开关**（Qwen `enable_search`，替代办不了的 Perplexity）；⑥ 展示名去 Technology 后缀、总览按钮等宽去 ✨、去「非投资建议」、列2「全部」+空直属不显、日报段头不重叠。
+- ⚪ **research/ 深度增强（下一步）**：接入实时网络搜索 / Deep Research（Qwen 联网或自建 pipeline）、按**自选分区**批量研究、报告版本历史、财报分析面板回归 AI 解读。
 
 ## M3 · 新闻聚合 + 趋势日报 + 投资机会 🟡（推进中）
 
