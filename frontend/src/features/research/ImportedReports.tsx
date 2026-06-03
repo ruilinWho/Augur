@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -53,6 +53,12 @@ function ImpCard({ r }: { r: ImportedReport }) {
   const [title, setTitle] = useState(r.title)
   const [body, setBody] = useState(r.body)
   const [comment, setComment] = useState(r.comment)
+  // 保存/刷新后让本地态跟上服务器（不在编辑正文时才同步，避免覆盖输入中的内容）
+  useEffect(() => setTitle(r.title), [r.title])
+  useEffect(() => setComment(r.comment), [r.comment])
+  useEffect(() => {
+    if (!editBody) setBody(r.body)
+  }, [r.body]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveTitle = () => {
     if (title.trim() !== r.title) upd.mutate({ id: r.id, symbol: r.symbol, title: title.trim() })
@@ -77,7 +83,7 @@ function ImpCard({ r }: { r: ImportedReport }) {
         </button>
         <input
           className="imp-title"
-          placeholder="研报标题…"
+          placeholder="标题"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={saveTitle}
@@ -99,8 +105,7 @@ function ImpCard({ r }: { r: ImportedReport }) {
           className="imp-body-edit"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          onBlur={saveBody}
-          placeholder="粘贴 markdown 正文…"
+          placeholder="正文（markdown）"
           autoFocus
         />
       ) : body.trim() ? (
@@ -108,7 +113,7 @@ function ImpCard({ r }: { r: ImportedReport }) {
           <Digest body={body} />
         </div>
       ) : (
-        <div className="imp-body faint">（空正文，点「编辑」粘贴）</div>
+        <div className="imp-body faint">空正文</div>
       )}
       <div className="imp-comment">
         <span className="imp-comment-lbl">我的评论</span>
@@ -137,14 +142,14 @@ function AddForm({ symbol, onDone }: { symbol: string; onDone: () => void }) {
     <div className="imp-add">
       <input
         className="imp-title"
-        placeholder="研报标题（如：XX 券商 · 深度）"
+        placeholder="标题"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         autoFocus
       />
       <textarea
         className="imp-body-edit"
-        placeholder="粘贴 markdown 正文…"
+        placeholder="正文（markdown）"
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
@@ -200,9 +205,7 @@ export default function ImportedReports({ symbol }: { symbol: string }) {
             </div>
           </SortableContext>
         </DndContext>
-      ) : (
-        !adding && <div className="imp-empty faint">粘贴他人的研报（markdown），可多份、拖拽排序、各自评论。</div>
-      )}
+      ) : null}
     </section>
   )
 }
