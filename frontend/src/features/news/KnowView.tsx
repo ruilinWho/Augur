@@ -33,6 +33,7 @@ const fmtDate = (d: string) => {
   const [, m, day] = d.split('-')
   return `${Number(m)}月${Number(day)}日`
 }
+const stripRefs = (s: string) => s.replace(/(?:\s*\[\d{1,5}\])+/g, '').trim()
 
 // ── 日报块（某天 digest + 生成/重生成）；总览与「日报」视图共用 ──
 function DigestBlock({ date, showGenerate = true }: { date: string | null; showGenerate?: boolean }) {
@@ -129,9 +130,9 @@ function MorningBrief({
                 <div className="brief-body">
                   <div className="brief-line">
                     <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
-                    <span className="brief-head">{c.headline}</span>
+                    <span className="brief-head">{stripRefs(c.headline)}</span>
                   </div>
-                  {c.why && <div className="brief-why">{c.why}</div>}
+                  {c.why && <div className="brief-why">{stripRefs(c.why)}</div>}
                 </div>
               </li>
             )
@@ -329,6 +330,7 @@ function DecisionView({ date }: { date: string }) {
     })
   })
   const symbols = [...symbolMap.values()].sort((a, b) => b.n - a.n).slice(0, 18)
+  const sourceCount = new Set((feed.data ?? []).map((it) => it.source)).size
   const loading = clusters.isLoading || opps.isLoading || feed.isLoading
 
   return (
@@ -349,6 +351,10 @@ function DecisionView({ date }: { date: string }) {
           <span>
             <b>{symbols.length}</b>
             标的
+          </span>
+          <span>
+            <b>{sourceCount}</b>
+            信源
           </span>
         </div>
       </div>
@@ -459,10 +465,10 @@ function ClusterCard({ c }: { c: NewsCluster }) {
     <article className="cl-card">
       <header className="cl-head" onClick={() => setOpen((v) => !v)} role="button">
         <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
-        <span className="cl-headline">{c.headline}</span>
+        <span className="cl-headline">{stripRefs(c.headline)}</span>
         {c.members.length > 1 && <span className="cl-n">{c.members.length}</span>}
       </header>
-      {c.why && <div className="cl-why">{c.why}</div>}
+      {c.why && <div className="cl-why">{stripRefs(c.why)}</div>}
       <Collapse open={open}>
         <div className="cl-members">
           {c.members.map((m, i) => (
@@ -543,7 +549,7 @@ function DayScopedNews({ date, kind }: { date: string; kind: SourceLaneId }) {
   const theme = kind === 'news' && filter ? filter : undefined
   const sourcePrefix = lane.sourcePrefix
   const category = kind !== 'news' && filter ? filter : undefined
-  const feed = useNewsFeed(250, { theme, sourcePrefix, day: date })
+  const feed = useNewsFeed(250, { theme, sourcePrefix, category, day: date })
   const items = (feed.data ?? []).filter((i) => {
     if (kind !== 'news' && filter && i.category !== filter) return false
     if (onlyWatch && i.symbols.length === 0) return false
@@ -566,6 +572,12 @@ function DayScopedNews({ date, kind }: { date: string; kind: SourceLaneId }) {
           </button>
         </div>
       </div>
+      {!lane.live ? (
+        <div className="lane-empty">
+          <div className="ke-title">待接入</div>
+        </div>
+      ) : (
+        <>
       <div className="tfilter">
         {opts.map((o) => (
           <button
@@ -600,6 +612,8 @@ function DayScopedNews({ date, kind }: { date: string; kind: SourceLaneId }) {
         <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '暂无内容'} />
       ) : (
         <ClusterList params={clusterParams} />
+      )}
+        </>
       )}
     </div>
   )

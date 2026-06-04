@@ -106,7 +106,7 @@ function NoteEditor({ id }: { id: number }) {
             onClick={togglePin}
             title={note.data.pinned ? '取消置顶' : '置顶'}
           >
-            {note.data.pinned ? '已置顶' : '置顶'}
+            {note.data.pinned ? '取消置顶' : '置顶'}
           </button>
           <div className="seg note-seg">
             <button aria-pressed={!preview} onClick={() => setPreview(false)}>
@@ -135,7 +135,7 @@ function NoteEditor({ id }: { id: number }) {
       ) : (
         <textarea
           className="note-body-in"
-          placeholder="Markdown 正文"
+          placeholder="正文"
           value={body}
           onChange={(e) => {
             setBody(e.target.value)
@@ -157,7 +157,7 @@ export default function NotesView() {
   if (selectedId == null)
     return (
       <div className="empty-stage">
-        <div className="es-title">自由长文</div>
+        <div className="es-title">暂无笔记</div>
       </div>
     )
   return <NoteEditor key={selectedId} id={selectedId} />

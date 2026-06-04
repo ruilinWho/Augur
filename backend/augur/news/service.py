@@ -139,6 +139,7 @@ def recent_items(
     limit: int = 60,
     theme: str | None = None,
     source_prefix: str | None = None,
+    category: str | None = None,
     days: int | None = None,
     day: str | None = None,
 ) -> list[dict]:
@@ -149,7 +150,7 @@ def recent_items(
     新闻一直持久化在 news_items（不按龄删除），day/days 让作者翻看已存历史而非只看当前。
     """
     if day:
-        return linker.attach_symbols(items_for_day(day, theme, source_prefix)[:limit])
+        return linker.attach_symbols(items_for_day(day, theme, source_prefix, category)[:limit])
     conn = get_conn()
     try:
         # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
@@ -162,6 +163,9 @@ def recent_items(
         if source_prefix:
             sql += " AND source LIKE ?"
             args.append(f"{source_prefix}%")
+        if category:
+            sql += " AND category = ?"
+            args.append(category)
         if days and days > 0:
             lo, _ = _window_bounds_utc(days)
             sql += " AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?)"
@@ -351,6 +355,7 @@ def _norm_url(u: str) -> str:
 
 _stock_clean_cache: dict[str, tuple[float, list[dict]]] = {}
 _STOCK_CLEAN_TTL = 3600.0  # 个股相关新闻 LLM 清洗结果缓存 1h
+_stock_brief_cache: dict[str, tuple[float, dict]] = {}
 
 
 def _clean_stock_news_llm(items: list[dict]) -> list[dict]:
@@ -445,6 +450,63 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
         out.append(it)
     out.sort(key=lambda x: x.get("published_at") or "", reverse=True)
     return _clean_stock_news(symbol, out[:limit])
+
+
+def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
+    """个股「相关资讯」摘要：AI 筛选+合成要点，前端不再铺直接新闻列表。
+
+    原始资讯仍用于生成与来源计数，但 UI 只呈现 summary/points/risks。若模型未配置，让路由返回
+    503；不要降级成直接新闻列表（作者明确要求“只能 AI 筛选 + 总结要点”）。
+    """
+    gateway.check_ready(role)
+    now = time.time()
+    hit = _stock_brief_cache.get(symbol)
+    if hit and now - hit[0] < _STOCK_CLEAN_TTL:
+        return hit[1]
+    items = news_for_symbol(symbol, limit=limit)
+    if not items:
+        data = {
+            "symbol": symbol,
+            "summary": "",
+            "points": [],
+            "risks": [],
+            "source_count": 0,
+            "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
+        }
+        _stock_brief_cache[symbol] = (now, data)
+        return data
+    lines: list[str] = []
+    for i, it in enumerate(items, start=1):
+        day = (it.get("published_at") or it.get("fetched_at") or "")[:10]
+        title = _strip_inline_refs(it.get("title_zh") or it["title"])
+        src = it.get("source") or ""
+        lines.append(f"[{i}] ({day or '日期不详'}) [{src}] {title}")
+    prompt = (
+        _load_prompt("stock_news_brief")
+        .replace("{{SYMBOL}}", f"{search.display_name(symbol)} / {symbol}")
+        .replace("{{ITEMS}}", "\n".join(lines))
+    )
+    data = _complete_json(prompt, role, "summary")
+    points = data.get("points") if isinstance(data, dict) else []
+    risks = data.get("risks") if isinstance(data, dict) else []
+    out = {
+        "symbol": symbol,
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:180],
+        "points": [
+            _strip_inline_refs(str(x))[:180]
+            for x in (points if isinstance(points, list) else [])
+            if str(x).strip()
+        ][:5],
+        "risks": [
+            _strip_inline_refs(str(x))[:180]
+            for x in (risks if isinstance(risks, list) else [])
+            if str(x).strip()
+        ][:3],
+        "source_count": len(items),
+        "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
+    }
+    _stock_brief_cache[symbol] = (now, out)
+    return out
 
 
 def stock_official(symbol: str, limit: int = 15) -> list[dict]:
@@ -614,6 +676,14 @@ def _parse_json_lenient(raw: str) -> dict:
         except json.JSONDecodeError:
             return {}
     return {}
+
+
+_INLINE_REF_RE = re.compile(r"(?:\s*\[\d{1,5}\])+")
+
+
+def _strip_inline_refs(s: str) -> str:
+    """去掉 LLM 从输入编号泄漏到标题/理由里的裸引用，如 [47][51][478]。"""
+    return _INLINE_REF_RE.sub("", s or "").strip()
 
 
 def _complete_json(prompt: str, role: str, want_key: str, attempts: int = 2) -> dict:
@@ -906,11 +976,25 @@ def generate_narrative(symbol: str, role: str = "summarize") -> dict:
 _IMP_ORDER = {"critical": 0, "high": 1, "med": 2, "low": 3}
 
 
+def _scope_part(s: str | None) -> str:
+    """scope 只能是稳定短串，避免不同 source lane 共用旧缓存。"""
+    if not s:
+        return "all"
+    return re.sub(r"[^0-9A-Za-z_:-]+", "_", s.strip().rstrip("·"))[:40] or "all"
+
+
 def _cluster_scope(
     theme: str | None, source_prefix: str | None, category: str | None, days: int
 ) -> str:
-    """聚类范围 → 唯一 scope 串（存进 theme 列）。新闻按主题、推特按账号、含时间窗。"""
-    base = f"tw:{category or 'all'}" if source_prefix else f"news:{theme or 'all'}"
+    """聚类范围 → 唯一 scope 串（存进 theme 列）。
+
+    旧实现把所有 `source_prefix` 都归为 `tw:*`，导致 Reddit/雪球/小红书要点可能读到
+    推特旧缓存。这里按真实 source lane 分 scope：news / src:Reddit / src:X / src:雪球 …
+    """
+    if source_prefix:
+        base = f"src:{_scope_part(source_prefix)}:{_scope_part(category)}"
+    else:
+        base = f"news:{theme or 'all'}"
     return f"{base}@{int(days)}d"
 
 
@@ -1010,9 +1094,9 @@ def generate_clusters(
         imp = c.get("importance", "med")
         out.append(
             {
-                "headline": (c.get("headline") or members[0]["title"])[:200],
+                "headline": _strip_inline_refs(c.get("headline") or members[0]["title"])[:200],
                 "importance": imp if imp in _IMP_ORDER else "med",
-                "why": (c.get("why") or "")[:120],
+                "why": _strip_inline_refs(c.get("why") or "")[:160],
                 "members": members,
             }
         )

@@ -89,10 +89,15 @@ def test_source(source_id: str) -> dict:
             return _ok(t0, len(got), "Reddit public JSON 可达")
 
         if source_id == "xiaohongshu":
-            return _err("暂未接入适配器（需登录 Cookie / 稳定抓取方案）")
+            n = len(runtime_config.get_source_config("xiaohongshu", "accounts", []))
+            return _err(f"关注用户 {n} 个；抓取适配器待接入（需登录 Cookie / 稳定方案）")
 
         # 候选源：仅登记留槽、未写适配器（ADR-0007）
-        if source_id in ("tushare_pro", "biyingapi", "itick", "xueqiu"):
+        if source_id == "xueqiu":
+            n = len(runtime_config.get_source_config("xueqiu", "accounts", []))
+            return _err(f"关注用户 {n} 个；抓取适配器待接入（需登录 Cookie / 稳定方案）")
+
+        if source_id in ("tushare_pro", "biyingapi", "itick"):
             return _err("暂未接入适配器（仅登记留槽，待定夺）")
 
         return _err(f"未知信源 {source_id!r}")

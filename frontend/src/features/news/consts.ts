@@ -57,11 +57,12 @@ export const SOURCE_LANES: Record<
     label: string
     sourcePrefix?: string
     filters: { key: string; label: string }[]
+    live: boolean
   }
 > = {
-  news: { label: '新闻', filters: THEMES },
-  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS },
-  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS },
-  xueqiu: { label: '雪球', sourcePrefix: '雪球·', filters: FORUM_CATS },
-  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS },
+  news: { label: '新闻', filters: THEMES, live: true },
+  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, live: true },
+  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, live: true },
+  xueqiu: { label: '雪球', sourcePrefix: '雪球·', filters: FORUM_CATS, live: false },
+  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, live: false },
 }

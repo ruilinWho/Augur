@@ -25,6 +25,15 @@ class NewsItem(BaseModel):
     symbols: list[LinkedSymbol] = []  # 挂钩的自选股 ticker（linker.py，确定性接地）
 
 
+class StockNewsBrief(BaseModel):
+    symbol: str
+    summary: str = ""
+    points: list[str] = []
+    risks: list[str] = []
+    source_count: int = 0
+    generated_at: str | None = None
+
+
 class Filing(BaseModel):
     """个股官方一手文件（SEC EDGAR 申报）。标题/事项已给中文标签。"""
 

@@ -689,18 +689,20 @@ export type Filing = z.infer<typeof filingSchema>
 
 export function useNewsFeed(
   limit = 60,
-  opts?: { theme?: string; sourcePrefix?: string; days?: number; day?: string },
+  opts?: { theme?: string; sourcePrefix?: string; category?: string; days?: number; day?: string },
 ) {
   const theme = opts?.theme
   const sp = opts?.sourcePrefix
+  const category = opts?.category
   const days = opts?.days
   const day = opts?.day
   return useQuery({
-    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? '', days ?? 0, day ?? ''],
+    queryKey: ['news-feed', limit, theme ?? 'all', sp ?? '', category ?? '', days ?? 0, day ?? ''],
     queryFn: async () => {
       const q = new URLSearchParams({ limit: String(limit) })
       if (theme) q.set('theme', theme)
       if (sp) q.set('source_prefix', sp)
+      if (category) q.set('category', category)
       if (days) q.set('days', String(days))
       if (day) q.set('day', day)
       return z.array(newsItemSchema).parse(await getJSON(`/news/feed?${q.toString()}`))
@@ -718,6 +720,29 @@ export function useNewsForSymbol(symbol: string | null) {
         .array(newsItemSchema)
         .parse(await getJSON(`/news/for?symbol=${encodeURIComponent(symbol!)}&limit=20`)),
     staleTime: 5 * 60_000,
+  })
+}
+
+const stockNewsBriefSchema = z.object({
+  symbol: z.string(),
+  summary: z.string().default(''),
+  points: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+  source_count: z.number().default(0),
+  generated_at: z.string().nullable().default(null),
+})
+export type StockNewsBrief = z.infer<typeof stockNewsBriefSchema>
+
+export function useStockNewsBrief(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['stock-news-brief', symbol],
+    queryFn: async () =>
+      stockNewsBriefSchema.parse(
+        await getJSON(`/news/for/brief?symbol=${encodeURIComponent(symbol!)}&limit=16`),
+      ),
+    staleTime: 30 * 60_000,
+    retry: 1,
   })
 }
 
@@ -1176,7 +1201,7 @@ export function useReorderImported() {
   })
 }
 
-// ───────────────────────── 「记」· 自由长文笔记（第 4 支柱）─────────────────────────
+// ───────────────────────── 「记」· 笔记（第 4 支柱）─────────────────────────
 const noteMetaSchema = z.object({
   id: z.number(),
   title: z.string().default(''),

@@ -102,11 +102,6 @@ export default function ResearchView() {
       <div style={{ marginTop: 24 }}>
         <ImportedReports symbol={symbol} />
       </div>
-
-      {/* 常驻静态边界：决策级研究，但不执行交易；关键事实仍需回看来源。 */}
-      <div className="disclaimer">
-        决策级研究输出 · 可能滞后或有误 · 关键事实请回看来源核验 · Augur 不执行交易
-      </div>
     </motion.div>
   )
 }

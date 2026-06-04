@@ -278,15 +278,21 @@ function ConnectionCard({
   const [base, setBase] = useState(conn?.base_url ?? '')
   const [model, setModel] = useState(conn?.model ?? '')
   const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
+  const [open, setOpen] = useState(!conn)
   const [result, setResult] = useState<TestResult | null>(null)
   const shown = result ?? injected ?? null
   // 保存后刷新会带回已存明文 key → 回灌输入框，保证**长期明文可见**（作者要求）。
   // 依赖 conn.api_key：仅它真正变化（即保存成功后）才同步，不会覆盖正在输入的内容。
   useEffect(() => {
+    setName(conn?.name ?? '')
+    setBase(conn?.base_url ?? '')
+    setModel(conn?.model ?? '')
     setKey(conn?.api_key ?? '')
-  }, [conn?.api_key])
+    setOpen(!conn)
+  }, [conn?.id, conn?.name, conn?.base_url, conn?.model, conn?.api_key])
   const isNew = !conn
   const canTest = !!base && !!model && (!isNew || !!key)
+  const host = base.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'base_url'
 
   // web_search 不再在此 UI 暴露（作者：先去掉联网检索按钮）；省略该字段＝后端保留已存值不动。
   const save = async () => {
@@ -306,15 +312,15 @@ function ConnectionCard({
   }
 
   return (
-    <div className={`conn-card ${isNew ? 'is-new' : ''}`}>
-      {/* 行1：名称（标题感）+ 测试结果 + 操作 */}
+    <div className={`conn-card ${isNew ? 'is-new' : ''} ${open ? 'is-open' : 'is-collapsed'}`}>
       <div className="conn-head">
-        <input
-          className="cfg-input conn-name"
-          placeholder="连接名称（如 DeepSeek / 中转站）"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div className="conn-summary">
+          <div className="conn-summary-name">{name || '未命名连接'}</div>
+          <div className="conn-summary-meta">
+            <span className="mono">{model || 'model'}</span>
+            <span>{host}</span>
+          </div>
+        </div>
         {shown && (
           <span
             className={`conn-test ${shown.ok ? 'ok' : 'err'}`}
@@ -328,6 +334,9 @@ function ConnectionCard({
         </button>
         {!isNew && (
           <>
+            <button className="btn btn-ghost jsm" onClick={() => setOpen((v) => !v)}>
+              {open ? '收起' : '编辑'}
+            </button>
             <button className="btn btn-ghost jsm" onClick={copy} disabled={upsert.isPending} title="复制为新连接">
               复制
             </button>
@@ -336,38 +345,47 @@ function ConnectionCard({
             </button>
           </>
         )}
-        <button
-          className="btn btn-primary jsm"
-          onClick={save}
-          disabled={upsert.isPending || !name || !base || !model}
-        >
-          保存
-        </button>
+        {open && (
+          <button
+            className="btn btn-primary jsm"
+            onClick={save}
+            disabled={upsert.isPending || !name || !base || !model}
+          >
+            保存
+          </button>
+        )}
       </div>
-      {/* 行2：base_url + model + key（明文，仅本地） */}
-      <div className="conn-fields">
-        <input
-          className="cfg-input mono conn-f-base"
-          placeholder="base_url"
-          value={base}
-          onChange={(e) => setBase(e.target.value)}
-        />
-        <input
-          className="cfg-input mono conn-f-model"
-          placeholder="model id"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-        />
-        <input
-          className="cfg-input mono conn-f-key"
-          type="text"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="API key"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-        />
-      </div>
+      {open && (
+        <div className="conn-fields">
+          <input
+            className="cfg-input conn-name"
+            placeholder="连接名称"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="cfg-input mono conn-f-base"
+            placeholder="base_url"
+            value={base}
+            onChange={(e) => setBase(e.target.value)}
+          />
+          <input
+            className="cfg-input mono conn-f-model"
+            placeholder="model id"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+          />
+          <input
+            className="cfg-input mono conn-f-key"
+            type="text"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="API key"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -632,6 +650,9 @@ const ACCT_CATS = [
   { v: 'space', l: '航天' },
   { v: 'robotics', l: '机器人' },
   { v: 'tech', l: '科技' },
+  { v: 'investor', l: '投资人' },
+  { v: 'macro', l: '宏观' },
+  { v: 'other', l: '其他' },
 ]
 const catLabel = (v: string) => ACCT_CATS.find((c) => c.v === v)?.l ?? v
 

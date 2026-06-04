@@ -31,7 +31,6 @@ export default function NotesNav() {
   return (
     <aside className="panel notes-nav">
       <div className="notes-nav-head">
-        <div className="lbl">记</div>
         <button className="notes-new" onClick={onNew} disabled={create.isPending} title="新建笔记">
           ＋ 新建
         </button>
@@ -39,7 +38,7 @@ export default function NotesNav() {
       {list.isLoading ? (
         <div className="nsub-row faint">加载…</div>
       ) : items.length === 0 ? (
-        <div className="nsub-empty faint">暂无笔记</div>
+        null
       ) : (
         <div className="notes-list">
           {items.map((n) => (

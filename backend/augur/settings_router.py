@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from . import runtime_config
 from .llm import gateway
-from .news import source_registry, source_test
+from .news import source_registry, source_test, sources
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -151,6 +151,8 @@ async def set_source_config(body: SourceConfigIn) -> dict:
         raise HTTPException(status_code=400, detail=f"未知信源配置项：{body.id}.{body.field}")
     clean = source_registry.sanitize_config(fields[body.field], body.value)
     await run_in_threadpool(runtime_config.set_source_config, body.id, body.field, clean)
+    if body.id == "bloomberg":
+        sources.load_feeds.cache_clear()
     return {"id": body.id, "field": body.field, "value": clean}
 
 

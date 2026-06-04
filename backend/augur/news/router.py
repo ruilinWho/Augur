@@ -19,6 +19,7 @@ from .schemas import (
     OpportunitiesResponse,
     RefreshResult,
     ReportMeta,
+    StockNewsBrief,
 )
 
 router = APIRouter(prefix="/news", tags=["news"])
@@ -32,11 +33,14 @@ async def feed(
     limit: int = 60,
     theme: str | None = None,
     source_prefix: str | None = None,
+    category: str | None = None,
     days: int | None = None,
     day: str | None = None,
 ) -> list[dict]:
     """最近新闻条目（theme 过滤 · source_prefix='X·' 取推特 · days 近 N 天 · day 取某一天）。"""
-    return await run_in_threadpool(service.recent_items, limit, theme, source_prefix, days, day)
+    return await run_in_threadpool(
+        service.recent_items, limit, theme, source_prefix, category, days, day
+    )
 
 
 @router.post("/refresh", response_model=RefreshResult)
@@ -61,6 +65,15 @@ async def relink() -> dict:
 async def news_for(symbol: str, limit: int = 20) -> list[dict]:
     """与某标的（MARKET:CODE）相关的新闻（标题里出现公司名）。"""
     return await run_in_threadpool(service.news_for_symbol, symbol, limit)
+
+
+@router.get("/for/brief", response_model=StockNewsBrief)
+async def news_for_brief(symbol: str, limit: int = 16) -> dict:
+    """某标的相关资讯的 AI 摘要；看页只展示摘要，不直接铺新闻列表。"""
+    try:
+        return await run_in_threadpool(service.stock_news_brief, symbol, limit)
+    except gateway.LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/official", response_model=list[Filing])

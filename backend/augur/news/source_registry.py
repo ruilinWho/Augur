@@ -21,7 +21,7 @@ SOURCES: list[dict] = [
     # ──────────── 财经 · 行情 / 基本面数据 ────────────
     {
         "id": "market_data",
-        "name": "行情 / 基本面数据",
+        "name": "内置行情栈",
         "group": "finance",
         "access": "builtin",
         "payment": "免费",
@@ -60,7 +60,7 @@ SOURCES: list[dict] = [
     # ──────────── 新闻 · RSS / 中文 newswire / 官方资讯 ────────────
     {
         "id": "feeds_rss",
-        "name": "RSS 新闻源",  # status_list 动态补条数
+        "name": "RSS",  # status_list 动态补条数
         "group": "news",
         "access": "free_rss",
         "payment": "免费",
@@ -68,15 +68,16 @@ SOURCES: list[dict] = [
     },
     {
         "id": "bloomberg",
-        "name": "Bloomberg · 科技/市场",
+        "name": "Bloomberg",
         "group": "news",
         "access": "free_rss",
         "payment": "免费",
         "note": "官方 RSS",
+        "config": [{"field": "channels", "type": "tags", "label": "频道"}],
     },
     {
         "id": "cls",
-        "name": "财联社 CLS",
+        "name": "财联社",
         "group": "news",
         "access": "free_api",
         "active": True,
@@ -85,7 +86,7 @@ SOURCES: list[dict] = [
     },
     {
         "id": "eastmoney_news",
-        "name": "东方财富 · 资讯",
+        "name": "东方财富",
         "group": "news",
         "access": "free_api",
         "active": True,
@@ -95,7 +96,7 @@ SOURCES: list[dict] = [
     },
     {
         "id": "twtapi",
-        "name": "X(Twitter) 官方号",
+        "name": "X",
         "group": "news",
         "access": "paid_api",
         "key_env": "TWTAPI_KEY",
@@ -107,14 +108,17 @@ SOURCES: list[dict] = [
     # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
     {
         "id": "xueqiu",
-        "name": "雪球 Xueqiu",
+        "name": "雪球",
         "group": "forum",
         "access": "free_api",
         "key_env": "XUEQIU_TOKEN",
         "cred": "token",
         "payment": "免费·需登录",
-        "note": "社区情绪·需登录·泄持仓",
-        "config": [{"field": "keywords", "type": "tags", "label": "追踪关键词"}],
+        "note": "社区情绪·需登录",
+        "config": [
+            {"field": "accounts", "type": "accounts", "label": "关注用户"},
+            {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
+        ],
     },
     {
         "id": "reddit",
@@ -135,7 +139,10 @@ SOURCES: list[dict] = [
         "cred": "token",
         "payment": "免费·需登录",
         "note": "消费/情绪信号·待接入",
-        "config": [{"field": "keywords", "type": "tags", "label": "追踪关键词"}],
+        "config": [
+            {"field": "accounts", "type": "accounts", "label": "关注用户"},
+            {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
+        ],
     },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
@@ -153,14 +160,30 @@ GROUPS: list[dict] = [
 # 信源可配置项「生效值」解析器（(source_id, field) → 返回当前生效列表的函数）
 _CONFIG_VALUE = {
     ("twtapi", "accounts"): twtapi.accounts,
+    ("bloomberg", "channels"): lambda: runtime_config.get_source_config(
+        "bloomberg", "channels", ["科技", "Markets"]
+    ),
     ("eastmoney_news", "keywords"): eastmoney_news.keywords,
     ("reddit", "subreddits"): reddit.subreddits,
+    ("xueqiu", "accounts"): lambda: runtime_config.get_source_config("xueqiu", "accounts", []),
     ("xueqiu", "keywords"): lambda: runtime_config.get_source_config("xueqiu", "keywords", []),
+    ("xiaohongshu", "accounts"): lambda: runtime_config.get_source_config(
+        "xiaohongshu", "accounts", []
+    ),
     ("xiaohongshu", "keywords"): lambda: runtime_config.get_source_config(
         "xiaohongshu", "keywords", []
     ),
 }
-_ACCOUNT_CATS = {"ai", "chips", "space", "robotics", "tech"}  # 账户分类白名单
+_ACCOUNT_CATS = {
+    "ai",
+    "chips",
+    "space",
+    "robotics",
+    "tech",
+    "investor",
+    "macro",
+    "other",
+}  # 账户分类白名单
 
 
 def _config_for(s: dict) -> list[dict]:
@@ -231,8 +254,9 @@ def status_list() -> list[dict]:
         else:
             configured, status = False, "待接入"
         name = s["name"]
+        note = s["note"]
         if s["id"] == "feeds_rss":
-            name = f"{name} · {rss_n}"  # 动态条数，不写死
+            note = f"{rss_n} 个源"
         out.append(
             {
                 "id": s["id"],
@@ -241,7 +265,7 @@ def status_list() -> list[dict]:
                 "access": access,
                 "key_env": key_env,
                 "cred": cred if key_env else "",
-                "note": s["note"],
+                "note": note,
                 "payment": s.get("payment", ""),  # 支付方式（中国用户视角，见 ADR-0007）
                 "configured": configured,
                 "status": status,

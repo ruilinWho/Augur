@@ -1,35 +1,49 @@
 import { useState } from 'react'
 import Collapse from '../../components/Collapse'
-import { useNewsForSymbol } from '../../api'
-import { ago } from './shared'
+import { useStockNewsBrief } from '../../api'
 
-// 个股「相关资讯」：从「知」聚合的新闻里筛出提到该公司的条目，链接到原文。
+// 个股「相关资讯」：只呈现 AI 筛选后的摘要，不铺直接新闻列表。
 export default function StockNews({ symbol }: { symbol: string }) {
-  const news = useNewsForSymbol(symbol)
+  const brief = useStockNewsBrief(symbol)
   const [open, setOpen] = useState(true)
-  const items = news.data ?? []
+  const data = brief.data
+  const n = data?.source_count ?? 0
+  const hasBody = Boolean(data?.summary || data?.points.length || data?.risks.length)
 
   return (
     <section className="stock-news">
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>相关资讯</h3>
-        <span className="feed-count">{items.length} 条</span>
+        {n > 0 && <span className="feed-count">{n} 源</span>}
       </div>
       <Collapse open={open}>
-        {items.length > 0 ? (
-          <div className="hl-list">
-            {items.map((it) => (
-              <a key={it.id} className="hl" href={it.url} target="_blank" rel="noreferrer">
-                <span className="hl-src">{it.source}</span>
-                <span className="hl-title">{it.title_zh || it.title}</span>
-                {ago(it.published_at) && <span className="hl-ago">{ago(it.published_at)}</span>}
-              </a>
-            ))}
+        {brief.isLoading ? (
+          <div className="fin-empty">加载…</div>
+        ) : brief.isError ? (
+          <div className="stock-brief-empty">暂无摘要</div>
+        ) : hasBody ? (
+          <div className="stock-brief">
+            {data?.summary && <p className="stock-brief-summary">{data.summary}</p>}
+            {data?.points.length ? (
+              <div className="stock-brief-list">
+                {data.points.map((p, i) => (
+                  <div className="stock-brief-row" key={`${p}-${i}`}>
+                    <span>{i + 1}</span>
+                    <p>{p}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {data?.risks.length ? (
+              <div className="stock-brief-risk">
+                {data.risks.map((r, i) => (
+                  <p key={`${r}-${i}`}>{r}</p>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
-          <div className="fin-empty">
-            {news.isLoading ? '加载相关资讯…' : '暂无相关资讯'}
-          </div>
+          <div className="stock-brief-empty">暂无摘要</div>
         )}
       </Collapse>
     </section>
