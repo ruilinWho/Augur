@@ -14,7 +14,7 @@
   - 人民币/二级计价柜台后缀 `-R/-WR/-WS`（与主柜台重复）→ 丢；但 `-W/-SW/-S`（同股不同权/二次上市）是主挂牌，**保留**（MiniMax-W 就是）。
   - 美股票据 `AAPL22/AAPL24`：US 代码含数字 → 丢。
 - **东财没有韩股**：搜「三星/海力士」只会回 A股同名股 或 港股杠杆 ETF（南方两倍做多海力士），**不是** 真正的 KR:005930/000660。→ 韩股必须靠本地 FDR + 别名种子。
-- 命中缓存：`search.py` 里按 query 做 30min TTL 缓存 + 4s 超时 + 失败静默降级到本地。别去掉（限流，CLAUDE.md §4）。
+- 命中缓存：`search.py` 里按 query 做 30min TTL 缓存 + 4s 超时 + 失败静默降级到本地。别去掉（限流，AGENTS.md §4）。
 
 ## 代理怪癖（本机沙箱 2026-06 实测）
 - `searchapi.eastmoney.com`（suggest）**可达** ✅；但 `push2.eastmoney.com`（akshare 行情/列表用）**被代理拦截**（`ProxyError: Unable to connect to proxy`）。

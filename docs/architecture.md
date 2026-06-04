@@ -1,124 +1,154 @@
 # 架构 — Augur
 
-> [CLAUDE.md](../CLAUDE.md) §2 的详细配套文档。这是"各部分如何拼在一起"的文档。
+> [AGENTS.md](../AGENTS.md) §2 的详细配套文档。这里回答“各部分如何拼在一起”。
 
 ## 1. 系统形态
 
-Augur 是一个**本地双进程应用**：一个 Python 后端（数据 + LLM + 调度）和一个 Web 前端（UI + 图表），在 localhost 上用 HTTP/SSE 通信。Phase 2 用 Tauri 外壳把两者包成原生 `.app`——前端代码在浏览器（开发期）和 Tauri webview（打包后）里完全一致，所以我们可以**先不打包、零返工**。
+Augur 是一个**本地双进程应用**：Python/FastAPI 后端负责数据、LLM、调度和本地存储；React/Vite 前端负责交互、图表和流式呈现。开发期通过 localhost 上的 HTTP + SSE 通信；Phase 2 再用 Tauri 2 把前端和 Python sidecar 包成 macOS `.app`。
 
 ```
-                    ┌─────────────────────────────────────┐
-   浏览器 / Tauri    │           前端（Vite 8）              │
-   webview          │  features/ kline · watchlist · …      │
-                    │  theme token · Lightweight Charts v5  │
-                    └───────────────┬─────────────────────┘
-                                    │  REST + SSE  (localhost:8788)
-                    ┌───────────────┴─────────────────────┐
-                    │          后端（FastAPI）              │
-                    │                                       │
-   外部库      ◄────┤  market/    → MarketAdapter resolver   │
-   （数据源）        │  watchlist/ → 两级分区 (sections+items)│
-   LLM 厂商    ◄────┤  llm/       → litellm 网关（角色路由）  │
-   RSS/新闻 API ◄───┤  research/  → deep-research 编排        │
-                    │  news/      → 摄取 + APScheduler        │
-                    │  storage/   → SQLite + Parquet 缓存     │
-                    │  config.py  → 厂商、路径、设置          │
-                    └───────────────┬─────────────────────┘
-                                    │
-                         ┌──────────┴──────────┐
-                         │  data/（被忽略）      │
-                         │  cache/ db/ logs/    │
-                         └─────────────────────┘
+浏览器 / Tauri webview
+┌──────────────────────────────────────────────┐
+│ frontend/ React 19 + TS + Vite 8              │
+│ 看/研/知/记/设置 · 图表 · 设计 token · SSE UI  │
+└───────────────────────┬──────────────────────┘
+                        │ HTTP + SSE (:8788)
+┌───────────────────────┴──────────────────────┐
+│ backend/ FastAPI                               │
+│ market/ watchlist/ journal/ llm/ research/     │
+│ news/ notes/ settings/ storage/                │
+└───────────────────────┬──────────────────────┘
+                        │
+        ┌───────────────┴───────────────┐
+        │ data/ (gitignored)             │
+        │ db/ SQLite · cache/ Parquet     │
+        └───────────────────────────────┘
 ```
-
-端口 `8788` 是后端默认端口（随意、好记；可配置）。
 
 ## 2. 后端模块
 
-| 模块 | 职责 | 关键依赖 |
+| 模块 | 职责 | 关键点 |
 |---|---|---|
-| `config.py` | 从 env/`config.local.toml` 加载设置 + 厂商注册表；解析 `data/`、`resources/` 路径 | pydantic-settings |
-| `market/` | 四市场 OHLCV/报价/搜索，统一在 `MarketAdapter` 后；缓存优先 | FinanceDataReader, akshare, yfinance, pykrx, pyarrow |
-| `watchlist/` | 自选分区（两级板块）的增删改查 + 拖拽排序；强制 `depth ≤ 2` | sqlite/SQLModel |
-| `llm/` | 单一 litellm 网关；角色→厂商路由；流式；用量记录 | litellm |
-| `research/` | Deep-research 编排：规划 → 收集（行情+新闻+网络）→ 综合 → 引用 | litellm, market, news |
-| `news/` | 信源注册表摄取（RSS/API）、去重、存储、定时日报 | feedparser, APScheduler |
-| `storage/` | SQLite（分区、自选、设置、用量、新闻、日报）+ Parquet 行情缓存 | sqlite3/SQLModel, pyarrow |
-| `main.py` | FastAPI app、路由装配、lifespan（启动调度器）、开发期 CORS | fastapi, uvicorn |
+| `config.py` / `runtime_config.py` | 静态 env + UI 写入的运行时配置 | `data/config.local.json` 注入 env，即时生效，密钥不入 git |
+| `storage/` | SQLite schema/migration + Parquet 行情缓存 | WAL + `busy_timeout`，适配请求线程和 APScheduler 并发写 |
+| `market/` | 四市场 OHLCV、报价、搜索、基本面 | `MARKET:CODE` 归一化，FDR/akshare/yfinance/pykrx，多源缓存和港股兜底 |
+| `watchlist/` | 两级自选分区 + 标的管理 + 排序 | 市场是过滤器，不是第三层；同层重名幂等 |
+| `journal/` | 绑定个股的判断日记 | K 线 marker 和复盘记录 |
+| `llm/` | litellm 网关 | 角色路由、动态连接、SSE、token 用量落库、可选联网检索 |
+| `research/` | 单股深度研究 + 导入研报 | 确定性数据 gather → 带引用报告；导入 markdown 研报和评论 |
+| `news/` | 信源摄取、翻译、过滤、日报、要点、机会、个股叙事 | RSS/API/X/ticker lane；LLM 输出接地和 JSON 加固 |
+| `notes/` | 与个股无关的自由长文笔记 | 置顶、markdown、防抖自动保存 |
+| `settings_router.py` | 设置页 API | LLM 连接、信源 key/配置、测试端点、自动生成计划 |
+| `main.py` | FastAPI app/lifespan | 初始化 DB、预热标的目录、启动/停止调度器、localhost CORS |
 
-**分层规则：** `router.py`（HTTP）→ `service.py`（纯逻辑）→ 适配器/存储（I/O）。让纯逻辑无需网络/磁盘即可单测。
+分层约定仍是：`router.py` 处理 HTTP，`service.py` 处理业务逻辑，适配器/存储层处理 I/O。可单测的纯逻辑尽量不要直接碰网络和磁盘。
 
-## 3. 三条特性管线 + 自选分区
+## 3. 数据与存储
 
-### 自选分区 · Watchlist（贯穿全局的导航）
-两级板块树（一级如 `半导体`、二级如 `半导体/GPU`），是"看/研/知"的入口。**市场（美/港/A/韩/全部）是正交的过滤器，不是第三层**（面板顶部分段控件）。详见 [CLAUDE.md §8](../CLAUDE.md)。
-- `GET /watchlist/sections` 返回带标的的分区树
-- `POST /watchlist/sections {name, parent_id?}` 建板块（校验 `depth ≤ 2`）
-- `POST /watchlist/sections/{id}/items {symbol, note?}` 加标的
-- `PATCH`/`DELETE` + 排序端点（拖拽）
+`resources/` 是版本化输入，`data/` 是运行时输出。
 
-### 看 · View（K线）
-`GET /market/ohlcv?symbol=US:AAPL&interval=1d&range=2y`
-→ resolver 选适配器 → 缓存优先（Parquet）→ 抓缺失尾巴 → 归一化 OHLCV JSON → 前端用 Lightweight Charts 渲染。A股风格指标（MA/BOLL/MACD）用 KLineChart 变体。
+- `resources/prompts/`：LLM 提示词模板。
+- `resources/sources/`：RSS/X/主题/别名等人工维护清单。
+- `data/db/augur.db`：自选、日记、设置、LLM 用量、新闻、日报、机会、研究报告、导入研报、自由笔记。
+- `data/cache/`：OHLCV、标的目录、基本面、新闻辅助缓存等可重建数据。
 
-### 研 · Research（单股深度）
-`POST /research/stock {symbol}`（SSE 流）：
-1. **规划** —— LLM 起草分析提纲（基本面、技术面、新闻、风险）。
-2. **收集** —— 拉价格历史（market/）、近期新闻（news/），并用网络搜索/Deep Research 找财报、情绪、行业背景。
-3. **综合** —— LLM 写出结构化、**带引用**的报告；暴露不确定性。
-4. 报告存 `data/db`；各小节完成即流式推给 UI。
+SQLite schema 在 [`backend/augur/storage/db.py`](../backend/augur/storage/db.py)；新增运行时字段要做幂等 migration，不能只改 `CREATE TABLE IF NOT EXISTS`。
 
-### 知 · Know（每日趋势日报）
-APScheduler 定时任务（每天，按主人时区）：
-1. 摄取 `resources/sources/*.yaml` 里所有信源（RSS/API）。
-2. 去重 + 按主题聚类。
-3. LLM 逐簇摘要 + 判断跨主题趋势 → 一份**趋势日报**。
-4. 存储 + 通知 UI。主人打开 Augur 读"今天世界上发生了什么"。
+## 4. 四条产品管线
 
-## 4. LLM 网关设计（`llm/`）
+### 看 · View
 
-- 在 **litellm** 上薄薄一层封装。Feature 调 `gateway.complete(role=..., messages=..., stream=True)`。
-- **厂商注册表**（配置）：`name → { model, api_base, api_key_env, extra }`。自配 `base_url` 让 OpenAI/DeepSeek/中转站/Anthropic 可互换。
-- **角色**把意图与厂商解耦：`chat`、`deep_research`、`summarize`、`cheap`。主人在设置里重映射角色→厂商，无需改代码（如把 `summarize` 指向便宜模型）。
-- 用量（token、成本估算、延迟）记到 SQLite，供未来成本面板。
+`GET /market/ohlcv` 和 `GET /market/quote` 走 `market.service`：
 
-## 5. 存储与缓存
+1. 解析 `MARKET:CODE`。
+2. resolver 选择市场适配器。
+3. Parquet/TTL 缓存优先，只抓缺口。
+4. 前端 `KLineView` 用 Lightweight Charts v5 渲染蜡笔纸感 K 线。
 
-- **SQLite**（`data/db/augur.db`）：自选分区、自选标的、用户设置（含排版）、厂商配置缓存、新闻条目、日报、研究报告、LLM 用量。
-- **Parquet**（`data/cache/ohlcv/<MARKET>/<CODE>/<interval>.parquet`）：列式行情缓存；只追加尾巴；加载上万根 K 线很快。
-- **为何分开：** SQLite 管关系型/可查询状态；Parquet 管大块数值时间序列。两者都在 `data/` 下，可丢弃可重建——在 git 里永不是真相来源。
+K 线下方模块包括财报分析、相关资讯、判断日记，并支持拖拽重排。未自选标的可一键加入自选分区。
 
-## 6. 配置与密钥
+### 研 · Research
 
-- **开发期：** `backend/.env`（被忽略）+ 可选 `config.local.toml` 放厂商注册表与信源覆盖。`.env.example` 入库做模板。
-- **打包后（P2）：** 密钥移到 **macOS Keychain**；设置/数据放 `~/Library/Application Support/Augur/`。
-- 密钥永不进 git 或日志（见 CLAUDE.md §11）。
+`POST /research/stock/generate` 是 SSE 流：
 
-## 7. 前端结构
+1. `gather(symbol)` 收集价格摘要、基本面、财报趋势、已清洗个股新闻、SEC 申报等确定性数据。
+2. `_format_data` 拼成事实块和编号引用源。
+3. `deep_research` 角色生成 markdown 报告。
+4. 报告落 `research_reports`，一股一份，重生成覆盖。
 
-**导航外壳（信息架构）：** **功能切换在顶栏**（`Augur` 一行横向 Tab 看/研/知 + 右上齿轮设置），下方两栏 `上下文面板(~260px) | 主舞台`。面板随 Tab 变（自选分区树含市场切换 / 日报列表 / 设置分类）；主舞台占满剩余宽度。详见 [design-system.md §7](design-system.md)。
+导入研报走 `imported_reports`：一股多份，可排序、编辑正文、写“我的评论”。
+
+### 知 · Know
+
+`news/` 有两类 lane：
+
+- `feed`：策展 RSS/API/X 聚合流，进入全局日报、要点、机会。
+- `ticker`：按自选股 ticker 定向抓取，服务个股叙事和相关资讯，不淹没全局流。
+
+刷新链路：
+
+1. `ingest_all()` 并发抓取 RSS、Bloomberg、财联社、东财、X 等源。
+2. `translate_pending()` 翻译标题。
+3. `relevance.judge_pending()` 从严过滤非投资相关内容。
+4. `linker.link_pending()` 确定性挂钩自选股。
+5. `stock_tag.tag_pending()` LLM 识别上市公司，再用 `grounding` 接地到真实 `MARKET:CODE`。
+
+蒸馏链路：
+
+- `generate_report_stream()`：趋势日报。
+- `generate_clusters()`：新闻/推特要点，支持按天、主题、账号分类。
+- `generate_opportunities()`：今日机会，LLM 候选再经市场搜索接地。
+- `generate_narrative()`：单股叙事时间线。
+- `generate_all()`：刷新 + 日报/要事/推特要点/机会并行生成，是前端“一键刷新并生成”和白天自动任务的单一真相。
+
+LLM JSON 输出统一做宽松解析和失败重试，避免推理模型在大输入下输出 `<think>` 或轻微畸形 JSON 导致空结果。
+
+### 记 · Note
+
+`notes/` 是第 4 支柱，不绑定个股。前端 `NotesNav` + `NotesView` 提供列表、置顶、编辑/预览、删除和 700ms 防抖自动保存。它与 `journal_entries`（个股判断日记）和 `imported_reports`（个股导入研报）保持边界清晰。
+
+## 5. LLM 网关
+
+所有 LLM 调用都走 `backend/augur/llm/gateway.py`。
+
+- 连接列表：`{id, name, base_url, api_key, model, web_search}`，统一按 OpenAI compatible 调用。
+- 角色：`chat`、`deep_research`、`summarize`、`cheap`。
+- 设置页可动态增删连接、拖拽排序、测试单个/全部模型、指派角色。
+- token 用量写 `llm_usage`。
+- `web_search` 目前用于 Qwen/百炼类兼容接口，通过 `extra_body.enable_search` 注入；不支持的厂商可能忽略或报错。
+
+## 6. 前端结构
 
 ```
 frontend/src/
-├── app/            外壳：顶栏 Tab 导航(看/研/知/设置) + 上下文面板 + 主舞台、路由(TanStack Router)、布局
+├── App.tsx                  顶栏 + 布局主入口
+├── api.ts                   REST/SSE 客户端与 TanStack Query hooks
+├── store.ts                 全局 UI 状态
+├── components/              共享 UI：Markdown / Collapse / Toast / ErrorBoundary / GripDots
 ├── features/
-│   ├── watchlist/  两级分区树、拖拽组织(dnd-kit)、标的管理（看/研 的上下文面板）
-│   ├── kline/      图表（蜡笔纸感）、标的搜索、市场切换、指标
-│   ├── analysis/   深度研究视图、流式报告、引用
-│   ├── news/       每日日报、信源管理、主题聚类
-│   └── settings/   排版 / 主题与色彩 / 数据与市场 / LLM 厂商（所有 Meta 设置集中于此）
-├── components/     共享 UI 原子件（Button, Card, Panel, …）
-├── theme/          设计 token、CSS 变量、排版控制
-└── lib/            api 客户端（REST + SSE）、格式化、hooks
+│   ├── watchlist/           两级分区、Miller 列、加股、拖拽
+│   ├── kline/               K 线主视图
+│   ├── analysis/            财报分析面板
+│   ├── journal/             判断日记
+│   ├── research/            单股研究 + 导入研报
+│   ├── news/                知：资讯/个股导航、日报、要点、机会、叙事、信源画像
+│   ├── notes/               记：自由长文
+│   └── settings/            外观、模型、数据信源、自动任务
+└── theme/                   motion 等共享 token
 ```
-- **排版是数据，不是写死的。** 一个设置 store（`settings/`）驱动 CSS 变量（`--font-serif` Source Serif 4、`--font-sans` 苹方、`--text-base`、`--leading`、`--measure`）。组件只读 token。
-- 服务端状态用 **TanStack Query**，客户端 UI 状态用 **Zustand**，校验用 **Zod**。
-- LLM/研究输出走 SSE 流式、增量渲染。
-- **每一屏按资深设计师水准打磨**（见 [design-system.md](design-system.md)）。
 
-## 8. 分阶段与打包
+信息架构：顶部 Tab 是 `看 / 研 / 知 / 记`，设置在右上角齿轮。下方是“上下文面板 + 主舞台”；`知` 使用 Miller 式多列导航，`看/研` 共享自选分区上下文。
 
-- **Phase 1（现在 → M3）：** 后端 + 前端两个本地 dev server 跑。迭代最快，专注把功能建全。
-- **Phase 2（M4）：** Tauri 2 外壳。Python 后端用 **PyInstaller** 打成单可执行文件，作为 **sidecar** 放进 `src-tauri/bin/`；Tauri 启动它、在原生 webview 里服务构建好的前端、处理窗口/菜单/Keychain。目标安装包 <10MB + 自带的 Python 可执行文件。
+## 7. 调度
 
-里程碑拆分见 [roadmap.md](roadmap.md)；每个选型的理由见 [decisions/](decisions/)。
+APScheduler 在后端 lifespan 启动：
+
+- 07:30：抓取 + 定向抓取 + 日报/要点/机会。
+- 23:30：当天归档，保证历史日可回看。
+- 白天整点：如果设置开启，执行 `generate_all(refresh_first=True)`，窗口默认 11:00-23:00，可在设置页调整。
+
+所有后台任务失败只记日志，不阻断 app 启动；重任务内部有互斥/`max_instances=1`，避免堆叠打源。
+
+## 8. Phase 2 打包
+
+当前仍是本地开发形态。M4 计划用 Tauri 2 + PyInstaller sidecar 打包，数据迁移到 `~/Library/Application Support/Augur/`，密钥迁移到 macOS Keychain。

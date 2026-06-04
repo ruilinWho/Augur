@@ -4,7 +4,7 @@
 
 ## 起服务
 - 后端：`cd backend && uv run uvicorn augur.main:app --reload --port 8788`
-- 前端：`cd frontend && npm run dev`（:5173，Vite 代理 `/market` `/watchlist` `/llm` → :8788）
+- 前端：`cd frontend && npm run dev`（:5173，Vite 代理 `/market /watchlist /journal /llm /news /research /notes /settings /health` → :8788）
 - **必须先起后端**，前端才有数据。
 
 ## 工具链（本机实测 2026-06）
@@ -17,7 +17,7 @@
   proxy 配置**不走 HMR**；漏配/没重启时，前端打该前缀（如 `/journal`）会被 SPA 兜底：
   GET 返回 `index.html`（200 但是 HTML，Zod 解析失败 → 不渲染）、POST 直接 404（保存静默失败）。
   现象就是"功能像没接好"。排查：`curl localhost:5173/<prefix>/...` 看回的是 JSON 还是 `<!doctype`。
-  解法：proxy 里补上前缀 + `pkill -f vite` 重启。当前已代理 `/market /watchlist /journal /llm /health`。
+  解法：proxy 里补上前缀 + `pkill -f vite` 重启。当前已代理 `/market /watchlist /journal /llm /news /research /notes /settings /health`。
 - **切 git 分支 + 快速连续编辑后，Vite HMR 会卡死**（控制台刷 `[vite] Failed to reload …`，页面渲染不出/0 行）。
   这不是代码错（`npm run build` 能过就说明代码没问题）。**解法：`pkill -f vite` 后重新 `npm run dev`**。
 - 前端视图切换用 **Zustand**（非 TanStack Router）—— 本地应用无 URL 路由需求，Router 暂缓。

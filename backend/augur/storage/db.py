@@ -1,6 +1,6 @@
 """SQLite：连接 + 建表。元数据（自选分区、用量等）的真相库。
 
-运行时文件在被忽略的 data/db/augur.db。schema 见 CLAUDE.md §8 / architecture §5。
+运行时文件在被忽略的 data/db/augur.db。schema 见 AGENTS.md §8 / architecture §3。
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     cost_usd          REAL
 );
 
--- 判断日记：对某标的在某日写下的决策笔记，供日后复盘（CLAUDE.md §1「研」的轻量前身）
+-- 判断日记：对某标的在某日写下的决策笔记，供日后复盘（AGENTS.md §1「研」的轻量前身）
 CREATE TABLE IF NOT EXISTS journal_entries (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol      TEXT    NOT NULL,                  -- 归一化 MARKET:CODE
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS journal_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_symbol ON journal_entries(symbol, entry_date DESC);
 
--- 新闻摄取（CLAUDE.md §1「知」/ M3）：从 RSS/API 拉来的条目，按 url 去重
+-- 新闻摄取（AGENTS.md §1「知」/ M3）：从 RSS/API 拉来的条目，按 url 去重
 CREATE TABLE IF NOT EXISTS news_items (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     source       TEXT    NOT NULL,                  -- 信源名（feeds.yaml 的 name）
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS news_items (
     lane         TEXT    NOT NULL DEFAULT 'feed'  -- feed=RSS聚合流 / ticker=自选股定向抓取
 );
 
--- 新闻↔标的挂钩（每条新闻确定性接地到 MARKET:CODE）——三支柱融合地基（linker.py）
+-- 新闻↔标的挂钩（每条新闻确定性接地到 MARKET:CODE）——看/研/知融合地基（linker.py）
 CREATE TABLE IF NOT EXISTS news_item_symbols (
     news_id    INTEGER NOT NULL,
     symbol     TEXT    NOT NULL,                  -- MARKET:CODE
@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS research_reports (
 def get_conn() -> sqlite3.Connection:
     """打开一个连接（启用外键、Row 工厂）。调用方负责关闭。
 
-    并发安全（CLAUDE.md §11「尊重限流/激进缓存」的工程同构）：app 同时跑
+    并发安全（AGENTS.md §11「尊重限流/激进缓存」的工程同构）：app 同时跑
     FastAPI 请求线程（同步 DB 调用丢 threadpool）+ APScheduler 后台线程（07:30 抓取
     连续多次提交）+ warm-listings 线程。默认 rollback 模式下两写相撞会立刻
     `database is locked`（busy_timeout 默认 0=不重试）。故开 WAL（读不阻塞写）
