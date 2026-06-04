@@ -552,22 +552,87 @@ def generate_report_stream(
 # ───────────────────────── 今日投资机会（抽取 + 接地）─────────────────────────
 
 
-def _parse_json_lenient(raw: str) -> dict:
-    """剥围栏 + 取首个 {...}；失败 → {}（不抛 500）。"""
-    s = (raw or "").strip()
-    if s.startswith("```"):
-        s = re.sub(r"^```[a-zA-Z]*\n?", "", s)
-        s = re.sub(r"\n?```$", "", s).strip()
-    try:
-        return json.loads(s)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", s, re.DOTALL)
-        if m:
-            try:
-                return json.loads(m.group(0))
-            except json.JSONDecodeError:
-                return {}
+def _extract_object(s: str) -> dict:
+    """从第一个 '{' 起做**字符串感知的括号配平**，截出最外层 JSON 对象（容忍前言/后缀文字）。"""
+    start = s.find("{")
+    if start < 0:
         return {}
+    depth = 0
+    in_str = esc = False
+    for i in range(start, len(s)):
+        ch = s[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(s[start : i + 1])
+                    return obj if isinstance(obj, dict) else {}
+                except json.JSONDecodeError:
+                    return {}
+    return {}
+
+
+def _parse_json_lenient(raw: str) -> dict:
+    """从 LLM 回复里尽力抽出 JSON 对象 → dict；失败 → {}（不抛 500）。
+
+    应对推理模型（如 MiMo）偶发把 `<think>` 推理块 / 自然语言前言写进 content、或裹代码围栏、
+    或 JSON 前后带杂字——这些会让朴素 `json.loads` 与贪婪正则失败（实测大输入下偶发空结果）。
+    """
+    s = (raw or "").strip()
+    # 去推理模型内联的 <think>...</think>
+    s = re.sub(r"<think>.*?</think>", "", s, flags=re.DOTALL | re.IGNORECASE).strip()
+    # 去代码围栏（``` / ```json，可能不在串首）
+    if "```" in s:
+        m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", s, re.DOTALL)
+        if m:
+            s = m.group(1).strip()
+    try:  # 1) 直接解析（最常见）
+        obj = json.loads(s)
+        if isinstance(obj, dict):
+            return obj
+    except json.JSONDecodeError:
+        pass
+    obj = _extract_object(s)  # 2) 括号配平截最外层对象（容忍前后杂字）
+    if obj:
+        return obj
+    m = re.search(r"\{.*\}", s, re.DOTALL)  # 3) 兜底：贪婪 first{..last}
+    if m:
+        try:
+            obj = json.loads(m.group(0))
+            return obj if isinstance(obj, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _complete_json(prompt: str, role: str, want_key: str, attempts: int = 2) -> dict:
+    """调 LLM 拿 JSON 并解析；若解析为空 / 缺 want_key，最多重试 attempts 次。
+
+    应对推理模型在大输入下**偶发**产出非 JSON 前言/畸形（实测 MiMo 聚类 488 条时偶尔解析空，
+    重试即得正常结果）——主人 bug：一键生成后看不到今日要事/机会。每次重试都是新一轮采样。
+    """
+    data: dict = {}
+    for _ in range(max(1, attempts)):
+        raw = gateway.complete(
+            [{"role": "user", "content": prompt}],
+            role=role,
+            response_format={"type": "json_object"},
+        )
+        data = _parse_json_lenient(raw)
+        if isinstance(data, dict) and data.get(want_key):
+            return data
+    return data if isinstance(data, dict) else {}
 
 
 def _items_block(items: list[dict]) -> tuple[str, dict[int, dict]]:
@@ -670,13 +735,8 @@ def generate_opportunities(report_date: str | None = None, role: str = "summariz
     block, by_n = _items_block(items)
     prompt = _load_prompt("news_opportunities").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)
-    raw = gateway.complete(
-        [{"role": "user", "content": prompt}],
-        role=role,
-        response_format={"type": "json_object"},
-    )
-    data = _parse_json_lenient(raw)
-    llm_opps = data.get("opportunities", []) if isinstance(data, dict) else []
+    data = _complete_json(prompt, role, "opportunities")  # 解析空则重试（推理模型偶发非 JSON）
+    llm_opps = data.get("opportunities", [])
     watched = _watched()
     out: list[dict] = []
     for o in llm_opps[:8]:
@@ -802,13 +862,8 @@ def generate_narrative(symbol: str, role: str = "summarize") -> dict:
         .replace("{{ITEMS}}", block)
     )
     _, model = gateway.resolve_role(role)
-    raw = gateway.complete(
-        [{"role": "user", "content": prompt}],
-        role=role,
-        response_format={"type": "json_object"},
-    )
-    data = _parse_json_lenient(raw)
-    summary = (data.get("summary") if isinstance(data, dict) else "") or ""
+    data = _complete_json(prompt, role, "timeline")  # 解析空则重试（推理模型偶发非 JSON）
+    summary = (data.get("summary") or "") if isinstance(data, dict) else ""
     timeline: list[dict] = []
     for ev in (data.get("timeline") or [])[:20] if isinstance(data, dict) else []:
         refs: list[dict] = []
@@ -932,13 +987,8 @@ def generate_clusters(
     block, by_n = _items_block(items)
     prompt = _load_prompt("news_clusters").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)
-    raw = gateway.complete(
-        [{"role": "user", "content": prompt}],
-        role=role,
-        response_format={"type": "json_object"},
-    )
-    data = _parse_json_lenient(raw)
-    raw_clusters = data.get("clusters", []) if isinstance(data, dict) else []
+    data = _complete_json(prompt, role, "clusters")  # 解析空则重试（推理模型偶发非 JSON）
+    raw_clusters = data.get("clusters", [])
     out: list[dict] = []
     for c in raw_clusters:
         members: list[dict] = []
