@@ -207,38 +207,24 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   const [base, setBase] = useState(conn?.base_url ?? '')
   const [model, setModel] = useState(conn?.model ?? '')
   const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
-  const [websearch, setWebsearch] = useState(conn?.web_search ?? false)
   const [result, setResult] = useState<TestResult | null>(null)
   // 保存后刷新会带回已存明文 key → 回灌输入框，保证**长期明文可见**（主人要求）。
   // 依赖 conn.api_key：仅它真正变化（即保存成功后）才同步，不会覆盖正在输入的内容。
   useEffect(() => {
     setKey(conn?.api_key ?? '')
-    setWebsearch(conn?.web_search ?? false)
-  }, [conn?.api_key, conn?.web_search])
+  }, [conn?.api_key])
   const isNew = !conn
   const canTest = !!base && !!model && (!isNew || !!key)
 
+  // web_search 不再在此 UI 暴露（主人：先去掉联网检索按钮）；省略该字段＝后端保留已存值不动。
   const save = async () => {
     // 不清空 key：卡片按 id keyed 不重挂载，清空会让明文 key「看起来消失」（数据其实已存）
-    await upsert.mutateAsync({
-      id: conn?.id,
-      name,
-      base_url: base,
-      model,
-      api_key: key || null,
-      web_search: websearch,
-    })
+    await upsert.mutateAsync({ id: conn?.id, name, base_url: base, model, api_key: key || null })
     onDone?.()
   }
   const copy = async () => {
     // 不带 id ＝ 后端新建一条；名字加 (copy)，连 key 一并复制，方便快速加模型
-    await upsert.mutateAsync({
-      name: `${name} (copy)`,
-      base_url: base,
-      model,
-      api_key: key || null,
-      web_search: websearch,
-    })
+    await upsert.mutateAsync({ name: `${name} (copy)`, base_url: base, model, api_key: key || null })
   }
   const runTest = async () => {
     setResult(null)
@@ -249,56 +235,66 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
 
   return (
     <div className={`conn-card ${isNew ? 'is-new' : ''}`}>
-      <input className="cfg-input conn-name" placeholder="连接名称（如 DeepSeek / OhMyGPT 中转）" value={name} onChange={(e) => setName(e.target.value)} />
-      <div className="conn-grid">
-        <input className="cfg-input mono" placeholder="base_url（如 https://api.deepseek.com）" value={base} onChange={(e) => setBase(e.target.value)} />
-        <input className="cfg-input mono" placeholder="model id（如 deepseek-chat）" value={model} onChange={(e) => setModel(e.target.value)} />
-      </div>
-      <input
-        className="cfg-input mono"
-        type="text"
-        autoComplete="off"
-        spellCheck={false}
-        placeholder="API key"
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
-      />
-      <label className="conn-ws">
-        <button
-          type="button"
-          className={`ssrc-toggle ${websearch ? 'on' : ''}`}
-          onClick={() => setWebsearch((v) => !v)}
-        >
-          <span className="ssrc-knob" />
-        </button>
-        <span>
-          联网检索
-          <span className="faint"> · Qwen/百炼 enable_search，供「研」「信源调研」</span>
-        </span>
-      </label>
-      <div className="conn-actions">
+      {/* 行1：名称（标题感）+ 测试结果 + 操作 */}
+      <div className="conn-head">
+        <input
+          className="cfg-input conn-name"
+          placeholder="连接名称（如 DeepSeek / 中转站）"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         {result && (
-          <span className={`conn-test ${result.ok ? 'ok' : 'err'}`}>
-            {result.ok ? `✓ 连通 · ${result.latency_ms}ms · ${result.reply || 'ok'}` : `✗ ${result.error}`}
+          <span
+            className={`conn-test ${result.ok ? 'ok' : 'err'}`}
+            title={result.ok ? result.reply || 'ok' : result.error}
+          >
+            {result.ok ? `✓ ${result.latency_ms}ms` : `✗ ${result.error}`}
           </span>
         )}
-        <span className="conn-actions-sp" />
+        <button className="btn btn-ghost jsm" onClick={runTest} disabled={test.isPending || !canTest}>
+          {test.isPending ? '测试中…' : '测试'}
+        </button>
         {!isNew && (
           <>
-            <button className="btn btn-ghost jsm" onClick={copy} disabled={upsert.isPending}>
+            <button className="btn btn-ghost jsm" onClick={copy} disabled={upsert.isPending} title="复制为新连接">
               复制
             </button>
-            <button className="btn btn-ghost jsm" onClick={() => del.mutate(conn.id)}>
+            <button className="btn btn-ghost jsm conn-del" onClick={() => del.mutate(conn.id)} title="删除">
               删除
             </button>
           </>
         )}
-        <button className="btn jsm" onClick={runTest} disabled={test.isPending || !canTest}>
-          {test.isPending ? '测试中…' : '测试连接'}
-        </button>
-        <button className="btn btn-primary jsm" onClick={save} disabled={upsert.isPending || !name || !base || !model}>
+        <button
+          className="btn btn-primary jsm"
+          onClick={save}
+          disabled={upsert.isPending || !name || !base || !model}
+        >
           保存
         </button>
+      </div>
+      {/* 行2：base_url + model + key（明文，仅本地） */}
+      <div className="conn-fields">
+        <input
+          className="cfg-input mono conn-f-base"
+          placeholder="base_url"
+          value={base}
+          onChange={(e) => setBase(e.target.value)}
+        />
+        <input
+          className="cfg-input mono conn-f-model"
+          placeholder="model id"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+        />
+        <input
+          className="cfg-input mono conn-f-key"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="API key"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+        />
       </div>
     </div>
   )
@@ -375,19 +371,20 @@ function UsageSection() {
           <div className="usage-total">
             <span>
               <i>调用</i>
-              {t!.calls}
+              <b>{t!.calls}</b>
             </span>
             <span>
-              <i>输入</i>
-              {fmtTok(t!.prompt_tokens)}
+              <i>输入 tokens</i>
+              <b>{fmtTok(t!.prompt_tokens)}</b>
             </span>
             <span>
-              <i>输出</i>
-              {fmtTok(t!.completion_tokens)}
+              <i>输出 tokens</i>
+              <b>{fmtTok(t!.completion_tokens)}</b>
             </span>
             {(t!.cost_usd ?? 0) > 0 && (
               <span>
-                <i>估算</i>${(t!.cost_usd ?? 0).toFixed(3)}
+                <i>估算成本</i>
+                <b>${(t!.cost_usd ?? 0).toFixed(3)}</b>
               </span>
             )}
           </div>

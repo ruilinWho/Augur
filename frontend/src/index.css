@@ -1537,24 +1537,23 @@ body.resizing * {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
-/* 可拖拽容器：左侧留 grip gutter，grip hover 浮现（不与卡内容重叠） */
+/* 卡片＝紧凑 2 行；grip 内置左 sliver（卡边与「LLM 连接」标题对齐，不外推）。 */
 .conn-sortable {
   position: relative;
-  padding-left: 20px;
 }
 .conn-sortable.dragging {
   z-index: 5;
 }
 .conn-grip {
   position: absolute;
-  left: -2px;
-  top: 12px;
+  left: 3px;
+  top: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
+  width: 15px;
   height: 26px;
   padding: 0;
   border: 0;
@@ -1563,12 +1562,13 @@ body.resizing * {
   cursor: grab;
   opacity: 0;
   transition: opacity 0.15s ease;
+  z-index: 1;
 }
 .conn-sortable:hover .conn-grip {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 .conn-grip:hover {
-  opacity: 0.85 !important;
+  opacity: 0.85;
 }
 .conn-grip:active {
   cursor: grabbing;
@@ -1577,7 +1577,8 @@ body.resizing * {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 11px 12px;
+  /* 左 22 给 grip 让位；卡片外缘仍与标题左对齐 */
+  padding: 9px 11px 10px 22px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -1590,25 +1591,24 @@ body.resizing * {
   border-style: dashed;
   border-color: var(--accent-weak);
 }
-.conn-name {
-  font-weight: 500;
-}
-.conn-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 7px;
-}
-.conn-actions {
+/* 行1：名称 + 测试结果 + 操作 */
+.conn-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 2px;
+  gap: 7px;
 }
-.conn-actions-sp {
+.conn-name {
   flex: 1;
+  min-width: 0;
+  font-weight: 500;
 }
 .conn-test {
-  font-size: 0.78rem;
+  flex: none;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.73rem;
   font-family: var(--font-mono);
 }
 .conn-test.ok {
@@ -1617,10 +1617,43 @@ body.resizing * {
 .conn-test.err {
   color: var(--down);
 }
+.conn-del:hover {
+  color: var(--down);
+}
+/* 行2：base_url + model + key 同一行，按比例分配 */
+.conn-fields {
+  display: flex;
+  gap: 7px;
+}
+.conn-f-base {
+  flex: 2;
+  min-width: 0;
+}
+.conn-f-model {
+  flex: 1.1;
+  min-width: 0;
+}
+.conn-f-key {
+  flex: 1.6;
+  min-width: 0;
+}
+/* 添加连接：与卡片等宽的虚线占位行（读作「在此再加一张卡」） */
 .set2-add {
-  align-self: flex-start;
-  border-style: dashed;
+  width: 100%;
+  justify-content: center;
+  margin-top: 2px;
+  padding: 9px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: transparent;
   color: var(--text-muted);
+  font-size: 0.84rem;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.set2-add:hover {
+  border-color: var(--accent-weak);
+  color: var(--accent);
+  background: var(--surface);
 }
 
 /* 数据信源块 */
@@ -3536,16 +3569,6 @@ input:focus:not(:focus-visible) {
 }
 
 /* 连接卡 · 联网检索开关 */
-.conn-ws {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: 9px;
-  font-size: 0.84rem;
-  color: var(--text);
-  cursor: pointer;
-}
-
 /* 知·个股 · 专属信源（组件化信源） */
 .ssrc-on-n {
   font-size: 0.72rem;
@@ -4089,23 +4112,35 @@ a.opp-ev-item:hover {
   flex-direction: column;
   gap: 16px;
 }
+/* 统计瓦片：标签/数字字号统一（修「字体大小不一」），四块等宽对齐 */
 .usage-total {
   display: flex;
-  gap: 30px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .usage-total span {
+  flex: 1;
+  min-width: 92px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 1.1rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
 }
 .usage-total i {
   font-style: normal;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
   color: var(--text-faint);
+}
+.usage-total b {
+  font-weight: 600;
+  font-size: 1.02rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 .usage-rows {
   display: flex;
