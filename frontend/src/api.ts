@@ -337,6 +337,36 @@ export function useSettingsConfig() {
   })
 }
 
+// LLM token 用量（§6 看成本）：按角色/模型聚合最近 days 天
+const usageRowSchema = z.object({
+  role: z.string().default(''),
+  model: z.string().default(''),
+  calls: z.number().default(0),
+  prompt_tokens: z.number().nullable().default(0),
+  completion_tokens: z.number().nullable().default(0),
+  cost_usd: z.number().nullable().default(0),
+})
+const usageSchema = z.object({
+  days: z.number().default(30),
+  total: z
+    .object({
+      calls: z.number().nullable().default(0),
+      prompt_tokens: z.number().nullable().default(0),
+      completion_tokens: z.number().nullable().default(0),
+      cost_usd: z.number().nullable().default(0),
+    })
+    .default({}),
+  by_role_model: z.array(usageRowSchema).default([]),
+})
+export type LlmUsage = z.infer<typeof usageSchema>
+export function useLlmUsage(days = 30) {
+  return useQuery({
+    queryKey: ['llm-usage', days],
+    queryFn: async () => usageSchema.parse(await getJSON(`/llm/usage?days=${days}`)),
+    staleTime: 60_000,
+  })
+}
+
 function useInvalidateSettings() {
   const qc = useQueryClient()
   return () => qc.invalidateQueries({ queryKey: ['settings-config'] })

@@ -8,6 +8,7 @@ import {
 import { useUI } from '../../store'
 import {
   useDeleteConnection,
+  useLlmUsage,
   useSetRoleTarget,
   useSetSecret,
   useSetSourceConfig,
@@ -245,6 +246,64 @@ function RoleRow({ role, conns }: { role: RoleTarget; conns: Connection[] }) {
   )
 }
 
+function fmtTok(n: number | null | undefined): string {
+  const v = n ?? 0
+  if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`
+  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}k`
+  return String(v)
+}
+
+// 用量（§6 看成本）：近 30 天 token 按 角色/模型 聚合。成本多半算不出（中转/国产模型不在价表），
+// 但 token 始终有——主人据此知道每天烧了多少。
+function UsageSection() {
+  const usage = useLlmUsage(30)
+  const d = usage.data
+  const t = d?.total
+  const empty = !d || (t?.calls ?? 0) === 0
+  return (
+    <Section title="用量 · 近 30 天">
+      {empty ? (
+        <div className="usage-empty faint">
+          暂无记录——生成日报 / 研究 / 翻译后，这里会累计 token 与（可估时的）成本
+        </div>
+      ) : (
+        <div className="usage">
+          <div className="usage-total">
+            <span>
+              <i>调用</i>
+              {t!.calls}
+            </span>
+            <span>
+              <i>输入</i>
+              {fmtTok(t!.prompt_tokens)}
+            </span>
+            <span>
+              <i>输出</i>
+              {fmtTok(t!.completion_tokens)}
+            </span>
+            {(t!.cost_usd ?? 0) > 0 && (
+              <span>
+                <i>估算</i>${(t!.cost_usd ?? 0).toFixed(3)}
+              </span>
+            )}
+          </div>
+          <div className="usage-rows">
+            {d!.by_role_model.map((r, i) => (
+              <div className="usage-row" key={`${r.role}-${r.model}-${i}`}>
+                <span className="usage-role">{r.role}</span>
+                <span className="usage-model">{r.model || '—'}</span>
+                <span className="usage-tok">
+                  {fmtTok((r.prompt_tokens ?? 0) + (r.completion_tokens ?? 0))} tok · {r.calls} 次
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
 function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[] }) {
   const [adding, setAdding] = useState(false)
   return (
@@ -268,6 +327,7 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
           <RoleRow key={r.role} role={r} conns={conns} />
         ))}
       </Section>
+      <UsageSection />
     </>
   )
 }

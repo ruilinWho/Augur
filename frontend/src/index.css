@@ -3976,3 +3976,62 @@ a.opp-ev-item:hover {
 .narr-fresh {
   color: var(--accent);
 }
+
+/* 设置·用量（token 成本可观测，§6）*/
+.usage-empty {
+  font-size: 0.82rem;
+  padding: 6px 2px;
+}
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.usage-total {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+.usage-total span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.usage-total i {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.usage-rows {
+  display: flex;
+  flex-direction: column;
+}
+.usage-row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.8rem;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.usage-role {
+  color: var(--accent);
+  font-weight: 500;
+}
+.usage-model {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usage-tok {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

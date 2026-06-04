@@ -85,7 +85,13 @@ function OppCard({ o }: { o: Opportunity }) {
   )
 }
 
-export default function OpportunitiesPanel({ date = null }: { date?: string | null }) {
+export default function OpportunitiesPanel({
+  date = null,
+  showGenerate = true,
+}: {
+  date?: string | null
+  showGenerate?: boolean
+}) {
   const opps = useOpportunities(date)
   const gen = useGenerateOpportunities()
   const [open, setOpen] = useState(true)
@@ -95,17 +101,19 @@ export default function OpportunitiesPanel({ date = null }: { date?: string | nu
     <section className="opps">
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>今日机会</h3>
-        <button
-          className="btn btn-primary jsm sec-gen"
-          disabled={gen.isPending}
-          onClick={(e) => {
-            e.stopPropagation()
-            setOpen(true)
-            gen.mutate(date)
-          }}
-        >
-          {gen.isPending ? '识别中…' : list.length ? '重新识别' : '识别机会'}
-        </button>
+        {showGenerate && (
+          <button
+            className="btn btn-primary jsm sec-gen"
+            disabled={gen.isPending}
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(true)
+              gen.mutate(date)
+            }}
+          >
+            {gen.isPending ? '识别中…' : list.length ? '重新识别' : '识别机会'}
+          </button>
+        )}
       </div>
       <Collapse open={open}>
         {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
@@ -115,7 +123,7 @@ export default function OpportunitiesPanel({ date = null }: { date?: string | nu
           <>
             <div className="opp-list">
               {list.map((o, i) => (
-                <OppCard key={i} o={o} />
+                <OppCard key={o.title || `o${i}`} o={o} />
               ))}
             </div>
           </>

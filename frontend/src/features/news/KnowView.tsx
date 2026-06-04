@@ -85,7 +85,15 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
 
 // ── 晨读 · 今日要事（Top3）：复用 news@1d 要点的前 3 条，scheduler 每日预生成 ──
 // date 给定（某天快照）→ 取/生成那一天的要点；省略＝今天。
-function MorningBrief({ date, heading = '晨读 · 今日要事' }: { date?: string; heading?: string }) {
+function MorningBrief({
+  date,
+  heading = '晨读 · 今日要事',
+  showGenerate = true,
+}: {
+  date?: string
+  heading?: string
+  showGenerate?: boolean
+}) {
   const params = { days: 1, date }
   const clusters = useClusters(params)
   const gen = useGenerateClusters()
@@ -94,13 +102,15 @@ function MorningBrief({ date, heading = '晨读 · 今日要事' }: { date?: str
     <section className="brief">
       <div className="sec-head">
         <h3>{heading}</h3>
-        <button
-          className="btn btn-primary jsm sec-gen"
-          disabled={gen.isPending}
-          onClick={() => gen.mutate(params)}
-        >
-          {gen.isPending ? '生成中…' : top.length ? '刷新' : '生成晨读'}
-        </button>
+        {showGenerate && (
+          <button
+            className="btn btn-primary jsm sec-gen"
+            disabled={gen.isPending}
+            onClick={() => gen.mutate(params)}
+          >
+            {gen.isPending ? '生成中…' : top.length ? '刷新' : '生成晨读'}
+          </button>
+        )}
       </div>
       {gen.isPending ? (
         <div className="opp-empty faint">正在挑出今天最要紧的几件事…</div>
@@ -246,11 +256,12 @@ function DaySummaryView({ date }: { date: string }) {
   const isToday = date === dayStr()
   return (
     <div className="know">
+      {/* 一键生成统管 日报+要事+机会；各块隐藏独立生成按钮，一屏只一个主操作（§9 克制） */}
       <DaySummaryHead date={date} isToday={isToday} />
       {isToday && <SinceLast />}
-      <DigestBlock date={date} />
-      <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} />
-      <OpportunitiesPanel date={date} />
+      <DigestBlock date={date} showGenerate={false} />
+      <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} showGenerate={false} />
+      <OpportunitiesPanel date={date} showGenerate={false} />
     </div>
   )
 }
@@ -313,7 +324,7 @@ function ClusterList({ params }: { params: ClusterParams }) {
       ) : data ? (
         <>
           {list.map((c, i) => (
-            <ClusterCard key={i} c={c} />
+            <ClusterCard key={c.headline || `c${i}`} c={c} />
           ))}
           {lowN > 0 && !showLow && (
             <button className="cl-morelow" onClick={() => setShowLow(true)}>
@@ -434,7 +445,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
             {data.timeline.map((ev, i) => {
               const imp = IMP[ev.importance] ?? IMP.med
               return (
-                <div className="narr-ev" key={i}>
+                <div className="narr-ev" key={`${ev.date}-${ev.title}` || i}>
                   <div className="narr-ev-head">
                     <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
                     {ev.date && <span className="narr-date">{ev.date}</span>}
