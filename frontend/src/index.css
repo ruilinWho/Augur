@@ -1436,9 +1436,8 @@ body.resizing * {
   color: var(--accent);
 }
 
-/* 内容区 */
+/* 内容区：占满舞台宽度（主人偏好全宽，不设窄列上限） */
 .set2-body {
-  max-width: 860px;
   padding-bottom: 40px;
 }
 .set2-title {
@@ -1448,14 +1447,31 @@ body.resizing * {
   margin: 2px 0 4px;
 }
 .set2-sec {
-  margin-top: 26px;
+  margin-top: 34px;
+}
+/* 段标题行：标题左、操作（测试全部等）右 */
+.set2-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 .set2-sec-h {
   font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0.07em;
   color: var(--text-faint);
-  margin: 0 0 2px;
+  margin: 0;
+}
+.sec-act {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sec-act-note {
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
 }
 .set2-note {
   font-size: 0.8rem;
@@ -4110,34 +4126,35 @@ a.opp-ev-item:hover {
 .usage {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
-/* 统计瓦片：标签/数字字号统一（修「字体大小不一」），四块等宽对齐 */
+/* 统计瓦片：标签 0.72 / 数字 1rem 全程统一（修「字体大小不一」），等宽对齐占满整行 */
 .usage-total {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .usage-total span {
-  flex: 1;
-  min-width: 92px;
+  flex: 1 1 0;
+  min-width: 110px;
+  max-width: 220px; /* 全宽下不被拉成空旷大块，保持紧凑统计块、左对齐 */
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
 }
 .usage-total i {
   font-style: normal;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   letter-spacing: 0.02em;
   color: var(--text-faint);
 }
 .usage-total b {
   font-weight: 600;
-  font-size: 1.02rem;
+  font-size: 1rem;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -4146,13 +4163,14 @@ a.opp-ev-item:hover {
   display: flex;
   flex-direction: column;
 }
+/* 明细行：三列字号统一为 0.8rem（model 用 mono 但同字号，不再 0.76 显小） */
 .usage-row {
   display: grid;
-  grid-template-columns: 84px 1fr auto;
-  gap: 10px;
+  grid-template-columns: 96px 1fr auto;
+  gap: 12px;
   align-items: center;
   font-size: 0.8rem;
-  padding: 6px 0;
+  padding: 7px 2px;
   border-top: 1px solid var(--border);
 }
 .usage-role {
@@ -4162,13 +4180,14 @@ a.opp-ev-item:hover {
 .usage-model {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .usage-tok {
   color: var(--text-faint);
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

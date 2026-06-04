@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -109,6 +110,27 @@ async def test_connection(body: TestIn) -> dict:
         key = key or stored.get("api_key", "")
         model = model or stored.get("model", "")
     return await run_in_threadpool(gateway.test_connection, base, key, model)
+
+
+@router.post("/llm/test-all")
+async def test_all_connections() -> dict[str, dict]:
+    """并发测试所有连接（各发极小请求）。返回 {连接id: {ok, latency_ms, reply?/error?}}。"""
+
+    def _run() -> dict[str, dict]:
+        conns = runtime_config.list_connections()  # 含明文 key（仅本地）
+        out: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            futs = {
+                ex.submit(
+                    gateway.test_connection, c["base_url"], c["api_key"], c["model"]
+                ): c["id"]
+                for c in conns
+            }
+            for fut in as_completed(futs):
+                out[futs[fut]] = fut.result()
+        return out
+
+    return await run_in_threadpool(_run)
 
 
 # ───────────────────────── 数据信源 key ─────────────────────────

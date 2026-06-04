@@ -482,6 +482,14 @@ export function useTestConnection() {
   })
 }
 
+// 测试全部连接（后端并发探活），返回 {连接id: 结果}
+export function useTestAllConnections() {
+  return useMutation({
+    mutationFn: async () =>
+      (await send('/settings/llm/test-all', 'POST')) as Record<string, TestResult>,
+  })
+}
+
 export function useSetSecret() {
   const invalidate = useInvalidateSettings()
   return useMutation({

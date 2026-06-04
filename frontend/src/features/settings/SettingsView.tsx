@@ -34,6 +34,7 @@ import {
   useSetSecret,
   useSetSourceConfig,
   useSettingsConfig,
+  useTestAllConnections,
   useTestConnection,
   useTestSource,
   useUpsertConnection,
@@ -57,10 +58,13 @@ function Row({ label, desc, children }: { label: ReactNode; desc?: ReactNode; ch
     </div>
   )
 }
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="set2-sec">
-      <h2 className="set2-sec-h">{title}</h2>
+      <div className="set2-sec-head">
+        <h2 className="set2-sec-h">{title}</h2>
+        {action}
+      </div>
       <div className="set2-rows">{children}</div>
     </section>
   )
@@ -199,7 +203,15 @@ function SchedulePage() {
 }
 
 // ───────────────────────── 模型 ─────────────────────────
-function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: () => void }) {
+function ConnectionCard({
+  conn,
+  onDone,
+  injected,
+}: {
+  conn: Connection | null
+  onDone?: () => void
+  injected?: TestResult | null // 「测试全部」注入的结果（本卡自测会覆盖它）
+}) {
   const upsert = useUpsertConnection()
   const del = useDeleteConnection()
   const test = useTestConnection()
@@ -208,6 +220,7 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   const [model, setModel] = useState(conn?.model ?? '')
   const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
   const [result, setResult] = useState<TestResult | null>(null)
+  const shown = result ?? injected ?? null
   // 保存后刷新会带回已存明文 key → 回灌输入框，保证**长期明文可见**（主人要求）。
   // 依赖 conn.api_key：仅它真正变化（即保存成功后）才同步，不会覆盖正在输入的内容。
   useEffect(() => {
@@ -243,12 +256,12 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        {result && (
+        {shown && (
           <span
-            className={`conn-test ${result.ok ? 'ok' : 'err'}`}
-            title={result.ok ? result.reply || 'ok' : result.error}
+            className={`conn-test ${shown.ok ? 'ok' : 'err'}`}
+            title={shown.ok ? shown.reply || 'ok' : shown.error}
           >
-            {result.ok ? `✓ ${result.latency_ms}ms` : `✗ ${result.error}`}
+            {shown.ok ? `✓ ${shown.latency_ms}ms` : `✗ ${shown.error}`}
           </span>
         )}
         <button className="btn btn-ghost jsm" onClick={runTest} disabled={test.isPending || !canTest}>
@@ -301,7 +314,7 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
 }
 
 // 可拖拽排序的连接卡：grip 在左侧 gutter，hover 浮现；只 grip 可拖，卡内输入不受影响
-function SortableConnCard({ conn }: { conn: Connection }) {
+function SortableConnCard({ conn, injected }: { conn: Connection; injected?: TestResult | null }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: conn.id,
   })
@@ -314,7 +327,7 @@ function SortableConnCard({ conn }: { conn: Connection }) {
       <button className="conn-grip" {...attributes} {...listeners} title="拖动排序" aria-label="拖动排序">
         <GripDots />
       </button>
-      <ConnectionCard conn={conn} />
+      <ConnectionCard conn={conn} injected={injected} />
     </div>
   )
 }
@@ -408,6 +421,8 @@ function UsageSection() {
 function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[] }) {
   const [adding, setAdding] = useState(false)
   const reorder = useReorderConnections()
+  const testAll = useTestAllConnections()
+  const [allResults, setAllResults] = useState<Record<string, TestResult>>({})
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -421,14 +436,36 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
     if (from < 0 || to < 0) return
     reorder.mutate(arrayMove(ids, from, to))
   }
+  const runTestAll = async () => {
+    setAllResults({})
+    setAllResults(await testAll.mutateAsync())
+  }
+  const okN = Object.values(allResults).filter((r) => r.ok).length
+  const doneN = Object.keys(allResults).length
   return (
     <>
-      <Section title="LLM 连接">
+      <Section
+        title="LLM 连接"
+        action={
+          conns.length > 0 && (
+            <div className="sec-act">
+              {doneN > 0 && !testAll.isPending && (
+                <span className="sec-act-note faint">
+                  {okN}/{doneN} 连通
+                </span>
+              )}
+              <button className="btn btn-ghost jsm" onClick={runTestAll} disabled={testAll.isPending}>
+                {testAll.isPending ? '测试中…' : '测试全部'}
+              </button>
+            </div>
+          )
+        }
+      >
         <div className="conn-list">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={conns.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               {conns.map((c) => (
-                <SortableConnCard key={c.id} conn={c} />
+                <SortableConnCard key={c.id} conn={c} injected={allResults[c.id]} />
               ))}
             </SortableContext>
           </DndContext>
