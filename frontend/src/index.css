@@ -1536,17 +1536,55 @@ body.resizing * {
 .conn-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   margin-top: 4px;
+}
+/* 可拖拽容器：左侧留 grip gutter，grip hover 浮现（不与卡内容重叠） */
+.conn-sortable {
+  position: relative;
+  padding-left: 20px;
+}
+.conn-sortable.dragging {
+  z-index: 5;
+}
+.conn-grip {
+  position: absolute;
+  left: -2px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.conn-sortable:hover .conn-grip {
+  opacity: 0.5;
+}
+.conn-grip:hover {
+  opacity: 0.85 !important;
+}
+.conn-grip:active {
+  cursor: grabbing;
 }
 .conn-card {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 14px;
+  gap: 7px;
+  padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface);
+}
+.conn-card .cfg-input {
+  font-size: 0.8rem;
+  padding: 6px 9px;
 }
 .conn-card.is-new {
   border-style: dashed;
@@ -1557,8 +1595,8 @@ body.resizing * {
 }
 .conn-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 7px;
 }
 .conn-actions {
   display: flex;

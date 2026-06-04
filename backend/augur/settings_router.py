@@ -65,6 +65,17 @@ async def delete_connection(cid: str) -> None:
     await run_in_threadpool(runtime_config.delete_connection, cid)
 
 
+class ReorderIn(BaseModel):
+    ordered_ids: list[str]
+
+
+@router.post("/llm/connections/reorder")
+async def reorder_connections(body: ReorderIn) -> dict:
+    """按拖拽后的 id 顺序重排连接列表。返回重排后的脱敏列表。"""
+    await run_in_threadpool(runtime_config.reorder_connections, body.ordered_ids)
+    return {"connections": runtime_config.list_connections()}
+
+
 class RoleIn(BaseModel):
     role: str
     connection_id: str | None = None  # None/空＝解除

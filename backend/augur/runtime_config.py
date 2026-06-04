@@ -208,6 +208,26 @@ def upsert_connection(payload: dict) -> str:
         return cid
 
 
+def reorder_connections(ordered_ids: list[str]) -> None:
+    """按给定 id 顺序重排连接列表（未列出的保持原相对序、附在末尾，防丢）。"""
+    with _lock:
+        data = _read()
+        conns = data.get("llm_connections") or []
+        by_id = {c.get("id"): c for c in conns}
+        seen: set[str] = set()
+        new: list[dict] = []
+        for cid in ordered_ids:
+            c = by_id.get(cid)
+            if c is not None and cid not in seen:
+                new.append(c)
+                seen.add(cid)
+        for c in conns:  # 任何未被列出的连接（防丢）原序补在后面
+            if c.get("id") not in seen:
+                new.append(c)
+        data["llm_connections"] = new
+        _write(data)
+
+
 def delete_connection(cid: str) -> None:
     with _lock:
         data = _read()

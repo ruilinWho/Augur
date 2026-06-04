@@ -424,6 +424,35 @@ export function useDeleteConnection() {
   })
 }
 
+type SettingsConfig = z.infer<typeof settingsConfigSchema>
+
+// 拖拽重排连接：乐观更新 settings-config 缓存（避免松手时卡片回弹闪烁），出错回滚
+export function useReorderConnections() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      send('/settings/llm/connections/reorder', 'POST', { ordered_ids: orderedIds }),
+    onMutate: async (orderedIds: string[]) => {
+      await qc.cancelQueries({ queryKey: ['settings-config'] })
+      const prev = qc.getQueryData<SettingsConfig>(['settings-config'])
+      if (prev) {
+        const byId = new Map(prev.llm.connections.map((c) => [c.id, c]))
+        const conns = orderedIds.map((id) => byId.get(id)).filter((c): c is Connection => !!c)
+        for (const c of prev.llm.connections) if (!orderedIds.includes(c.id)) conns.push(c)
+        qc.setQueryData<SettingsConfig>(['settings-config'], {
+          ...prev,
+          llm: { ...prev.llm, connections: conns },
+        })
+      }
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['settings-config'], ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['settings-config'] }),
+  })
+}
+
 export function useSetSourceConfig() {
   const invalidate = useInvalidateSettings()
   return useMutation({

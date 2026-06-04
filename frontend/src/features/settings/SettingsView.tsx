@@ -5,10 +5,29 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useUI } from '../../store'
+import GripDots from '../../components/GripDots'
 import {
   useDeleteConnection,
   useLlmUsage,
+  useReorderConnections,
   useSchedule,
   useSetRoleTarget,
   useSetSchedule,
@@ -285,6 +304,25 @@ function ConnectionCard({ conn, onDone }: { conn: Connection | null; onDone?: ()
   )
 }
 
+// 可拖拽排序的连接卡：grip 在左侧 gutter，hover 浮现；只 grip 可拖，卡内输入不受影响
+function SortableConnCard({ conn }: { conn: Connection }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: conn.id,
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`conn-sortable ${isDragging ? 'dragging' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.7 : 1 }}
+    >
+      <button className="conn-grip" {...attributes} {...listeners} title="拖动排序" aria-label="拖动排序">
+        <GripDots />
+      </button>
+      <ConnectionCard conn={conn} />
+    </div>
+  )
+}
+
 const ROLE_LABEL: Record<string, string> = {
   chat: '对话',
   deep_research: '深度研究',
@@ -372,13 +410,31 @@ function UsageSection() {
 
 function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[] }) {
   const [adding, setAdding] = useState(false)
+  const reorder = useReorderConnections()
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const ids = conns.map((c) => c.id)
+    const from = ids.indexOf(String(active.id))
+    const to = ids.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    reorder.mutate(arrayMove(ids, from, to))
+  }
   return (
     <>
       <Section title="LLM 连接">
         <div className="conn-list">
-          {conns.map((c) => (
-            <ConnectionCard key={c.id} conn={c} />
-          ))}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={conns.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              {conns.map((c) => (
+                <SortableConnCard key={c.id} conn={c} />
+              ))}
+            </SortableContext>
+          </DndContext>
           {adding ? (
             <ConnectionCard conn={null} onDone={() => setAdding(false)} />
           ) : (
