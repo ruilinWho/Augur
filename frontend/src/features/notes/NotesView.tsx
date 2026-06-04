@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useDeleteNote, useNote, useUpdateNote } from '../../api'
 import Markdown from '../../components/Markdown'
+import { EASE } from '../../theme/motion'
 import { useNotesUI } from './store'
-
-const EASE = [0.22, 1, 0.36, 1] as const
 
 function fmtWhen(iso: string | null): string {
   if (!iso) return ''

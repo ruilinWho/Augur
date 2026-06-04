@@ -572,14 +572,32 @@ function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: Sou
 export default function SettingsView() {
   const page = useUI((s) => s.settingsPage)
   const cfg = useSettingsConfig()
+  // 外观页是纯本地 CSS 变量、不依赖后端；模型/信源页需 config，缺数据时给明确反馈（不静默显空表单）
+  const needsCfg = page !== 'appearance'
   return (
     <div className="set2-body">
       {page === 'appearance' && <AppearancePage />}
-      {page === 'models' && (
-        <ModelsPage conns={cfg.data?.llm.connections ?? []} roles={cfg.data?.llm.roles ?? []} />
-      )}
-      {page === 'sources' && (
-        <SourcesPage sources={cfg.data?.sources ?? []} groups={cfg.data?.source_groups ?? []} />
+      {needsCfg && cfg.isLoading && !cfg.data ? (
+        <div className="report-card faint">加载配置…</div>
+      ) : needsCfg && cfg.isError ? (
+        <div className="report-card err">
+          配置加载失败：{(cfg.error as Error).message}
+          <button className="btn jsm" style={{ marginLeft: 10 }} onClick={() => cfg.refetch()}>
+            重试
+          </button>
+        </div>
+      ) : (
+        <>
+          {page === 'models' && (
+            <ModelsPage
+              conns={cfg.data?.llm.connections ?? []}
+              roles={cfg.data?.llm.roles ?? []}
+            />
+          )}
+          {page === 'sources' && (
+            <SourcesPage sources={cfg.data?.sources ?? []} groups={cfg.data?.source_groups ?? []} />
+          )}
+        </>
       )}
     </div>
   )

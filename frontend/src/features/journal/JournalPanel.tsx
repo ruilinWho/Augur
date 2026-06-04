@@ -8,8 +8,7 @@ import {
   useUpdateJournal,
   type JournalEntry,
 } from '../../api'
-
-const EASE = [0.22, 1, 0.36, 1] as const
+import { EASE } from '../../theme/motion'
 
 const todayISO = () => {
   const d = new Date()

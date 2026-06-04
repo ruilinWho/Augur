@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
+import { toastError } from './components/Toast'
+
+// 变更失败统一弹 toast（自选重命名撞名 409、加股已存在 422…不再静默回滚，§11 暴露不确定性）
+const onMutErr = (e: unknown) => toastError((e as Error).message)
 
 // ───────────────────────── HTTP 助手（开发期经 Vite 代理到 :8788）─────────────────────────
 // 携带 HTTP 状态码的错误：让「404=暂无（空态）vs 其它=真错误」靠 status 判定，而非脆弱的中文
@@ -458,6 +462,7 @@ export function useCreateSection() {
     mutationFn: (body: { name: string; parent_id?: number | null }) =>
       send('/watchlist/sections', 'POST', body),
     onSuccess: invalidate,
+    onError: onMutErr,
   })
 }
 
@@ -467,6 +472,7 @@ export function useAddItem() {
     mutationFn: ({ sectionId, symbol }: { sectionId: number; symbol: string }) =>
       send(`/watchlist/sections/${sectionId}/items`, 'POST', { symbol }),
     onSuccess: invalidate,
+    onError: onMutErr,
   })
 }
 
@@ -486,6 +492,7 @@ export function useRenameSection() {
     mutationFn: ({ id, name }: { id: number; name: string }) =>
       send(`/watchlist/sections/${id}`, 'PATCH', { name }),
     onSuccess: invalidate,
+    onError: onMutErr,
   })
 }
 
@@ -503,6 +510,7 @@ export function useMoveItem() {
     mutationFn: ({ itemId, sectionId }: { itemId: number; sectionId: number }) =>
       send(`/watchlist/items/${itemId}`, 'PATCH', { section_id: sectionId }),
     onSuccess: invalidate,
+    onError: onMutErr,
   })
 }
 

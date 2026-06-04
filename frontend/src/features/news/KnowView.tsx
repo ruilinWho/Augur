@@ -23,8 +23,8 @@ import { THEMES, TW_CATS } from './consts'
 import { Digest, FeedGroups } from './shared'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
+import { EASE } from '../../theme/motion'
 
-const EASE = [0.22, 1, 0.36, 1] as const
 const fmtDate = (d: string) => {
   const [, m, day] = d.split('-')
   return `${Number(m)}月${Number(day)}日`

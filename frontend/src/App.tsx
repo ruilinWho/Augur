@@ -23,6 +23,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { KAN_MODULES, useUI, type SettingsPage, type View } from './store'
+import { EASE } from './theme/motion'
+import GripDots from './components/GripDots'
+import Toaster from './components/Toast'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
 import FinancialsPanel from './features/analysis/FinancialsPanel'
@@ -43,7 +46,6 @@ const TABS: { v: View; label: string }[] = [
   { v: 'ji', label: '记' },
 ]
 
-const EASE = [0.22, 1, 0.36, 1] as const // easeOutExpo——柔和"落定"
 
 const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
   {
@@ -145,19 +147,6 @@ const KAN_RENDER: Record<string, (symbol: string) => ReactNode> = {
   journal: (s) => <JournalPanel symbol={s} />,
 }
 
-function GripDots() {
-  // 竖向 2×3 点阵，适合放在模块标题左侧的把手
-  return (
-    <svg width="8" height="16" viewBox="0 0 8 16" aria-hidden="true">
-      {[2.5, 5.5].flatMap((cx) =>
-        [3, 8, 13].map((cy) => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.05" fill="currentColor" />
-        )),
-      )}
-    </svg>
-  )
-}
-
 function SortableModule({ id, symbol }: { id: string; symbol: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
@@ -249,6 +238,7 @@ export default function App() {
     // reducedMotion="user"：尊重系统「减少动效」偏好——motion.dev 的 y 位移/spring 是 JS 动画，
     // 不受 index.css 的 @media(prefers-reduced-motion) 约束，靠这里统一降级为纯透明度（§5/§10）。
     <MotionConfig reducedMotion="user">
+      <Toaster />
       <div className="app-shell">
         <header className="topbar">
           <span className="wordmark">

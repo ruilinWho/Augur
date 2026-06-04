@@ -4,9 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { streamResearch, useQuote, useResearchReport } from '../../api'
 import { useUI } from '../../store'
 import Markdown from '../../components/Markdown'
+import { EASE } from '../../theme/motion'
 import ImportedReports from './ImportedReports'
-
-const EASE = [0.22, 1, 0.36, 1] as const
 
 function fmtWhen(iso: string | null): string {
   if (!iso) return ''

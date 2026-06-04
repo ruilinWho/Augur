@@ -25,22 +25,13 @@ import {
   type ImportedReport,
 } from '../../api'
 import Markdown from '../../components/Markdown'
+import GripDots from '../../components/GripDots'
 
 function fmtWhen(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z')
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function GripDots() {
-  return (
-    <svg width="8" height="16" viewBox="0 0 8 16" aria-hidden="true">
-      {[2.5, 5.5].flatMap((cx) =>
-        [3, 8, 13].map((cy) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.05" fill="currentColor" />),
-      )}
-    </svg>
-  )
 }
 
 function ImpCard({ r }: { r: ImportedReport }) {

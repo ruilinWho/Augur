@@ -13,6 +13,7 @@ import {
 import { useUI } from '../../store'
 import { useFundamentals, useJournal, useOhlcv, useQuote } from '../../api'
 import { fmtMoney, fmtPctPlain } from '../../format'
+import { EASE } from '../../theme/motion'
 import AddToWatchlist from '../watchlist/AddToWatchlist'
 
 // 与 index.css 的 token 镜像（图表是 canvas，直接取色避免读 CSS 变量的时序问题）
@@ -28,7 +29,6 @@ const TF = [
   { label: '1年', interval: '1d', range: '1y' },
 ]
 
-const EASE = [0.22, 1, 0.36, 1] as const
 const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
 // hex + alpha → 8 位 hex。蜡笔纸感（§9 硬指标）：实体半透明（让纸透出）、描边/影线略实以保规整直角矩形。
 const hexA = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).padStart(2, '0')
