@@ -100,12 +100,17 @@ def relink_all() -> dict:
 
 
 def attach_symbols(items: list[dict]) -> list[dict]:
-    """给一批 news_item dict 批量挂上 symbols=[{symbol,name}]（一次 IN 查询）。"""
+    """给一批 news_item dict 批量挂上 symbols=[{symbol,name,in_watchlist}]（一次 IN 查询）。
+
+    symbols 含**自选股挂钩**（linker，term/code/targeted）∪**LLM 标股**（stock_tag，不限自选）；
+    `in_watchlist` 区分二者，前端可对自选股加陶土点、其余作"可发现的机会"展示。
+    """
     ids = [it["id"] for it in items if it.get("id") is not None]
     if not ids:
         for it in items:
             it["symbols"] = []
         return items
+    watched = _watchlist_symbols()
     conn = get_conn()
     try:
         ph = ",".join("?" * len(ids))
@@ -117,7 +122,9 @@ def attach_symbols(items: list[dict]) -> list[dict]:
         conn.close()
     by_id: dict[int, list[dict]] = {}
     for r in rows:
-        by_id.setdefault(r["news_id"], []).append({"symbol": r["symbol"], "name": r["name"]})
+        by_id.setdefault(r["news_id"], []).append(
+            {"symbol": r["symbol"], "name": r["name"], "in_watchlist": r["symbol"] in watched}
+        )
     for it in items:
         it["symbols"] = by_id.get(it["id"], [])
     return items

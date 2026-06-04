@@ -117,10 +117,11 @@ export function Headline({ item }: { item: NewsItem }) {
           {item.symbols.map((s) => (
             <button
               key={s.symbol}
-              className="hl-sym"
-              title={s.symbol}
+              className={`hl-sym ${s.in_watchlist ? 'watched' : ''}`}
+              title={s.in_watchlist ? `${s.symbol} · 已自选` : `${s.symbol} · 看 K 线`}
               onClick={() => select(s.symbol)}
             >
+              {s.in_watchlist && <span className="wdot" />}
               {s.name || s.symbol.split(':')[1]}
             </button>
           ))}

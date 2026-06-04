@@ -16,7 +16,7 @@ from ..llm import gateway
 from ..storage import get_conn
 
 _BATCH = 40  # 每批标题数（控对齐风险与 token）
-_MAX_PER_RUN = 160  # 单次最多翻多少条（防首次对存量大表一次性打爆）
+_MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；循环翻到清空，英文标题不漏）
 
 
 def _load_prompt() -> str:
@@ -103,11 +103,14 @@ def translate_pending() -> int:
     except gateway.LLMNotConfigured:
         return 0
     _passthrough_zh()
-    pending = _select_pending(_MAX_PER_RUN)
     done = 0
-    for k in range(0, len(pending), _BATCH):
-        pairs = _translate_batch(pending[k : k + _BATCH])
-        if pairs:
-            _save(pairs)
-            done += len(pairs)
+    for _ in range(_MAX_ROUNDS):  # 循环翻到清空（主人：任何英文新闻/标题都快速翻中）
+        batch = _select_pending(_BATCH)
+        if not batch:
+            break
+        pairs = _translate_batch(batch)
+        if not pairs:
+            break  # 整批没翻出（顽固/失败）→ 停，下次 refresh 再试
+        _save(pairs)
+        done += len(pairs)
     return done

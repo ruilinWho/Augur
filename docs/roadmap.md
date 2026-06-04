@@ -22,7 +22,10 @@
 - ✅ **前端稳健性 + 美学**：**SSE 错误吞噬修复** `consumeSSE`（error 移出 JSON.parse 的 catch，三处合一）；`HttpError.status` 判 404 空态（不再脆弱中文子串）；全局 `ErrorBoundary`；`MotionConfig reducedMotion`；细粒度 `useUI` selector（修拖栏重渲染）；**K 线蜡烛半透明蜡笔纸感**（实体 0.5/描边 0.9/影线 0.68）；平盘态；报价新鲜度「截至 X·源」；基本面/财报「失败≠无数据」；研报常驻「非投资建议」免责；`--measure` 行宽 + 行距随设置；齿轮右对齐；`#fff`→`--accent-ink`；删死代码（Placeholder/themeLabel）。
 - ✅ **投资者工作流**：看·K 线叠**判断日记 marker**（写判断那天落到 K 线）+ **52 周位置**（当前价分位 + 位置条）；知·个股叙事头部 **看/研 直通 chip** + 生成时间 + 「自生成后新增 N 条」新鲜度；自选分区计数去重；资讯·总结页**一屏一主操作**（一键生成统管，藏子按钮）；设置看 token 用量；稳定 list key。
 - ✅ **测试**：补 `backend/tests/test_pure.py`（20 项纯函数，零网络，`uv run pytest` 全过）——填补「装了 pytest 但零测试」缺口。
-- 全程 ruff + tsc + build + pytest 全过；真机验证四市场报价 / notes CRUD / token 用量 / 北交所降级。
+- ✅ **第二轮主人反馈**：① 日报/研报正文**占满全宽**（撤 `--measure`，记入个人记忆）；② 资讯按**市场/仅自选**过滤；③「自上次以来」放宽窗口（自适应天数 + 上限 500）、**默认收起**；④ **23:30 当天归档** scheduler（没手动点也存档每天）；⑤ 后端 §5 加固：共享 `news/_http.py`（统一 UA + 退避重试）、未来日期钳制、refresh 互斥、twtapi 递归深度上限、directed lang 按市场。
+- ✅ **新闻自动标股（不限自选，"发现机会"）** `stock_tag.py` + `grounding.py`：对相关新闻批量 LLM 识别涉及的上市公司 → **确定性接地**到真实 `MARKET:CODE`（防编造，与机会识别同款 grounding）→ 写 `news_item_symbols`（`matched_by='llm'`）。新闻卡的股票 chip 不再只显自选——**自选股=陶土+圆点、LLM 发现的非自选股=中性**，都可点→看。`news_items.tagged` 标记每条只标一次；`linker.attach_symbols` 带 `in_watchlist`。真机验证「携手黑石、高盛…」→ US:BX/US:GS、Broadcom→US:AVGO。
+- ✅ **垃圾过滤/翻译彻底化**：relevance/translate 改**循环到清空**（×40 批、≤60 轮≈2400 条/次），不再 150/400 封顶——英文标题都翻、无信息熵的都滤（主人「不心疼 token」）。
+- 全程 ruff + tsc + build + pytest 全过；真机验证四市场报价 / notes CRUD / token 用量 / 北交所降级 / 新闻标股接地。
 
 ---
 

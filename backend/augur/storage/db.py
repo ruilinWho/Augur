@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS news_items (
     classified_by TEXT   NOT NULL DEFAULT '',         -- ''=未分类 / rule / llm
     title_zh     TEXT,                                -- 中文标题（cheap 翻译缓存；NULL=未翻）
     relevance    INTEGER NOT NULL DEFAULT 0,  -- 0未判/1保留/2丢弃 见 relevance.py
-    linked       INTEGER NOT NULL DEFAULT 0,  -- 0未挂钩/1已挂钩 ticker 见 linker.py
+    linked       INTEGER NOT NULL DEFAULT 0,  -- 0未挂钩/1已挂钩自选股 ticker 见 linker.py
+    tagged       INTEGER NOT NULL DEFAULT 0,  -- 0未判/1已 LLM 标股（不限自选）见 stock_tag.py
     lane         TEXT    NOT NULL DEFAULT 'feed'  -- feed=RSS聚合流 / ticker=自选股定向抓取
 );
 
@@ -229,6 +230,7 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "relevance", "INTEGER NOT NULL DEFAULT 0"),
     ("news_items", "linked", "INTEGER NOT NULL DEFAULT 0"),
     ("news_items", "lane", "TEXT NOT NULL DEFAULT 'feed'"),
+    ("news_items", "tagged", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

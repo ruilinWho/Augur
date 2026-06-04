@@ -19,7 +19,17 @@ from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
 from ..watchlist import service as wl
-from . import directed, edgar, ingest, linker, relevance, ticker_news, translate
+from . import (
+    directed,
+    edgar,
+    grounding,
+    ingest,
+    linker,
+    relevance,
+    stock_tag,
+    ticker_news,
+    translate,
+)
 
 _DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
 
@@ -95,6 +105,11 @@ def refresh() -> dict:
             result["linked"] = linker.link_pending()  # 确定性挂钩到自选股 ticker（零幻觉）
         except Exception:  # noqa: BLE001
             result["linked"] = {"linked": 0, "pairs": 0}
+        try:
+            # LLM 标股（不限自选，接地到真实代码）——让新闻卡显相关股，看到新闻就能去看那只票
+            result["tagged"] = stock_tag.tag_pending()
+        except Exception:  # noqa: BLE001
+            result["tagged"] = {"tagged": 0, "pairs": 0}
         return result
     finally:
         _refresh_lock.release()
@@ -518,10 +533,6 @@ def generate_report_stream(
 _OPP_INPUT_MAX = 80
 
 
-def _simplify(s: str) -> str:
-    return re.sub(r"[\s\-_.,'\"·()（）]", "", s or "").lower()
-
-
 def _parse_json_lenient(raw: str) -> dict:
     """剥围栏 + 取首个 {...}；失败 → {}（不抛 500）。"""
     s = (raw or "").strip()
@@ -566,35 +577,6 @@ def _watched() -> dict[str, list[str]]:
     for root in wl.list_tree(None):
         walk(root, "")
     return paths
-
-
-def _resolve_company(name: str, market: str, code_guess: str = "") -> tuple[str | None, str, bool]:
-    """name+market → (symbol|None, 展示名, resolved)。
-
-    防编造：ticker 只能来自本地目录∪东财的真实命中。先验证 LLM 的 code_guess，
-    再按公司名强命中；弱模糊一律判未解析（只保留人读名）。
-    """
-    market = (market or "").upper()
-    if market not in ("US", "HK", "CN", "KR"):
-        return None, name, False
-    cg = (code_guess or "").strip()
-    if cg:
-        hits = search.search(cg, market=market, limit=1)
-        if hits and hits[0]["code"].lstrip("0").upper() == cg.lstrip("0").upper():
-            sym = hits[0]["symbol"]
-            return sym, search.display_name(sym), True
-    if name:
-        hits = search.search(name, market=market, limit=1)
-        if hits:
-            h = hits[0]
-            q = _simplify(name)
-            hn, hs = _simplify(h["name"]), _simplify(h.get("sub", ""))
-            strong = bool(q) and (
-                q in hn or hn in q or (hs and (q in hs or hs in q)) or h["code"].lstrip("0") == q
-            )
-            if strong:
-                return h["symbol"], search.display_name(h["symbol"]), True
-    return None, name, False
 
 
 def _save_opportunities(rd: str, opps: list[dict], model: str) -> None:
@@ -681,7 +663,7 @@ def generate_opportunities(report_date: str | None = None, role: str = "summariz
     for o in llm_opps[:8]:
         related = []
         for c in o.get("companies") or []:
-            sym, disp, resolved = _resolve_company(
+            sym, disp, resolved = grounding.resolve_company(
                 c.get("name", ""), c.get("market", ""), c.get("code_guess", "")
             )
             secs = watched.get(sym, []) if sym else []

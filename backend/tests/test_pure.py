@@ -13,7 +13,8 @@ from augur.market import search
 from augur.market.fundamentals import _growth, _period_label, _yahoo_symbols
 from augur.market.symbols import cn_exchange, parse_symbol
 from augur.news import edgar
-from augur.news.service import _norm_url, _parse_json_lenient, _simplify
+from augur.news.grounding import simplify as _simplify
+from augur.news.service import _norm_url, _parse_json_lenient
 
 
 # ───────────────────────── symbols ─────────────────────────

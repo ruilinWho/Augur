@@ -2897,10 +2897,13 @@ input:focus:not(:focus-visible) {
   gap: 4px;
   flex: none;
 }
+/* 关联股票 chip：自选股=陶土+圆点（已关注）；LLM 发现的非自选股=中性（"可去发现的票"）。都可点→看 */
 .hl-sym {
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
   font: inherit;
   font-size: 0.68rem;
   font-weight: 600;
@@ -2908,10 +2911,24 @@ input:focus:not(:focus-visible) {
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s ease;
+  transition: 0.12s ease;
 }
 .hl-sym:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hl-sym.watched {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+}
+.hl-sym .wdot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 4px;
 }
 .hl-ago {
   font-size: 0.7rem;

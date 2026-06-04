@@ -150,7 +150,7 @@ function SinceLast() {
     ? Math.min(30, Math.max(1, Math.ceil((Date.now() - new Date(lastSeen).getTime()) / 86400000) + 1))
     : 7
   const feed = useNewsFeed(500, { days })
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false) // 默认收起（可能很多；点标题展开）
   const fresh = useMemo(() => {
     if (!lastSeen) return []
     const lo = new Date(lastSeen).getTime()

@@ -16,7 +16,7 @@ from ..llm import gateway
 from ..storage import get_conn
 
 _BATCH = 40  # 每批条数（控对齐风险与 token）
-_MAX_PER_RUN = 400  # 单次最多判多少条（"不心疼 token"；从严 prompt 后多判些）
+_MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；主人"不心疼 token"，循环到清空积压）
 _KEEP = {"true", "keep", "yes", "1", "相关", "保留"}
 _DROP = {"false", "drop", "no", "0", "无关", "丢弃"}
 
@@ -104,17 +104,24 @@ def _judge_batch(batch: list[tuple[int, str, str, str]]) -> list[tuple[int, int]
 
 
 def judge_pending() -> dict:
-    """批量判定未判条目的投资相关性。返回 {judged, dropped}。cheap 未配置 → 静默跳过。"""
+    """批量判定未判条目的投资相关性，**循环到清空**（主人：彻底滤掉垃圾，别漏）。
+
+    每轮取一批最老未判的判定；判出即落库（下轮自然跳过）。整批判不出（顽固/失败）→ 停，
+    避免空转。cheap 未配置 → 静默跳过。返回 {judged, dropped}。
+    """
     try:
         gateway.check_ready("cheap")
     except gateway.LLMNotConfigured:
         return {"judged": 0, "dropped": 0}
-    pending = _select_pending(_MAX_PER_RUN)
     judged = dropped = 0
-    for k in range(0, len(pending), _BATCH):
-        pairs = _judge_batch(pending[k : k + _BATCH])
-        if pairs:
-            _save(pairs)
-            judged += len(pairs)
-            dropped += sum(1 for rel, _ in pairs if rel == 2)
+    for _ in range(_MAX_ROUNDS):
+        batch = _select_pending(_BATCH)
+        if not batch:
+            break
+        pairs = _judge_batch(batch)
+        if not pairs:
+            break  # 整批没判出 → 停（顽固条目或网络失败，下次 refresh 再试）
+        _save(pairs)
+        judged += len(pairs)
+        dropped += sum(1 for rel, _ in pairs if rel == 2)
     return {"judged": judged, "dropped": dropped}
