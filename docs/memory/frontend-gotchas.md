@@ -26,3 +26,15 @@
 ## 调试折叠这类"状态对、画面不对"的问题
 - 先确认 React 状态：给容器临时加 `data-open={String(open)}`，点一下读属性——能快速区分"点击没生效"还是"动画/样式没生效"。
 - 本项目里 `element.click()`（preview_eval）能触发 React `onClick`（实测换选股能验证），所以点击层一般没问题，重点查样式层。
+
+## lightweight-charts v5：图表 marker 用 createSeriesMarkers，不是 series.setMarkers
+- v5（5.2.0）**移除了** v4 的 `series.setMarkers(...)` 实例方法。改成独立的 plugin 工厂：
+  ```ts
+  import { createSeriesMarkers } from 'lightweight-charts'
+  const markers = createSeriesMarkers(series, [])   // 创建一次（挂在 series 上），存 ref
+  markers.setMarkers([{ time, position:'belowBar', color, shape:'circle', text:'记' }])
+  ```
+- marker 的 `time` 必须落在时间轴上（日线＝`'YYYY-MM-DD'` 字符串）；**非交易日的日期**（周末/停牌）若不在 K 线数据里，
+  直接喂会出问题——本项目（K 线叠判断日记 marker）做法：**把笔记日期吸附到 `<=` 该日期的最近一根 K 线**，
+  再 `sort()`（字符串日期字典序＝时间序）+ 去重后 setMarkers。空数组要显式 `setMarkers([])` 清掉旧 marker。
+- 类型：`ISeriesMarkersPluginApi<Time>`（存 ref 用）。卸载时连同 chart.remove() 一起置空 ref 即可。

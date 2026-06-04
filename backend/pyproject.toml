@@ -29,6 +29,11 @@ dev = [
     "pytest",
 ]
 
+[tool.pytest.ini_options]
+# 只在 tests/ 里找测试——否则 bare `uv run pytest` 会误收集 augur/news/source_test.py::test_source
+# （那是 app 内的探活函数、非 pytest 测试，会因缺 'id' fixture 报错）
+testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"

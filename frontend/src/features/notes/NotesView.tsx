@@ -28,6 +28,10 @@ function NoteEditor({ id }: { id: number }) {
   const [status, setStatus] = useState<'saved' | 'dirty' | 'saving'>('saved')
   const timer = useRef<number | undefined>(undefined)
   const loadedId = useRef<number | null>(null)
+  // 始终持最新完整快照——防抖保存发**全字段**（否则先改标题再改正文，标题那次 timer 被取消、
+  // 只发 {body}，后端 title=None 当不变 → 新标题永不落库）；卸载时还靠它 flush 未发的最后一段。
+  const latest = useRef({ title: '', body: '' })
+  const pending = useRef(false) // 有一次防抖保存尚未触发（用于卸载 flush，避免丢最后 ≤700ms 编辑）
 
   // 切到另一篇 / 首次加载时，用服务器值填充本地态（不覆盖正在编辑的内容）
   useEffect(() => {
@@ -35,24 +39,35 @@ function NoteEditor({ id }: { id: number }) {
       loadedId.current = note.data.id
       setTitle(note.data.title)
       setBody(note.data.body)
+      latest.current = { title: note.data.title, body: note.data.body }
+      pending.current = false
       setStatus('saved')
     }
   }, [note.data])
 
-  const scheduleSave = (next: { title?: string; body?: string }) => {
+  const scheduleSave = () => {
     setStatus('dirty')
+    pending.current = true
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
+      pending.current = false
       setStatus('saving')
       upd
-        .mutateAsync({ id, ...next })
+        .mutateAsync({ id, title: latest.current.title, body: latest.current.body })
         .then(() => setStatus('saved'))
         .catch(() => setStatus('dirty'))
     }, 700)
   }
 
-  // 卸载时清掉计时器（避免向已卸载组件 setState）
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  // 卸载/切换时：清计时器；若还有未触发的防抖保存，flush 一次（fire-and-forget），不丢最后一段
+  useEffect(
+    () => () => {
+      window.clearTimeout(timer.current)
+      if (pending.current) upd.mutate({ id, title: latest.current.title, body: latest.current.body })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id],
+  )
 
   if (note.isLoading && !note.data) return <div className="report-card faint">加载…</div>
   if (!note.data) return <div className="know-empty">笔记不存在</div>
@@ -81,7 +96,8 @@ function NoteEditor({ id }: { id: number }) {
           value={title}
           onChange={(e) => {
             setTitle(e.target.value)
-            scheduleSave({ title: e.target.value })
+            latest.current = { ...latest.current, title: e.target.value }
+            scheduleSave()
           }}
         />
         <div className="note-actions">
@@ -124,7 +140,8 @@ function NoteEditor({ id }: { id: number }) {
           value={body}
           onChange={(e) => {
             setBody(e.target.value)
-            scheduleSave({ body: e.target.value })
+            latest.current = { ...latest.current, body: e.target.value }
+            scheduleSave()
           }}
         />
       )}

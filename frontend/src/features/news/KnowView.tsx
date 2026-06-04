@@ -445,7 +445,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
             {data.timeline.map((ev, i) => {
               const imp = IMP[ev.importance] ?? IMP.med
               return (
-                <div className="narr-ev" key={`${ev.date}-${ev.title}` || i}>
+                <div className="narr-ev" key={`ev-${i}`}>
                   <div className="narr-ev-head">
                     <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
                     {ev.date && <span className="narr-date">{ev.date}</span>}
