@@ -13,16 +13,17 @@ from datetime import datetime
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
-import httpx
-
 from .. import runtime_config
 from . import classify
 from . import filter as noise_filter
+from ._http import get as http_get
 
-_UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
 _PER_KW = 12  # 每关键词取前 N 条
 DEFAULT_KEYWORDS = ["人工智能", "半导体", "算力", "机器人", "大模型", "芯片"]
+_API = "https://search-api-web.eastmoney.com/search/jsonp?cb=cb&param="
+_EM_RE = re.compile(r"</?em>")
+_CST = ZoneInfo("Asia/Shanghai")
 
 
 def keywords() -> list[str]:
@@ -35,11 +36,6 @@ def keywords() -> list[str]:
     return DEFAULT_KEYWORDS
 
 
-_API = "https://search-api-web.eastmoney.com/search/jsonp?cb=cb&param="
-_EM_RE = re.compile(r"</?em>")
-_CST = ZoneInfo("Asia/Shanghai")
-
-
 def _query(keyword: str) -> list[dict]:
     param = {
         "keyword": keyword,
@@ -48,10 +44,7 @@ def _query(keyword: str) -> list[dict]:
         "param": {"cmsArticleWebOld": {"pageIndex": 1, "pageSize": 20, "sort": "time"}},
     }
     url = _API + quote(json.dumps(param, separators=(",", ":")))
-    headers = {"User-Agent": _UA, "Referer": "https://so.eastmoney.com/"}
-    with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as c:
-        r = c.get(url)
-        r.raise_for_status()
+    r = http_get(url, headers={"Referer": "https://so.eastmoney.com/"}, timeout=_TIMEOUT, retries=1)
     txt = r.text.strip()
     body = txt[txt.index("(") + 1 : txt.rindex(")")]  # 剥 JSONP 外壳 cb(...)
     data = json.loads(body)

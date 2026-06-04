@@ -17,12 +17,10 @@ import re
 from datetime import UTC, datetime
 from urllib.parse import urlencode
 
-import httpx
-
 from . import classify
 from . import filter as noise_filter
+from ._http import get as http_get
 
-_UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
 _MAX = 30
 # 科创电报 lane（id 1111）；params 的 sv 会轮换，挂了就更新这里
@@ -46,10 +44,7 @@ def fetch_cls(cutoff: datetime | None = None) -> list[dict]:
     """财联社科创电报 → 归一化条目。网络/解析失败抛异常，由上层捕获。"""
     qs, sg = _sign(_BASE)
     url = f"{_TECH_URL}?{qs}&sign={sg}"
-    headers = {"User-Agent": _UA, "Referer": "https://www.cls.cn/"}
-    with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as c:
-        r = c.get(url)
-        r.raise_for_status()
+    r = http_get(url, headers={"Referer": "https://www.cls.cn/"}, timeout=_TIMEOUT, retries=1)
     data = r.json()
     if data.get(
         "errno"

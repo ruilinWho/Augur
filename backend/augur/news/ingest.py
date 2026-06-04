@@ -13,11 +13,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 
 import feedparser
-import httpx
 
 from ..storage import get_conn
 from . import classify, cls, eastmoney_news, sources, twtapi
 from . import filter as noise_filter
+from ._http import get as http_get
 
 # 非 RSS 专用适配器：source 名 → 抓取函数(cutoff)。其 source 名在 prune 时要豁免。
 # X(Twitter) 经 twtapi 桥拉官方号推文，产出多个 source 名（X·<handle>），见 twtapi.source_names()。
@@ -27,7 +27,6 @@ _ADAPTERS = {
     "X(Twitter)": twtapi.fetch_all,
 }
 
-_UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 12.0
 _PER_FEED_MAX = 30  # 每源最多取前 N 条，避免超大/归档 feed 占满
 _MAX_WORKERS = 12  # 并发抓取的线程数（≈源数，但有上限以尊重本机与限流）
@@ -41,9 +40,13 @@ def _published_dt(entry: dict) -> datetime | None:
     if not t:
         return None
     try:
-        return datetime.fromtimestamp(calendar.timegm(t), tz=UTC)
+        dt = datetime.fromtimestamp(calendar.timegm(t), tz=UTC)
     except (ValueError, OverflowError, TypeError):
         return None
+    # 源端坏时钟/未来日期 → 当作无时间（落 fetched_at 兜底），否则会以 DESC 永远置顶 feed/日报
+    if dt > datetime.now(UTC) + timedelta(hours=1):
+        return None
+    return dt
 
 
 def _clean(s: str) -> str:
@@ -56,10 +59,7 @@ def fetch_feed(feed: dict, cutoff: datetime | None = None) -> list[dict]:
 
     cutoff：丢弃早于此时间的条目（无发布时间的保留）。
     """
-    headers = {"User-Agent": _UA}
-    with httpx.Client(timeout=_TIMEOUT, headers=headers, follow_redirects=True) as client:
-        resp = client.get(feed["url"])
-        resp.raise_for_status()
+    resp = http_get(feed["url"], timeout=_TIMEOUT, retries=1)  # §5 共享 UA + 1 次退避重试
     parsed = feedparser.parse(resp.content)
     items: list[dict] = []
     for e in parsed.entries[:_PER_FEED_MAX]:

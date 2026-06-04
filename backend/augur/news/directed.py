@@ -49,6 +49,9 @@ def _store(symbol: str, name: str, items: list[dict]) -> int:
     """落库 lane='ticker' + 确定性挂钩到 symbol。返回新插入条数（已存在的只补挂钩）。"""
     if not items:
         return 0
+    # lang 按市场推断（雅虎也会给港/A/韩股中文/韩文标题），别一律标 'en'
+    market = symbol.partition(":")[0]
+    lang = {"CN": "zh", "HK": "zh", "KR": "ko"}.get(market, "en")
     conn = get_conn()
     inserted = 0
     try:
@@ -63,11 +66,12 @@ def _store(symbol: str, name: str, items: list[dict]) -> int:
                 "INSERT OR IGNORE INTO news_items "
                 "(source, title, url, summary, lang, category, published_at, "
                 "theme, topics, classified_by, lane) "
-                "VALUES (?, ?, ?, '', 'en', '', ?, ?, ?, 'rule', 'ticker')",
+                "VALUES (?, ?, ?, '', ?, '', ?, ?, ?, 'rule', 'ticker')",
                 (
                     it["source"],
                     title[:500],
                     url,
+                    lang,
                     it.get("published_at"),
                     theme,
                     json.dumps(topics, ensure_ascii=False),

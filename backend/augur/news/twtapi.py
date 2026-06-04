@@ -18,7 +18,7 @@ import json
 import os
 import re
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import yaml
@@ -27,9 +27,9 @@ from .. import runtime_config
 from ..config import get_settings
 from . import classify
 from . import filter as noise_filter
+from ._http import UA as _UA
 
 _BASE = "https://api.twtapi.com/api/v1/twitter"
-_UA = "Mozilla/5.0 (Augur/0.1; local research tool)"
 _TIMEOUT = 20.0
 _PER_ACCOUNT = 12  # 每账号取近 N 条
 _TCO_RE = re.compile(r"https?://t\.co/\w+")
@@ -114,16 +114,19 @@ def ping() -> int:
     return 1
 
 
-def _walk_tweets(obj, out: list[dict]) -> None:
-    """递归收集 Twitter GraphQL 里的 Tweet 结果对象。"""
+def _walk_tweets(obj, out: list[dict], depth: int = 0) -> None:
+    """递归收集 Twitter GraphQL 里的 Tweet 结果对象。带深度上限——第三方桥转发的结构不受控，
+    异常深/自引用结构下默认递归深度可栈溢出（正常时间线远不及 40 层）。"""
+    if depth > 40:
+        return
     if isinstance(obj, dict):
         if obj.get("__typename") == "Tweet" and "rest_id" in obj:
             out.append(obj)
         for v in obj.values():
-            _walk_tweets(v, out)
+            _walk_tweets(v, out, depth + 1)
     elif isinstance(obj, list):
         for v in obj:
-            _walk_tweets(v, out)
+            _walk_tweets(v, out, depth + 1)
 
 
 def _tweet_text(t: dict) -> str:
@@ -135,9 +138,12 @@ def _tweet_text(t: dict) -> str:
 
 def _parse_dt(s: str) -> datetime | None:
     try:  # "Wed May 20 19:06:41 +0000 2026"
-        return datetime.strptime(s, "%a %b %d %H:%M:%S %z %Y").astimezone(UTC)
+        dt = datetime.strptime(s, "%a %b %d %H:%M:%S %z %Y").astimezone(UTC)
     except (ValueError, TypeError):
         return None
+    if dt > datetime.now(UTC) + timedelta(hours=1):  # 坏时钟/未来时间 → 当无时间，免置顶
+        return None
+    return dt
 
 
 def _fetch_account(client: httpx.Client, acc: dict, cutoff: datetime | None) -> list[dict]:

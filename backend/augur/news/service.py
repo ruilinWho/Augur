@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 from collections.abc import Iterator
 from datetime import datetime, timedelta
@@ -63,22 +64,40 @@ def _today() -> str:
     return datetime.now(ZoneInfo(get_settings().tz)).strftime("%Y-%m-%d")
 
 
+_refresh_lock = threading.Lock()
+
+
 def refresh() -> dict:
-    """抓取→翻译→投资相关性过滤（均 cheap 角色，失败降级不阻断）。"""
-    result = ingest.ingest_all()
+    """抓取→翻译→投资相关性过滤（均 cheap 角色，失败降级不阻断）。
+
+    进程级互斥：手动 POST /refresh 与定时 job（或两次手动）撞上时，后到的不并行打源（§11 尊重
+    限流），直接返回零结果（前端显「+0」无害）。
+    """
+    if not _refresh_lock.acquire(blocking=False):
+        return {
+            "fetched": 0,
+            "inserted": 0,
+            "sources_ok": 0,
+            "sources_failed": 0,
+            "failures": [],
+        }
     try:
-        result["translated"] = translate.translate_pending()
-    except Exception:  # noqa: BLE001
-        result["translated"] = 0
-    try:
-        result["filtered"] = relevance.judge_pending()  # cheap LLM 滤掉与投资无关的
-    except Exception:  # noqa: BLE001
-        result["filtered"] = {"judged": 0, "dropped": 0}
-    try:
-        result["linked"] = linker.link_pending()  # 确定性挂钩到自选股 ticker（零幻觉）
-    except Exception:  # noqa: BLE001
-        result["linked"] = {"linked": 0, "pairs": 0}
-    return result
+        result = ingest.ingest_all()
+        try:
+            result["translated"] = translate.translate_pending()
+        except Exception:  # noqa: BLE001
+            result["translated"] = 0
+        try:
+            result["filtered"] = relevance.judge_pending()  # cheap LLM 滤掉与投资无关的
+        except Exception:  # noqa: BLE001
+            result["filtered"] = {"judged": 0, "dropped": 0}
+        try:
+            result["linked"] = linker.link_pending()  # 确定性挂钩到自选股 ticker（零幻觉）
+        except Exception:  # noqa: BLE001
+            result["linked"] = {"linked": 0, "pairs": 0}
+        return result
+    finally:
+        _refresh_lock.release()
 
 
 def recent_items(
