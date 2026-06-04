@@ -103,9 +103,9 @@ export default function ResearchView() {
         <ImportedReports symbol={symbol} />
       </div>
 
-      {/* 常驻静态免责（§11 不可妥协）：无论模型是否自觉输出、无论生成/错误/导入态，护栏恒在 */}
+      {/* 常驻静态边界：决策级研究，但不执行交易；关键事实仍需回看来源。 */}
       <div className="disclaimer">
-        本页为 AI / 他人研究综合，可能滞后或有误，仅供研究参考、不构成投资建议。
+        决策级研究输出 · 可能滞后或有误 · 关键事实请回看来源核验 · Augur 不执行交易
       </div>
     </motion.div>
   )

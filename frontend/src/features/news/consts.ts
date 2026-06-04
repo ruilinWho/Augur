@@ -7,11 +7,17 @@ export const PRIMARIES: { id: NewsPrimary; label: string }[] = [
   { id: 'stocks', label: '个股' },
 ]
 
-// 资讯第三层：某天的「总结」+ 构成它的原始信源。未来在此加 reddit/雪球…
+export type SourceLaneId = 'news' | 'twitter' | 'reddit' | 'xueqiu' | 'xiaohongshu'
+
+// 资讯第三层：某天的「总结 / 决策」+ 构成它的原始信源。
 export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
   { id: 'summary', label: '总结' },
+  { id: 'decision', label: '决策' },
   { id: 'news', label: '新闻' },
   { id: 'twitter', label: '推特' },
+  { id: 'reddit', label: 'Reddit' },
+  { id: 'xueqiu', label: '雪球' },
+  { id: 'xiaohongshu', label: '小红书' },
 ]
 
 // 新闻二级：主题。key='' = 全部。与后端 classify 主题键一致。
@@ -35,3 +41,27 @@ export const TW_CATS: { key: string; label: string }[] = [
   { key: 'space', label: '航天' },
   { key: 'robotics', label: '机器人' },
 ]
+
+export const FORUM_CATS: { key: string; label: string }[] = [
+  { key: '', label: '全部' },
+  { key: 'forum', label: '论坛' },
+  { key: 'ai', label: '大模型' },
+  { key: 'chips', label: '芯片' },
+  { key: 'markets', label: '行情' },
+  { key: 'tech', label: '科技' },
+]
+
+export const SOURCE_LANES: Record<
+  SourceLaneId,
+  {
+    label: string
+    sourcePrefix?: string
+    filters: { key: string; label: string }[]
+  }
+> = {
+  news: { label: '新闻', filters: THEMES },
+  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS },
+  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS },
+  xueqiu: { label: '雪球', sourcePrefix: '雪球·', filters: FORUM_CATS },
+  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS },
+}

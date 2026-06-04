@@ -95,7 +95,7 @@ class OpportunitiesResponse(BaseModel):
     model: str = ""
     item_count: int = 0
     created_at: str | None = None
-    disclaimer: str = "研究辅助，非投资建议；基于所列新闻，可能有误，请回看原文核实。"
+    disclaimer: str = "决策级研究材料；基于所列新闻，可能有误，请回看原文核实。"
     opportunities: list[Opportunity] = []
 
 

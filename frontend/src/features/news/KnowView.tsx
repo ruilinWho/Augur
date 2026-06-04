@@ -11,6 +11,7 @@ import {
   useNarrative,
   useNewsFeed,
   useNewsReport,
+  useOpportunities,
   useQuote,
   useRefreshDirected,
   useRefreshNews,
@@ -18,10 +19,11 @@ import {
   useStockNews,
   type ClusterParams,
   type NewsCluster,
+  type NewsItem,
 } from '../../api'
 import Collapse from '../../components/Collapse'
 import { useNews } from './store'
-import { THEMES, TW_CATS } from './consts'
+import { SOURCE_LANES, type SourceLaneId } from './consts'
 import { Digest, FeedGroups } from './shared'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
@@ -296,6 +298,153 @@ function DaySummaryView({ date }: { date: string }) {
   )
 }
 
+// ── 决策工作台：把「机会 / 风险反证 / 催化 / 关联标的」集中到一屏 ──
+function DecisionView({ date }: { date: string }) {
+  const clusters = useClusters({ days: 1, date })
+  const opps = useOpportunities(date)
+  const feed = useNewsFeed(400, { day: date })
+  const select = useUI((s) => s.select)
+  const research = useUI((s) => s.research)
+
+  const allClusters = clusters.data?.clusters ?? []
+  const keyClusters = allClusters.filter((c) => c.importance === 'critical' || c.importance === 'high')
+  const risks = keyClusters.filter((c) =>
+    /风险|反证|监管|调查|通胀|利率|短缺|泡沫|亏损|下调|禁令|关税|压力|risk|probe|inflation|ban/i.test(
+      `${c.headline} ${c.why}`,
+    ),
+  )
+  const catalysts = keyClusters.filter((c) => !risks.includes(c))
+  const opportunities = opps.data?.opportunities ?? []
+  const highOpps = opportunities.filter((o) => o.confidence === 'high' || o.confidence === 'med')
+  const symbolMap = new Map<string, { symbol: string; name: string; n: number; watched: boolean }>()
+  ;(feed.data ?? []).forEach((it: NewsItem) => {
+    it.symbols.forEach((s) => {
+      const prev = symbolMap.get(s.symbol)
+      symbolMap.set(s.symbol, {
+        symbol: s.symbol,
+        name: s.name || s.symbol.split(':')[1],
+        n: (prev?.n ?? 0) + 1,
+        watched: Boolean(prev?.watched || s.in_watchlist),
+      })
+    })
+  })
+  const symbols = [...symbolMap.values()].sort((a, b) => b.n - a.n).slice(0, 18)
+  const loading = clusters.isLoading || opps.isLoading || feed.isLoading
+
+  return (
+    <div className="know decision">
+      <div className="know-head">
+        <h2>
+          决策 <span className="faint">· {fmtDate(date)}</span>
+        </h2>
+        <div className="decision-score">
+          <span>
+            <b>{keyClusters.length}</b>
+            要事
+          </span>
+          <span>
+            <b>{highOpps.length}</b>
+            机会
+          </span>
+          <span>
+            <b>{symbols.length}</b>
+            标的
+          </span>
+        </div>
+      </div>
+      {loading ? (
+        <div className="report-card faint">加载…</div>
+      ) : (
+        <div className="decision-grid">
+          <section className="decision-panel accent">
+            <div className="sec-head">
+              <h3>主动机会</h3>
+              <span className="feed-count">{highOpps.length}</span>
+            </div>
+            {highOpps.length ? (
+              <div className="decision-list">
+                {highOpps.slice(0, 6).map((o, i) => (
+                  <article className="decision-item" key={`${o.title}-${i}`}>
+                    <div className="di-title">{o.title}</div>
+                    {o.thesis && <div className="di-body">{o.thesis}</div>}
+                    {o.related.length > 0 && (
+                      <div className="di-chips">
+                        {o.related
+                          .filter((r) => r.resolved && r.symbol)
+                          .slice(0, 6)
+                          .map((r) => (
+                            <span className={`di-chip ${r.in_watchlist ? 'watched' : ''}`} key={r.symbol}>
+                              <button onClick={() => select(r.symbol!)}>{r.name}</button>
+                              <button onClick={() => research(r.symbol!)}>研</button>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="opp-empty faint">暂无机会</div>
+            )}
+          </section>
+
+          <section className="decision-panel">
+            <div className="sec-head">
+              <h3>风险 / 反证</h3>
+              <span className="feed-count">{risks.length}</span>
+            </div>
+            {risks.length ? (
+              <div className="decision-list compact">
+                {risks.slice(0, 7).map((c) => (
+                  <ClusterCard key={c.headline} c={c} />
+                ))}
+              </div>
+            ) : (
+              <div className="opp-empty faint">暂无反证</div>
+            )}
+          </section>
+
+          <section className="decision-panel">
+            <div className="sec-head">
+              <h3>催化</h3>
+              <span className="feed-count">{catalysts.length}</span>
+            </div>
+            {catalysts.length ? (
+              <div className="decision-list compact">
+                {catalysts.slice(0, 7).map((c) => (
+                  <ClusterCard key={c.headline} c={c} />
+                ))}
+              </div>
+            ) : (
+              <div className="opp-empty faint">暂无催化</div>
+            )}
+          </section>
+
+          <section className="decision-panel">
+            <div className="sec-head">
+              <h3>关联标的</h3>
+              <span className="feed-count">{symbols.length}</span>
+            </div>
+            {symbols.length ? (
+              <div className="decision-symbols">
+                {symbols.map((s) => (
+                  <span className={`dsym ${s.watched ? 'watched' : ''}`} key={s.symbol}>
+                    <button onClick={() => select(s.symbol)}>{s.name}</button>
+                    <i>{s.n}</i>
+                    <button onClick={() => research(s.symbol)}>研</button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="opp-empty faint">暂无标的</div>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── 新闻 / 推特：时间线 ↔ 要点（去重聚类+重要性排序）+ 时间范围 ──
 const IMP: Record<string, { label: string; cls: string }> = {
   critical: { label: '非常重要', cls: 'imp-critical' },
@@ -382,20 +531,21 @@ const MKTS: { key: string; label: string }[] = [
   { key: 'KR', label: '韩' },
 ]
 
-// 资讯 · 某天的「新闻」或「推特」：固定那一天，主题/账号分类做**舞台内过滤** + 时间线/要点切换
-function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' }) {
+// 资讯 · 某天的某个 source lane：主题/账号/社区分类过滤 + 时间线/要点切换
+function DayScopedNews({ date, kind }: { date: string; kind: SourceLaneId }) {
   // 默认「要点」（作者：去重聚类更易读）——但仅今天：历史日要点不会自动生成，默认时间线才有内容
   const [mode, setMode] = useState<'time' | 'key'>(date === dayStr() ? 'key' : 'time')
-  const [filter, setFilter] = useState('') // theme key（新闻）/ category key（推特）；''=全部
+  const [filter, setFilter] = useState('') // theme key（新闻）/ category key（社交 lane）；''=全部
   const [mkt, setMkt] = useState('') // 市场前缀；''=全部
   const [onlyWatch, setOnlyWatch] = useState(false) // 仅自选（挂钩了自选股的条目）
-  const opts = kind === 'news' ? THEMES : TW_CATS
+  const lane = SOURCE_LANES[kind]
+  const opts = lane.filters
   const theme = kind === 'news' && filter ? filter : undefined
-  const sourcePrefix = kind === 'twitter' ? 'X·' : undefined
-  const category = kind === 'twitter' && filter ? filter : undefined
+  const sourcePrefix = lane.sourcePrefix
+  const category = kind !== 'news' && filter ? filter : undefined
   const feed = useNewsFeed(250, { theme, sourcePrefix, day: date })
   const items = (feed.data ?? []).filter((i) => {
-    if (kind === 'twitter' && filter && i.category !== filter) return false
+    if (kind !== 'news' && filter && i.category !== filter) return false
     if (onlyWatch && i.symbols.length === 0) return false
     if (mkt && !i.symbols.some((s) => s.symbol.startsWith(`${mkt}:`))) return false
     return true
@@ -405,7 +555,7 @@ function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' 
     <div className="know">
       <div className="know-head">
         <h3>
-          {kind === 'news' ? '新闻' : '推特'} <span className="faint">· {fmtDate(date)}</span>
+          {lane.label} <span className="faint">· {fmtDate(date)}</span>
         </h3>
         <div className="seg feed-seg">
           <button aria-pressed={mode === 'time'} onClick={() => setMode('time')}>
@@ -583,8 +733,10 @@ function InfoView() {
   const infoDate = useNews((s) => s.infoDate)
   const infoSection = useNews((s) => s.infoSection)
   const date = infoDate ?? dayStr()
-  if (infoSection === 'news') return <DayScopedNews key={`n${date}`} date={date} kind="news" />
-  if (infoSection === 'twitter') return <DayScopedNews key={`t${date}`} date={date} kind="twitter" />
+  if (infoSection === 'decision') return <DecisionView key={`d${date}`} date={date} />
+  if (infoSection in SOURCE_LANES) {
+    return <DayScopedNews key={`${infoSection}${date}`} date={date} kind={infoSection as SourceLaneId} />
+  }
   return <DaySummaryView date={date} />
 }
 

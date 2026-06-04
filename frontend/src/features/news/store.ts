@@ -3,11 +3,18 @@ import { create } from 'zustand'
 // 「知」导航（非持久、随会话）。三层 Miller：
 //   一级 primary：总览 / 个股 / 资讯
 //   · 个股 → 二级 stockSym（选中的标的）
-//   · 资讯 → 二级 infoDate（日期，null=今天）+ 三级 infoSection（总结/新闻/推特…）
+//   · 资讯 → 二级 infoDate（日期，null=今天）+ 三级 infoSection（总结/决策/各信源 lane…）
 //   · 总览 → 无二级
 export type NewsPrimary = 'info' | 'stocks'
-// 资讯第三层：日的「总结」+ 构成它的原始信源（新闻/推特，未来可加 reddit/雪球…）
-export type InfoSection = 'summary' | 'news' | 'twitter'
+// 资讯第三层：日的「总结 / 决策」+ 构成它的原始信源 lane
+export type InfoSection =
+  | 'summary'
+  | 'decision'
+  | 'news'
+  | 'twitter'
+  | 'reddit'
+  | 'xueqiu'
+  | 'xiaohongshu'
 
 interface NewsState {
   primary: NewsPrimary

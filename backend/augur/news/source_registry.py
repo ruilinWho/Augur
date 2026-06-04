@@ -4,15 +4,15 @@
 **新闻**（RSS/中文 newswire/官方资讯，喂 知）、**论坛**（社媒/社区情绪信号）。
 免费已接的内置栈（行情数据、RSS 聚合）以只读聚合行呈现；需 key/token 的源留配置槽。
 
-候选源可行性调研（twtapi/必盈/iTick/Tushare/雪球）结论见 ADR-0007：均与现有免费栈
-重叠或有隐私权衡，故标为「可选·待配置」由作者定夺，不默认启用、不写适配器（先登记留槽）。
+候选源可行性调研（twtapi/必盈/iTick/Tushare/雪球）结论见 ADR-0007。Reddit 已用 public
+JSON 接入；雪球/小红书属登录型或不稳定抓取源，先登记配置槽与 UI lane，不伪装已接入。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
 from __future__ import annotations
 
 from .. import runtime_config
-from . import eastmoney_news, sources, twtapi
+from . import eastmoney_news, reddit, sources, twtapi
 
 # access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
 # group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
@@ -114,6 +114,28 @@ SOURCES: list[dict] = [
         "cred": "token",
         "payment": "免费·需登录",
         "note": "社区情绪·需登录·泄持仓",
+        "config": [{"field": "keywords", "type": "tags", "label": "追踪关键词"}],
+    },
+    {
+        "id": "reddit",
+        "name": "Reddit",
+        "group": "forum",
+        "access": "free_api",
+        "active": True,
+        "payment": "免费",
+        "note": "Subreddit 讨论",
+        "config": [{"field": "subreddits", "type": "tags", "label": "Subreddits"}],
+    },
+    {
+        "id": "xiaohongshu",
+        "name": "小红书",
+        "group": "forum",
+        "access": "free_api",
+        "key_env": "XHS_COOKIE",
+        "cred": "token",
+        "payment": "免费·需登录",
+        "note": "消费/情绪信号·待接入",
+        "config": [{"field": "keywords", "type": "tags", "label": "追踪关键词"}],
     },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
@@ -132,6 +154,11 @@ GROUPS: list[dict] = [
 _CONFIG_VALUE = {
     ("twtapi", "accounts"): twtapi.accounts,
     ("eastmoney_news", "keywords"): eastmoney_news.keywords,
+    ("reddit", "subreddits"): reddit.subreddits,
+    ("xueqiu", "keywords"): lambda: runtime_config.get_source_config("xueqiu", "keywords", []),
+    ("xiaohongshu", "keywords"): lambda: runtime_config.get_source_config(
+        "xiaohongshu", "keywords", []
+    ),
 }
 _ACCOUNT_CATS = {"ai", "chips", "space", "robotics", "tech"}  # 账户分类白名单
 

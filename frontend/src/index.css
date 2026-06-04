@@ -611,6 +611,126 @@ button {
   width: 1px;
   background: var(--border);
 }
+
+/* 知 · 决策工作台 */
+.decision-score {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.decision-score span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.decision-score b {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+.decision-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.decision-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  padding: 16px;
+}
+.decision-panel.accent {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent-weak) 18%, var(--surface));
+}
+.decision-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.decision-list.compact .cl-card {
+  box-shadow: none;
+}
+.decision-item {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.decision-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.di-title {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.di-body {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+.di-chips,
+.decision-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.di-chip,
+.dsym {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.di-chip.watched,
+.dsym.watched {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: var(--accent-weak);
+}
+.di-chip button,
+.dsym button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.76rem;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.di-chip button:hover,
+.dsym button:hover {
+  color: var(--accent);
+}
+.di-chip button + button,
+.dsym button + button {
+  border-left: 1px solid var(--border);
+}
+.dsym i {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  padding: 0 2px;
+}
+
+@media (max-width: 1180px) {
+  .decision-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .narr-ev {
   position: relative;
   padding-bottom: 16px;
@@ -3924,7 +4044,7 @@ a.opp-ev-item:hover {
   word-break: break-word;
 }
 
-/* 研报常驻免责（非投资建议，§11）——克制小字，恒在页脚 */
+/* 研报常驻边界说明：决策级研究，但不执行交易 */
 .disclaimer {
   width: 100%;
   margin: 28px 0 8px;

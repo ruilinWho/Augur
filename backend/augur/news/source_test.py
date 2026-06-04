@@ -82,6 +82,15 @@ def test_source(source_id: str) -> dict:
         if source_id == "feeds_rss":
             return _test_feeds(only_bloomberg=False)
 
+        if source_id == "reddit":
+            from . import reddit
+
+            got = reddit.fetch_reddit(_cutoff())
+            return _ok(t0, len(got), "Reddit public JSON 可达")
+
+        if source_id == "xiaohongshu":
+            return _err("暂未接入适配器（需登录 Cookie / 稳定抓取方案）")
+
         # 候选源：仅登记留槽、未写适配器（ADR-0007）
         if source_id in ("tushare_pro", "biyingapi", "itick", "xueqiu"):
             return _err("暂未接入适配器（仅登记留槽，待定夺）")

@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 import feedparser
 
 from ..storage import get_conn
-from . import classify, cls, eastmoney_news, sources, twtapi
+from . import classify, cls, eastmoney_news, reddit, sources, twtapi
 from . import filter as noise_filter
 from ._http import get as http_get
 
@@ -25,6 +25,7 @@ _ADAPTERS = {
     "财联社": cls.fetch_cls,
     "东方财富": eastmoney_news.fetch_eastmoney,
     "X(Twitter)": twtapi.fetch_all,
+    "Reddit": reddit.fetch_reddit,
 }
 
 _TIMEOUT = 12.0
@@ -174,7 +175,9 @@ def ingest_all() -> dict:
     feeds = sources.load_feeds()
     # prune 时豁免专用适配器 source（含 twtapi 的每账号 X·<handle> 名），否则其条目
     # （不在 feeds.yaml）会被当"已移除源"删掉
-    _prune_removed_sources({f["name"] for f in feeds} | set(_ADAPTERS) | twtapi.source_names())
+    _prune_removed_sources(
+        {f["name"] for f in feeds} | set(_ADAPTERS) | twtapi.source_names() | reddit.source_names()
+    )
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
     failures: list[str] = []
