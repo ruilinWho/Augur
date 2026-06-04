@@ -276,9 +276,8 @@ export default function KLineView() {
         {!symbol && (
           <div className="empty" style={{ position: 'absolute', inset: 0 }}>
             <div style={{ fontSize: '1.15rem', color: 'var(--text-muted)', fontFamily: 'var(--font-display)' }}>
-              从左侧选择一支标的
+              选择标的
             </div>
-            <div className="faint">美 / 港 / A / 韩 · 蜡笔纸感 K 线</div>
           </div>
         )}
         {showSkeleton && (

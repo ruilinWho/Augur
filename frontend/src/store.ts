@@ -16,6 +16,11 @@ export const SRC_NAV_MIN = 120
 export const SRC_NAV_MAX = 320
 export const KAN_COL_MIN = 96
 export const KAN_COL_MAX = 420
+export const DEFAULT_PANEL_W = 268
+export const DEFAULT_NEWS_SUB_W = 196
+export const DEFAULT_SRC_NAV_W = 184
+export const DEFAULT_KAN_COL_W: [number, number, number] = [156, 150, 248]
+export const DEFAULT_KAN_COL_CLOSED: [boolean, boolean, boolean] = [false, false, false]
 
 interface UIState {
   view: View
@@ -52,6 +57,7 @@ interface UIState {
   setKanColW: (i: 0 | 1 | 2, n: number) => void
   toggleKanCol: (i: 0 | 1 | 2) => void
   setKanOrder: (o: string[]) => void
+  resetLayout: () => void
   setSettingsPage: (p: SettingsPage) => void
   markNewsSeen: () => void // 把「自上次以来」基准推到此刻
 }
@@ -69,11 +75,11 @@ export const useUI = create<UIState>()(
       leading: 1.62,
       displayFont: 'serif',
       convention: 'us',
-      panelW: 268,
-      newsSubW: 196,
-      srcNavW: 184,
-      kanColW: [156, 150, 248],
-      kanColClosed: [false, false, false],
+      panelW: DEFAULT_PANEL_W,
+      newsSubW: DEFAULT_NEWS_SUB_W,
+      srcNavW: DEFAULT_SRC_NAV_W,
+      kanColW: [...DEFAULT_KAN_COL_W],
+      kanColClosed: [...DEFAULT_KAN_COL_CLOSED],
       kanOrder: [...KAN_MODULES],
       settingsPage: 'appearance',
       lastSeenNewsAt: null,
@@ -108,6 +114,15 @@ export const useUI = create<UIState>()(
           return { kanColClosed: c }
         }),
       setKanOrder: (kanOrder) => set({ kanOrder }),
+      resetLayout: () =>
+        set({
+          panelW: DEFAULT_PANEL_W,
+          newsSubW: DEFAULT_NEWS_SUB_W,
+          srcNavW: DEFAULT_SRC_NAV_W,
+          kanColW: [...DEFAULT_KAN_COL_W],
+          kanColClosed: [...DEFAULT_KAN_COL_CLOSED],
+          kanOrder: [...KAN_MODULES],
+        }),
       setSettingsPage: (settingsPage) => set({ settingsPage }),
       markNewsSeen: () => set({ lastSeenNewsAt: new Date().toISOString() }),
     }),

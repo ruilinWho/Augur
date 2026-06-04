@@ -78,7 +78,7 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
         <div className="report-card faint">加载日报…</div>
       ) : (
         <div className="know-empty">
-          <div className="ke-title">还没有这天的日报</div>
+          <div className="ke-title">暂无日报</div>
         </div>
       )}
     </section>
@@ -116,7 +116,7 @@ function MorningBrief({
         )}
       </div>
       {gen.isPending ? (
-        <div className="opp-empty faint">正在挑出今天最要紧的几件事…</div>
+        <div className="opp-empty faint">生成中…</div>
       ) : top.length ? (
         <ol className="brief-list">
           {top.map((c, i) => {
@@ -138,7 +138,7 @@ function MorningBrief({
       ) : clusters.isLoading ? (
         <div className="report-card faint">加载…</div>
       ) : (
-        <div className="opp-empty faint">还没有今日要事</div>
+        <div className="opp-empty faint">暂无要事</div>
       )}
     </section>
   )
@@ -167,9 +167,8 @@ function SinceLast() {
     return (
       <section className="since">
         <div className="since-bar">
-          <span className="faint">想追踪「自上次以来」的新增？先设个基准。</span>
           <button className="btn jsm" onClick={markSeen}>
-            标记此刻为已读
+            设置已读基准
           </button>
         </div>
       </section>
@@ -351,7 +350,7 @@ function ClusterList({ params }: { params: ClusterParams }) {
       </div>
       {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
       {gen.isPending ? (
-        <div className="opp-empty faint">正在按事件去重合并、按重要性排序…</div>
+        <div className="opp-empty faint">聚类中…</div>
       ) : data ? (
         <>
           {list.map((c, i) => (
@@ -367,7 +366,7 @@ function ClusterList({ params }: { params: ClusterParams }) {
         <div className="report-card faint">加载…</div>
       ) : (
         <div className="know-empty">
-          <div className="ke-title">还没有要点</div>
+          <div className="ke-title">暂无要点</div>
         </div>
       )}
     </div>
@@ -448,7 +447,7 @@ function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' 
         </button>
       </div>
       {mode === 'time' ? (
-        <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '这一天暂无内容'} />
+        <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '暂无内容'} />
       ) : (
         <ClusterList params={clusterParams} />
       )}
@@ -504,7 +503,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
       {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
 
       {gen.isPending ? (
-        <div className="report-card faint">正在融合该股近况、提炼主线与时间线…</div>
+        <div className="report-card faint">融合中…</div>
       ) : data ? (
         <>
           {data.summary && <div className="narr-summary">{data.summary}</div>}
@@ -544,8 +543,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
         <div className="report-card faint">加载…</div>
       ) : (
         <div className="know-empty">
-          <div className="ke-title">还没有这只股的叙事</div>
-          <div className="faint">点「生成叙事」让 LLM 融合最近的资讯成主线与时间线</div>
+          <div className="ke-title">暂无叙事</div>
         </div>
       )}
 
@@ -560,7 +558,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
         </div>
         <FeedGroups
           items={news.data ?? []}
-          empty={news.isLoading ? '加载…' : '点「↻ 抓取最新」按 ticker 直取该股新闻'}
+          empty={news.isLoading ? '加载…' : '暂无资讯'}
         />
       </section>
     </div>
@@ -573,8 +571,7 @@ function StockNarrativeView() {
     return (
       <div className="know">
         <div className="know-empty">
-          <div className="ke-title">从左侧选择一支自选股</div>
-          <div className="faint">看它最近在发生什么——LLM 融合的主线与时间线</div>
+          <div className="ke-title">个股叙事</div>
         </div>
       </div>
     )

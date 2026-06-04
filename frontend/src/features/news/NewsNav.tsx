@@ -44,7 +44,7 @@ function StocksSub() {
   const setStockSym = useNews((s) => s.setStockSym)
   const syms = useMemo(() => flattenSymbols(sections.data ?? []), [sections.data])
   if (sections.isLoading) return <div className="nsub-row faint">加载…</div>
-  if (!syms.length) return <div className="nsub-empty faint">先在「看」里自选标的</div>
+  if (!syms.length) return <div className="nsub-empty faint">暂无自选</div>
   return (
     <div className="nsub-list">
       {syms.map((sym) => (

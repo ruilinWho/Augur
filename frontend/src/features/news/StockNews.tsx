@@ -28,7 +28,7 @@ export default function StockNews({ symbol }: { symbol: string }) {
           </div>
         ) : (
           <div className="fin-empty">
-            {news.isLoading ? '加载相关资讯…' : '暂无相关资讯（到「知」刷新信源后再看）'}
+            {news.isLoading ? '加载相关资讯…' : '暂无相关资讯'}
           </div>
         )}
       </Collapse>

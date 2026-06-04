@@ -129,13 +129,13 @@ function NoteEditor({ id }: { id: number }) {
           </div>
         ) : (
           <div className="know-empty">
-            <div className="ke-title">空正文</div>
+            <div className="ke-title">正文为空</div>
           </div>
         )
       ) : (
         <textarea
           className="note-body-in"
-          placeholder="写下与个股无关的长文——市场随想、方法论、复盘思考…（支持 Markdown）"
+          placeholder="Markdown 正文"
           value={body}
           onChange={(e) => {
             setBody(e.target.value)
@@ -156,11 +156,8 @@ export default function NotesView() {
   const selectedId = useNotesUI((s) => s.selectedId)
   if (selectedId == null)
     return (
-      <div className="note-edit">
-        <div className="know-empty">
-          <div className="ke-title">「记」· 自由长文</div>
-          <div className="faint">从左侧选一篇，或「＋ 新建」——记录与个股无关的市场思考与方法论</div>
-        </div>
+      <div className="empty-stage">
+        <div className="es-title">自由长文</div>
       </div>
     )
   return <NoteEditor key={selectedId} id={selectedId} />

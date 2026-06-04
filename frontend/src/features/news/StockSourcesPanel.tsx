@@ -134,7 +134,7 @@ export default function StockSourcesPanel({ symbol }: { symbol: string }) {
       {discover.isError && <div className="opp-err">{(discover.error as Error).message}</div>}
       {adding && <AddRow symbol={symbol} onDone={() => setAdding(false)} />}
       {discover.isPending ? (
-        <div className="opp-empty faint">正在调研这只股该看哪些官网/大V/论坛/财经源…</div>
+        <div className="opp-empty faint">调研中…</div>
       ) : list.length ? (
         <div className="ssrc-list">
           {list.map((s) => (
@@ -142,9 +142,7 @@ export default function StockSourcesPanel({ symbol }: { symbol: string }) {
           ))}
         </div>
       ) : (
-        <div className="opp-empty faint">
-          点「调研信源」让 LLM 找出这只股专属的官网/IR/官方X/大V/Reddit/雪球/财经站，再由你勾选启用。
-        </div>
+        <div className="opp-empty faint">暂无信源</div>
       )}
     </section>
   )

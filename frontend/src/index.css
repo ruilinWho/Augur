@@ -875,6 +875,9 @@ body.resizing * {
   padding: 24px 28px;
   min-width: 0;
 }
+.stage > * {
+  width: 100%;
+}
 
 /* ───────────────────────── 通用件 ───────────────────────── */
 .card {
@@ -1261,7 +1264,8 @@ body.resizing * {
 
 /* ───────────────────────── 设置 ───────────────────────── */
 .set-group {
-  max-width: 640px;
+  width: 100%;
+  max-width: none;
   margin-bottom: 26px;
 }
 .set-row {
@@ -1302,7 +1306,8 @@ body.resizing * {
 }
 /* 设置 · 卡片网格（填满舞台宽度、按钮内联，不再钉死窄列）*/
 .set-wrap {
-  max-width: 1280px;
+  width: 100%;
+  max-width: none;
 }
 .set-grid {
   display: grid;
@@ -1438,6 +1443,7 @@ body.resizing * {
 
 /* 内容区：占满舞台宽度（作者偏好全宽，不设窄列上限） */
 .set2-body {
+  width: 100%;
   padding-bottom: 40px;
 }
 .set2-title {
@@ -1502,6 +1508,11 @@ body.resizing * {
   color: var(--text-faint);
   margin-top: 3px;
   line-height: 1.5;
+}
+.layout-sizes {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 .set2-row-ctl {
   display: flex;
@@ -2100,6 +2111,37 @@ input:focus:not(:focus-visible) {
   *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .stage {
+    padding: 18px;
+  }
+  .set2-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .set2-row-ctl {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .set2-row input[type='range'] {
+    flex: 1 1 180px;
+    width: auto;
+  }
+  .research-head,
+  .know-head,
+  .sum-head,
+  .note-head {
+    flex-wrap: wrap;
+  }
+  .sum-gen,
+  .narr-actions,
+  .note-actions {
+    flex-wrap: wrap;
   }
 }
 
@@ -2933,6 +2975,7 @@ input:focus:not(:focus-visible) {
   justify-content: center;
   gap: 8px;
   min-height: 60vh;
+  width: 100%;
   text-align: center;
 }
 .es-title {
@@ -2943,7 +2986,7 @@ input:focus:not(:focus-visible) {
 }
 .es-sub {
   font-size: 0.9rem;
-  max-width: 320px;
+  max-width: none;
   line-height: 1.7;
 }
 
@@ -3737,7 +3780,7 @@ input:focus:not(:focus-visible) {
 .since-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   padding: 9px 12px;
   background: var(--surface-2);
@@ -3883,14 +3926,14 @@ a.opp-ev-item:hover {
 
 /* 研报常驻免责（非投资建议，§11）——克制小字，恒在页脚 */
 .disclaimer {
-  max-width: var(--measure);
-  margin: 28px auto 8px;
+  width: 100%;
+  margin: 28px 0 8px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
   font-size: 0.74rem;
   line-height: 1.6;
   color: var(--text-faint);
-  text-align: center;
+  text-align: left;
 }
 
 /* ───────────────────────── 「记」· 自由长文笔记（第 4 支柱）───────────────────────── */
@@ -3981,7 +4024,8 @@ a.opp-ev-item:hover {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  max-width: 920px;
+  width: 100%;
+  max-width: none;
 }
 .note-head {
   display: flex;

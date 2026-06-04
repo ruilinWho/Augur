@@ -52,7 +52,7 @@ function Editor({
         autoFocus
         rows={4}
         value={body}
-        placeholder="写下你的判断…"
+        placeholder="判断"
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && body.trim()) onSave(date, body.trim())
@@ -164,7 +164,7 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
         )}
 
         {!isLoading && entries && entries.length === 0 && !adding && (
-          <div className="journal-empty">还没有判断记录</div>
+          <div className="journal-empty">暂无判断</div>
         )}
 
         <div className="journal-list">

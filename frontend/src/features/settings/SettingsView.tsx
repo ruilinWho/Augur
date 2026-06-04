@@ -98,11 +98,16 @@ function AppearancePage() {
     leading,
     displayFont,
     convention,
+    panelW,
+    newsSubW,
+    srcNavW,
+    kanColW,
     setTheme,
     setTextBase,
     setLeading,
     setDisplayFont,
     setConvention,
+    resetLayout,
   } = useUI()
   return (
     <>
@@ -115,12 +120,22 @@ function AppearancePage() {
           <input type="range" min={1.4} max={1.9} step={0.02} value={leading} onChange={(e) => setLeading(+e.target.value)} />
           <span className="val">{leading.toFixed(2)}</span>
         </Row>
-        <Row label="英文标题字体" desc="中文恒为苹方">
+        <Row label="英文标题字体">
           <Seg
             value={displayFont}
             onChange={setDisplayFont}
             options={[{ v: 'serif', label: '衬线' }, { v: 'sans', label: '无衬线' }]}
           />
+        </Row>
+      </Section>
+      <Section title="布局">
+        <Row label="栏宽">
+          <span className="layout-sizes mono">
+            {panelW} · {newsSubW} · {srcNavW} · {kanColW.join('/')}
+          </span>
+          <button className="btn jsm" onClick={resetLayout}>
+            恢复默认
+          </button>
         </Row>
       </Section>
       <Section title="主题与色彩">
@@ -158,48 +173,45 @@ function SchedulePage() {
   return (
     <>
       <Section title="白天自动 · 全部生成">
-      <Row
-        label="自动刷新并生成"
-        desc="在时间窗内每个整点（:00）自动「刷新并生成」当天的 日报 / 要事 / 新闻·推特要点 / 机会，让信息流持续追平、不必手动点。"
-      >
-        <Seg
-          value={cur.enabled ? 'on' : 'off'}
-          onChange={(v) => set.mutate({ enabled: v === 'on' })}
-          options={[{ v: 'on', label: '开' }, { v: 'off', label: '关' }]}
-        />
-      </Row>
-      <Row label="时间窗" desc="起止含端点；窗内逢整点各跑一次。">
-        <div className="sched-window">
-          <select
-            className="cfg-input"
-            value={cur.start_hour}
-            disabled={!cur.enabled}
-            onChange={(e) => set.mutate({ start_hour: +e.target.value })}
-          >
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {String(h).padStart(2, '0')}:00
-              </option>
-            ))}
-          </select>
-          <span className="faint">至</span>
-          <select
-            className="cfg-input"
-            value={cur.end_hour}
-            disabled={!cur.enabled}
-            onChange={(e) => set.mutate({ end_hour: +e.target.value })}
-          >
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {String(h).padStart(2, '0')}:00
-              </option>
-            ))}
-          </select>
-        </div>
-      </Row>
-      <Row label="此外固定" desc="无论上方开关，每天 07:30 晨间抓取、23:30 当天归档各自动生成一次。">
-        <span className="faint mono">07:30 · 23:30</span>
-      </Row>
+        <Row label="自动刷新并生成">
+          <Seg
+            value={cur.enabled ? 'on' : 'off'}
+            onChange={(v) => set.mutate({ enabled: v === 'on' })}
+            options={[{ v: 'on', label: '开' }, { v: 'off', label: '关' }]}
+          />
+        </Row>
+        <Row label="时间窗">
+          <div className="sched-window">
+            <select
+              className="cfg-input"
+              value={cur.start_hour}
+              disabled={!cur.enabled}
+              onChange={(e) => set.mutate({ start_hour: +e.target.value })}
+            >
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, '0')}:00
+                </option>
+              ))}
+            </select>
+            <span className="faint">至</span>
+            <select
+              className="cfg-input"
+              value={cur.end_hour}
+              disabled={!cur.enabled}
+              onChange={(e) => set.mutate({ end_hour: +e.target.value })}
+            >
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, '0')}:00
+                </option>
+              ))}
+            </select>
+          </div>
+        </Row>
+        <Row label="固定任务">
+          <span className="faint mono">07:30 · 23:30</span>
+        </Row>
       </Section>
       <GenDepthSection cur={cur} set={set} />
     </>
@@ -218,10 +230,7 @@ function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof u
     : [...BRIEF_PRESETS, cur.brief_top_n].sort((a, b) => a - b)
   return (
     <Section title="生成 · 蒸馏深度">
-      <Row
-        label="要事 / 机会 喂入条数上限"
-        desc="生成「要事」「今日机会」时，最多喂给 LLM 当天多少条新闻（取最新的若干条）。趋势日报不受此限、始终喂全部。条数越大越全、也越慢越费 token。"
-      >
+      <Row label="要事 / 机会 输入上限">
         <select
           className="cfg-input"
           value={cap}
@@ -235,10 +244,7 @@ function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof u
           <option value={0}>不限</option>
         </select>
       </Row>
-      <Row
-        label="今日要事 显示条数"
-        desc="「资讯·总结」里「今日要事 / 晨读」展示前几条要点（按重要性排序）。"
-      >
+      <Row label="今日要事 条数">
         <select
           className="cfg-input"
           value={cur.brief_top_n}
@@ -429,9 +435,7 @@ function UsageSection() {
   return (
     <Section title="用量 · 近 30 天">
       {empty ? (
-        <div className="usage-empty faint">
-          暂无记录——生成日报 / 研究 / 翻译后，这里会累计 token 与（可估时的）成本
-        </div>
+        <div className="usage-empty faint">暂无用量</div>
       ) : (
         <div className="usage">
           <div className="usage-total">

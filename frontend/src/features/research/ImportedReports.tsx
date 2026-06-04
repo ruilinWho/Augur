@@ -104,7 +104,7 @@ function ImpCard({ r }: { r: ImportedReport }) {
           <Markdown body={body} />
         </div>
       ) : (
-        <div className="imp-body faint">空正文</div>
+        <div className="imp-body faint">正文为空</div>
       )}
       <div className="imp-comment">
         <span className="imp-comment-lbl">我的评论</span>
@@ -113,7 +113,7 @@ function ImpCard({ r }: { r: ImportedReport }) {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           onBlur={saveComment}
-          placeholder="写点你的看法…"
+          placeholder="评论"
         />
       </div>
     </div>

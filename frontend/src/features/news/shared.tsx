@@ -151,7 +151,7 @@ export function FeedGroups({ items, empty }: { items: NewsItem[]; empty?: string
   if (!items.length) {
     return (
       <div className="faint" style={{ padding: '14px 2px' }}>
-        {empty ?? '还没有内容'}
+        {empty ?? '暂无内容'}
       </div>
     )
   }

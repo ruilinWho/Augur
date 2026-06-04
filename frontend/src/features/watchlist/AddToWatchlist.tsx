@@ -78,7 +78,7 @@ export default function AddToWatchlist({ symbol }: { symbol: string }) {
               {t.label}
             </button>
           ))}
-          {!targets.length && <div className="addwl-empty faint">还没有分区</div>}
+          {!targets.length && <div className="addwl-empty faint">暂无分区</div>}
           {creating ? (
             <div className="addwl-new">
               <input

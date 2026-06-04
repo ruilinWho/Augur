@@ -657,7 +657,7 @@ export default function WatchlistPanel() {
             ))}
           </SortableContext>
           {sections && sections.length === 0 && (
-            <div className="faint kc-msg">还没有板块，点上方 ＋ 新建。</div>
+            <div className="faint kc-msg">暂无板块</div>
           )}
         </Column>
 
@@ -754,7 +754,7 @@ export default function WatchlistPanel() {
               {col3Items.map((it) => (
                 <PlainStockRow key={it.id} item={it} />
               ))}
-              {!col3Items.length && <div className="faint kc-msg">该板块下还没有标的。</div>}
+              {!col3Items.length && <div className="faint kc-msg">暂无标的</div>}
             </>
           ) : col3 ? (
             <>
@@ -769,7 +769,7 @@ export default function WatchlistPanel() {
                   <StockRow key={it.id} item={it} />
                 ))}
               </SortableContext>
-              {!col3Items.length && <div className="faint kc-msg">该板块暂无标的，点 ＋ 添加。</div>}
+              {!col3Items.length && <div className="faint kc-msg">暂无标的</div>}
             </>
           ) : (
             <div className="faint kc-msg">选板块看标的</div>

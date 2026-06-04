@@ -51,7 +51,6 @@ export default function ResearchView() {
     return (
       <div className="research empty-stage">
         <div className="es-title">深度研究</div>
-        <div className="es-sub faint">从左侧自选选一支标的，生成它的深度研究报告</div>
       </div>
     )
   }
@@ -85,7 +84,7 @@ export default function ResearchView() {
           {genState === 'error' ? (
             <p>{gen}</p>
           ) : (
-            <Markdown body={gen || '正在汇集行情 · 财务 · 新闻 · 申报…'} />
+            <Markdown body={gen || '生成中…'} />
           )}
         </div>
       ) : data ? (
@@ -96,10 +95,7 @@ export default function ResearchView() {
         <div className="report-card faint">加载…</div>
       ) : (
         <div className="know-empty">
-          <div className="ke-title">还没有 {name || symbol} 的研究报告</div>
-          <div className="faint" style={{ marginTop: 6 }}>
-            汇集行情、基本面、财务趋势、近期新闻与 SEC 申报，由长上下文模型综合
-          </div>
+          <div className="ke-title">暂无研究报告</div>
         </div>
       )}
 

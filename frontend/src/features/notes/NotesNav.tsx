@@ -39,7 +39,7 @@ export default function NotesNav() {
       {list.isLoading ? (
         <div className="nsub-row faint">加载…</div>
       ) : items.length === 0 ? (
-        <div className="nsub-empty faint">还没有笔记，点「＋ 新建」开始记录</div>
+        <div className="nsub-empty faint">暂无笔记</div>
       ) : (
         <div className="notes-list">
           {items.map((n) => (

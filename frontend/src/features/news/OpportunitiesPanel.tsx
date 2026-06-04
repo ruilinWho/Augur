@@ -118,7 +118,7 @@ export default function OpportunitiesPanel({
       <Collapse open={open}>
         {gen.isError && <div className="opp-err">{(gen.error as Error).message}</div>}
         {gen.isPending ? (
-          <div className="opp-empty faint">正在从今日新闻中识别可研究的方向…（约 20–40 秒）</div>
+          <div className="opp-empty faint">识别中…</div>
         ) : list.length ? (
           <>
             <div className="opp-list">
@@ -129,7 +129,7 @@ export default function OpportunitiesPanel({
           </>
         ) : (
           <div className="opp-empty">
-            <div className="oe-title">还没有今日机会</div>
+            <div className="oe-title">暂无机会</div>
           </div>
         )}
       </Collapse>
