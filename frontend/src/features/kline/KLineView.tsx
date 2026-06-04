@@ -28,6 +28,8 @@ const TF = [
 
 const EASE = [0.22, 1, 0.36, 1] as const
 const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+// hex + alpha → 8 位 hex。蜡笔纸感（§9 硬指标）：实体半透明（让纸透出）、描边/影线略实以保规整直角矩形。
+const hexA = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).padStart(2, '0')
 // 确定性骨架柱高（无随机，避免每次不同）
 const SKEL_BARS = Array.from({ length: 28 }, (_, i) => 30 + Math.round(28 * (1 + Math.sin(i / 2.3)) + 14 * (1 + Math.cos(i / 1.5))))
 
@@ -81,13 +83,14 @@ export default function KLineView() {
         horzLine: { color: p.accent, labelBackgroundColor: p.accent },
       },
     })
+    // 蜡笔纸感：实体半透明（让象牙纸透出，不像交易终端的鲜艳实心），描边/影线略实保规整直角
     series.applyOptions({
-      upColor: up,
-      downColor: down,
-      borderUpColor: up,
-      borderDownColor: down,
-      wickUpColor: up,
-      wickDownColor: down,
+      upColor: hexA(up, 0.5),
+      downColor: hexA(down, 0.5),
+      borderUpColor: hexA(up, 0.9),
+      borderDownColor: hexA(down, 0.9),
+      wickUpColor: hexA(up, 0.68),
+      wickDownColor: hexA(down, 0.68),
       borderVisible: true,
     })
   }, [theme, conv])
@@ -108,7 +111,8 @@ export default function KLineView() {
   }, [ohlcv.data])
 
   const q = quote.data
-  const up = q ? q.change >= 0 : true
+  // 平盘（change===0：停牌/盘前无变动）单列出来——不再当作"涨"显绿色▲
+  const dir = q ? (q.change > 0 ? 'up' : q.change < 0 ? 'down' : 'flat') : 'up'
   const [mkt, code] = symbol ? symbol.split(':') : ['', '']
   const last = ohlcv.data?.candles.at(-1)
   const candleCount = ohlcv.data?.candles.length ?? 0
@@ -134,8 +138,9 @@ export default function KLineView() {
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
               <span className="px">{q ? fmt(q.price) : '—'}</span>
               {q && (
-                <span className={`pill ${up ? 'up' : 'down'}`} style={{ fontSize: '1rem' }}>
-                  {up ? '▲' : '▼'} {Math.abs(q.change).toFixed(2)} ({Math.abs(q.change_pct).toFixed(2)}%)
+                <span className={`pill ${dir}`} style={{ fontSize: '1rem' }}>
+                  {dir === 'up' ? '▲' : dir === 'down' ? '▼' : '–'} {Math.abs(q.change).toFixed(2)} (
+                  {Math.abs(q.change_pct).toFixed(2)}%)
                 </span>
               )}
               {last && (
@@ -144,36 +149,49 @@ export default function KLineView() {
                 </span>
               )}
               {thin && <span className="ipo-note">新股 · 仅 {candleCount} 个交易日</span>}
+              {q?.time && (
+                <span className="faint" style={{ fontSize: '.7rem' }}>
+                  截至 {q.time} · {q.source}
+                </span>
+              )}
             </div>
           </div>
           <div className="tf">
             {TF.map((t) => (
-              <span
+              <button
                 key={t.label}
                 className={`chip ${tf.label === t.label ? 'active' : ''}`}
+                aria-pressed={tf.label === t.label}
                 onClick={() => setTf(t)}
               >
                 {t.label}
-              </span>
+              </button>
             ))}
           </div>
         </motion.div>
       )}
 
-      {symbol && fund.data && (
-        <div className="snapshot">
-          <span>
-            <i>市值</i>
-            {fmtMoney(fund.data.market_cap, fund.data.currency)}
-          </span>
-          <span>
-            <i>市盈率</i>
-            {fund.data.pe != null ? fund.data.pe.toFixed(1) : '—'}
-          </span>
-          <span>
-            <i>净利率</i>
-            {fmtPctPlain(fund.data.net_margin)}
-          </span>
+      {symbol &&
+        fund.data &&
+        (fund.data.market_cap != null || fund.data.pe != null || fund.data.net_margin != null) && (
+          <div className="snapshot">
+            <span>
+              <i>市值</i>
+              {fmtMoney(fund.data.market_cap, fund.data.currency)}
+            </span>
+            <span>
+              <i>市盈率</i>
+              {fund.data.pe != null ? fund.data.pe.toFixed(1) : '—'}
+            </span>
+            <span>
+              <i>净利率</i>
+              {fmtPctPlain(fund.data.net_margin)}
+            </span>
+          </div>
+        )}
+      {symbol && fund.error && (
+        <div className="faint" style={{ fontSize: '.74rem', marginTop: 6 }}>
+          基本面暂不可用
         </div>
       )}
 

@@ -2,11 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
 // ───────────────────────── HTTP 助手（开发期经 Vite 代理到 :8788）─────────────────────────
+// 携带 HTTP 状态码的错误：让「404=暂无（空态）vs 其它=真错误」靠 status 判定，而非脆弱的中文
+// detail 子串匹配（后端改文案就会让空态突然报红）。
+export class HttpError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'HttpError'
+    this.status = status
+  }
+}
+
 async function getJSON(url: string): Promise<unknown> {
   const r = await fetch(url)
   if (!r.ok) {
     const d = (await r.json().catch(() => ({}))) as { detail?: string }
-    throw new Error(d.detail ?? `HTTP ${r.status}`)
+    throw new HttpError(d.detail ?? `HTTP ${r.status}`, r.status)
   }
   return r.json()
 }
@@ -19,9 +30,48 @@ async function send(url: string, method: string, body?: unknown): Promise<unknow
   })
   if (!r.ok) {
     const d = (await r.json().catch(() => ({}))) as { detail?: string }
-    throw new Error(d.detail ?? `HTTP ${r.status}`)
+    throw new HttpError(d.detail ?? `HTTP ${r.status}`, r.status)
   }
   return r.status === 204 ? null : r.json()
+}
+
+// 消费一个 SSE 流：逐 `data:` 帧解析 {delta|error}；delta→onDelta、[DONE]→结束、error→抛出
+// （三处流式复用，单一真相）。关键修复：error 检测移出 JSON.parse 的 try/catch——此前 throw 被同
+// 块 catch 当「非 JSON」吞掉，导致后端推送的错误帧静默丢失、前端永不进 error 态（违 §11）。
+async function consumeSSE(r: Response, onDelta: (text: string) => void): Promise<void> {
+  if (!r.body) throw new Error('无响应流')
+  const reader = r.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += dec.decode(value, { stream: true })
+      const parts = buf.split('\n\n')
+      buf = parts.pop() ?? ''
+      for (const part of parts) {
+        const line = part.trim()
+        if (!line.startsWith('data:')) continue
+        const payload = line.slice(5).trim()
+        if (payload === '[DONE]') return
+        let obj: { delta?: string; error?: string }
+        try {
+          obj = JSON.parse(payload)
+        } catch {
+          continue // 半行/非 JSON，忽略
+        }
+        if (obj.error) throw new Error(obj.error) // 真正冒泡到调用方的 catch → 进 error 态
+        if (obj.delta) onDelta(obj.delta)
+      }
+    }
+  } finally {
+    try {
+      reader.releaseLock()
+    } catch {
+      /* 已被 cancel/锁释放 */
+    }
+  }
 }
 
 // ───────────────────────── schemas ─────────────────────────
@@ -212,33 +262,11 @@ export async function streamChat(
     body: JSON.stringify({ messages, role }),
     signal,
   })
-  if (!r.ok || !r.body) {
+  if (!r.ok) {
     const d = (await r.json().catch(() => ({}))) as { detail?: string }
     throw new Error(d.detail ?? `HTTP ${r.status}`)
   }
-  const reader = r.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const parts = buf.split('\n\n')
-    buf = parts.pop() ?? ''
-    for (const part of parts) {
-      const line = part.trim()
-      if (!line.startsWith('data:')) continue
-      const payload = line.slice(5).trim()
-      if (payload === '[DONE]') return
-      try {
-        const obj = JSON.parse(payload) as { delta?: string; error?: string }
-        if (obj.error) throw new Error(obj.error)
-        if (obj.delta) onDelta(obj.delta)
-      } catch {
-        /* 半行/非 JSON，忽略 */
-      }
-    }
-  }
+  await consumeSSE(r, onDelta)
 }
 
 // ───────────────────────── 设置 · API 配置（LLM 连接 + 数据信源）─────────────────────────
@@ -613,7 +641,7 @@ export function useNewsReport(date: string | null) {
           await getJSON(`/news/report${date ? `?date=${date}` : ''}`),
         )
       } catch (e) {
-        if ((e as Error).message.includes('暂无日报')) return null
+        if (e instanceof HttpError && e.status === 404) return null
         throw e
       }
     },
@@ -673,7 +701,7 @@ export function useOpportunities(date: string | null) {
           await getJSON(`/news/opportunities${date ? `?date=${date}` : ''}`),
         )
       } catch (e) {
-        if ((e as Error).message.includes('暂无')) return null // 未生成 → null（非错误）
+        if (e instanceof HttpError && e.status === 404) return null // 未生成 → null（非错误）
         throw e
       }
     },
@@ -739,7 +767,7 @@ export function useClusters(p: ClusterParams) {
       try {
         return clustersSchema.parse(await getJSON(`/news/clusters?${qs}`))
       } catch (e) {
-        if ((e as Error).message.includes('暂无')) return null
+        if (e instanceof HttpError && e.status === 404) return null
         throw e
       }
     },
@@ -789,7 +817,7 @@ export function useNarrative(symbol: string | null) {
           await getJSON(`/news/narrative?symbol=${encodeURIComponent(symbol!)}`),
         )
       } catch (e) {
-        if ((e as Error).message.includes('暂无')) return null // 未生成 → null（非错误）
+        if (e instanceof HttpError && e.status === 404) return null // 未生成 → null（非错误）
         throw e
       }
     },
@@ -913,33 +941,11 @@ export async function streamReport(
     method: 'POST',
     signal,
   })
-  if (!r.ok || !r.body) {
+  if (!r.ok) {
     const d = (await r.json().catch(() => ({}))) as { detail?: string }
     throw new Error(d.detail ?? `HTTP ${r.status}`)
   }
-  const reader = r.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const parts = buf.split('\n\n')
-    buf = parts.pop() ?? ''
-    for (const part of parts) {
-      const line = part.trim()
-      if (!line.startsWith('data:')) continue
-      const payload = line.slice(5).trim()
-      if (payload === '[DONE]') return
-      try {
-        const obj = JSON.parse(payload) as { delta?: string; error?: string }
-        if (obj.error) throw new Error(obj.error)
-        if (obj.delta) onDelta(obj.delta)
-      } catch {
-        /* 半行/非 JSON，忽略 */
-      }
-    }
-  }
+  await consumeSSE(r, onDelta)
 }
 
 // ───────────────────────── 研 · 单股深度研究 ─────────────────────────
@@ -971,7 +977,7 @@ export function useResearchReport(symbol: string | null) {
           await getJSON(`/research/stock?symbol=${encodeURIComponent(symbol!)}`),
         )
       } catch (e) {
-        if ((e as Error).message.includes('暂无')) return null
+        if (e instanceof HttpError && e.status === 404) return null
         throw e
       }
     },
@@ -988,33 +994,11 @@ export async function streamResearch(
     method: 'POST',
     signal,
   })
-  if (!r.ok || !r.body) {
+  if (!r.ok) {
     const d = (await r.json().catch(() => ({}))) as { detail?: string }
     throw new Error(d.detail ?? `HTTP ${r.status}`)
   }
-  const reader = r.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const parts = buf.split('\n\n')
-    buf = parts.pop() ?? ''
-    for (const part of parts) {
-      const line = part.trim()
-      if (!line.startsWith('data:')) continue
-      const payload = line.slice(5).trim()
-      if (payload === '[DONE]') return
-      try {
-        const obj = JSON.parse(payload) as { delta?: string; error?: string }
-        if (obj.error) throw new Error(obj.error)
-        if (obj.delta) onDelta(obj.delta)
-      } catch {
-        /* 半行/非 JSON，忽略 */
-      }
-    }
-  }
+  await consumeSSE(r, onDelta)
 }
 
 // ───────────────────────── 研 · 导入研报（他人写的 markdown，一股可多份）─────────────────────────

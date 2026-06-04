@@ -35,5 +35,3 @@ export const TW_CATS: { key: string; label: string }[] = [
   { key: 'space', label: '航天' },
   { key: 'robotics', label: '机器人' },
 ]
-
-export const themeLabel = (k: string) => THEMES.find((t) => t.key === k)?.label ?? k

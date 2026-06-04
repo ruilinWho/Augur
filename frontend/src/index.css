@@ -179,6 +179,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-left: auto; /* 推到顶栏最右（搜索框移除后无元素吃 auto，齿轮曾左聚成一团） */
   width: 36px;
   height: 36px;
   border-radius: 10px;
@@ -711,7 +712,7 @@ button {
   color: var(--accent);
 }
 .tfilter-chip.active {
-  color: #fff;
+  color: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -911,7 +912,11 @@ body.resizing * {
 .pill.down {
   color: var(--down);
 }
+.pill.flat {
+  color: var(--text-faint); /* 平盘：中性灰，不用涨跌色 */
+}
 .chip {
+  font-family: inherit; /* TF 区间筹码用 <button>（a11y）；按钮默认字体不继承，显式拉回 */
   font-size: 0.78rem;
   color: var(--text-muted);
   border: 1px solid var(--border);
@@ -2359,6 +2364,9 @@ input:focus:not(:focus-visible) {
   font-size: 0.86rem;
   padding: 14px 2px;
 }
+.fin-empty.err {
+  color: var(--down); /* 数据源失败 ≠ 真无财报：明确区分（§11 暴露不确定性） */
+}
 /* 季度 / 年度 段控 */
 .fin-toggle {
   display: inline-flex;
@@ -2640,9 +2648,15 @@ input:focus:not(:focus-visible) {
 .digest h4:first-child {
   margin-top: 0;
 }
+/* 阅读行宽（§9 一等公民）：长正文落在 ~64ch 舒适行宽、左对齐；表格/分隔不受限（见 .rep-table-wrap） */
+.digest p,
+.digest li,
+.digest blockquote {
+  max-width: var(--measure);
+}
 .digest p {
   font-size: 0.92rem;
-  line-height: 1.75;
+  line-height: var(--leading); /* 行距随用户设置（此前写死 1.75，不跟随外观设置） */
   color: var(--text-muted);
   margin: 8px 0;
 }
@@ -3100,7 +3114,7 @@ input:focus:not(:focus-visible) {
 }
 .opp-chip2 .oc-go:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 /* 总览/某天快照：段头生成按钮一律右对齐；相邻段统一间距（根治日报段与上段重叠/挤压） */
@@ -3221,7 +3235,7 @@ input:focus:not(:focus-visible) {
 }
 .addwl-btn:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 .addwl-menu {
   position: absolute;
@@ -3509,8 +3523,8 @@ input:focus:not(:focus-visible) {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  background: var(--surface); /* 纸色旋钮（亮≈白、暗随主题），替代字面 #fff */
+  box-shadow: var(--shadow);
   transition: transform 0.16s ease;
 }
 .ssrc-toggle.on .ssrc-knob {
@@ -3627,7 +3641,7 @@ input:focus:not(:focus-visible) {
   padding: 0 6px;
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
   font-size: 0.72rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -3691,4 +3705,49 @@ a.opp-ev-item:hover {
   color: var(--down);
   font-size: 0.84rem;
   padding: 10px 2px;
+}
+
+/* 全局错误边界兜底（任一渲染错误不再白屏）——暖纸感卡片 + 重载 */
+.errboundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px;
+  background: var(--bg);
+}
+.eb-card {
+  max-width: 440px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 32px 34px;
+  text-align: center;
+}
+.eb-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.eb-msg {
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  word-break: break-word;
+}
+
+/* 研报常驻免责（非投资建议，§11）——克制小字，恒在页脚 */
+.disclaimer {
+  max-width: var(--measure);
+  margin: 28px auto 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  color: var(--text-faint);
+  text-align: center;
 }

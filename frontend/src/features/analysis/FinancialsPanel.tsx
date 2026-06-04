@@ -40,11 +40,12 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
   const cols = [...(fin.data?.periods ?? [])].reverse()
   const rows = showExtra ? ROWS : ROWS.filter((r) => !r.extra)
 
-  // 数据/周期变化后，默认滚到最右（露出最新几期）。
+  // 换股/数据/周期变化后，默认滚到最右（露出最新几期）。symbol 入依赖：换到期数相同的另一只股
+  // 时 cols.length/period 不变，否则滚动停在上一只股的位置、最新期可能不在视野。
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollLeft = el.scrollWidth
-  }, [cols.length, period])
+  }, [symbol, cols.length, period])
 
   return (
     <section className="financials">
@@ -111,7 +112,13 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
             </div>
           </>
         ) : (
-          <div className="fin-empty">{fin.isLoading ? '加载财报…' : '暂无财报数据'}</div>
+          <div className={`fin-empty ${fin.error ? 'err' : ''}`}>
+            {fin.isLoading
+              ? '加载财报…'
+              : fin.error
+                ? `财报获取失败：${(fin.error as Error).message}`
+                : '暂无财报数据'}
+          </div>
         )}
       </Collapse>
     </section>

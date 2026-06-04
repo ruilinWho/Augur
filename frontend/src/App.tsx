@@ -4,7 +4,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
-import { motion } from 'motion/react'
+import { motion, MotionConfig } from 'motion/react'
 import {
   DndContext,
   KeyboardSensor,
@@ -212,7 +212,14 @@ export default function App() {
   const setView = useUI((s) => s.setView)
   const selectedSymbol = useUI((s) => s.selectedSymbol)
   const newsPrimary = useNews((s) => s.primary)
-  const { theme, textBase, leading, displayFont, convention, panelW, newsSubW } = useUI()
+  // 细粒度订阅（非整 store）——否则拖动栏宽时 setPanelW/setNewsSubW 每帧触发整 App 树重渲染，卡顿
+  const theme = useUI((s) => s.theme)
+  const textBase = useUI((s) => s.textBase)
+  const leading = useUI((s) => s.leading)
+  const displayFont = useUI((s) => s.displayFont)
+  const convention = useUI((s) => s.convention)
+  const panelW = useUI((s) => s.panelW)
+  const newsSubW = useUI((s) => s.newsSubW)
 
   // 「知」三层 Miller：资讯=4 列（rail+日期+板块+舞台）、个股=3 列（rail+标的+舞台）
   const newsCols = newsPrimary === 'info' ? 4 : 3
@@ -236,81 +243,85 @@ export default function App() {
   }, [theme, textBase, leading, displayFont, convention, panelW, newsSubW])
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <span className="wordmark">
-          <span className="dot" /> Augur
-        </span>
-        <nav className="fn-tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.v}
-              className={`t ${view === t.v ? 'active' : ''}`}
-              onClick={() => setView(t.v)}
-            >
-              {view === t.v && (
-                <motion.span
-                  layoutId="tabpill"
-                  className="tabpill"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-              <span className="tab-label">{t.label}</span>
-            </button>
-          ))}
-        </nav>
-        <button
-          className={`gear ${view === 'set' ? 'active' : ''}`}
-          title="设置"
-          onClick={() => setView('set')}
-        >
-          <svg viewBox="0 0 18 18">
-            <line x1="2.5" y1="6" x2="15.5" y2="6" />
-            <circle cx="11.5" cy="6" r="2.3" fill="var(--surface)" />
-            <line x1="2.5" y1="12.5" x2="15.5" y2="12.5" />
-            <circle cx="6" cy="12.5" r="2.3" fill="var(--surface)" />
-          </svg>
-        </button>
-      </header>
-
-      <div className={layoutClass}>
-        {view === 'kan' || view === 'yan' ? (
-          <WatchlistPanel />
-        ) : view === 'zhi' ? (
-          <>
-            <NewsNav />
-            {newsCols >= 3 && <NewsResizeHandle />}
-          </>
-        ) : (
-          <>
-            <SettingsNav />
-            <ResizeHandle />
-          </>
-        )}
-
-        <main className="stage">
-          {/* 视图切换：keyed motion.div 只做进场动画。刻意不用 AnimatePresence——
-              本项目 motion+React19 下其 exit 不触发，mode="wait" 会卡住旧视图、新视图永不挂载
-              （见 docs/memory/frontend-gotchas.md）。换 key 即重挂载 + 进场淡入，干净可靠。 */}
-          <motion.div
-            key={view}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: EASE }}
-            style={{ minHeight: '100%' }}
+    // reducedMotion="user"：尊重系统「减少动效」偏好——motion.dev 的 y 位移/spring 是 JS 动画，
+    // 不受 index.css 的 @media(prefers-reduced-motion) 约束，靠这里统一降级为纯透明度（§5/§10）。
+    <MotionConfig reducedMotion="user">
+      <div className="app-shell">
+        <header className="topbar">
+          <span className="wordmark">
+            <span className="dot" /> Augur
+          </span>
+          <nav className="fn-tabs">
+            {TABS.map((t) => (
+              <button
+                key={t.v}
+                className={`t ${view === t.v ? 'active' : ''}`}
+                onClick={() => setView(t.v)}
+              >
+                {view === t.v && (
+                  <motion.span
+                    layoutId="tabpill"
+                    className="tabpill"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="tab-label">{t.label}</span>
+              </button>
+            ))}
+          </nav>
+          <button
+            className={`gear ${view === 'set' ? 'active' : ''}`}
+            title="设置"
+            onClick={() => setView('set')}
           >
-            {view === 'kan' && (
-              <>
-                <KLineView />
-                {selectedSymbol && <KanStack symbol={selectedSymbol} />}
-              </>
-            )}
-            {view === 'yan' && <ResearchView />}
-            {view === 'zhi' && <KnowView />}
-            {view === 'set' && <SettingsView />}
-          </motion.div>
-        </main>
+            <svg viewBox="0 0 18 18">
+              <line x1="2.5" y1="6" x2="15.5" y2="6" />
+              <circle cx="11.5" cy="6" r="2.3" fill="var(--surface)" />
+              <line x1="2.5" y1="12.5" x2="15.5" y2="12.5" />
+              <circle cx="6" cy="12.5" r="2.3" fill="var(--surface)" />
+            </svg>
+          </button>
+        </header>
+
+        <div className={layoutClass}>
+          {view === 'kan' || view === 'yan' ? (
+            <WatchlistPanel />
+          ) : view === 'zhi' ? (
+            <>
+              <NewsNav />
+              {newsCols >= 3 && <NewsResizeHandle />}
+            </>
+          ) : (
+            <>
+              <SettingsNav />
+              <ResizeHandle />
+            </>
+          )}
+
+          <main className="stage">
+            {/* 视图切换：keyed motion.div 只做进场动画。刻意不用 AnimatePresence——
+                本项目 motion+React19 下其 exit 不触发，mode="wait" 会卡住旧视图、新视图永不挂载
+                （见 docs/memory/frontend-gotchas.md）。换 key 即重挂载 + 进场淡入，干净可靠。 */}
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: EASE }}
+              style={{ minHeight: '100%' }}
+            >
+              {view === 'kan' && (
+                <>
+                  <KLineView />
+                  {selectedSymbol && <KanStack symbol={selectedSymbol} />}
+                </>
+              )}
+              {view === 'yan' && <ResearchView />}
+              {view === 'zhi' && <KnowView />}
+              {view === 'set' && <SettingsView />}
+            </motion.div>
+          </main>
+        </div>
       </div>
-    </div>
+    </MotionConfig>
   )
 }

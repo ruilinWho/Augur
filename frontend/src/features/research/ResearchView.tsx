@@ -245,6 +245,11 @@ export default function ResearchView() {
       <div style={{ marginTop: 24 }}>
         <ImportedReports symbol={symbol} />
       </div>
+
+      {/* 常驻静态免责（§11 不可妥协）：无论模型是否自觉输出、无论生成/错误/导入态，护栏恒在 */}
+      <div className="disclaimer">
+        本页为 AI / 他人研究综合，可能滞后或有误，仅供研究参考、不构成投资建议。
+      </div>
     </motion.div>
   )
 }
