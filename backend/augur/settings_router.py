@@ -129,6 +129,26 @@ async def test_source(id: str) -> dict:
     return await run_in_threadpool(source_test.test_source, id)
 
 
+# ───────────────────────── 自动刷新调度（白天每小时「全部生成」）─────────────────────────
+class ScheduleIn(BaseModel):
+    enabled: bool | None = None
+    start_hour: int | None = None
+    end_hour: int | None = None
+
+
+@router.get("/schedule")
+async def get_schedule() -> dict:
+    """读自动刷新配置：{enabled, start_hour, end_hour}。窗口内每个整点自动「全部生成」。"""
+    return await run_in_threadpool(runtime_config.get_auto_refresh)
+
+
+@router.post("/schedule")
+async def set_schedule(body: ScheduleIn) -> dict:
+    """改自动刷新配置（即时生效，调度任务运行时读取，无需重启）。返回最新完整配置。"""
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    return await run_in_threadpool(runtime_config.set_auto_refresh, patch)
+
+
 @router.post("/secret")
 async def set_secret(body: SecretIn) -> dict:
     """设置/清除一个数据信源 API key（写 gitignored 本地存储，即时生效）。"""

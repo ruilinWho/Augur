@@ -7,10 +7,13 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from .. import runtime_config
 from ..config import get_settings
 from ..llm import gateway
 from . import service
@@ -53,6 +56,25 @@ def _daily_job() -> None:
         log.exception("news opportunities generation failed")
 
 
+def _hourly_job() -> None:
+    """白天每个整点：若「自动刷新」开启且当前小时在窗口内 → 全部生成（刷新+蒸馏当天全套）。
+
+    配置（runtime_config.get_auto_refresh）**运行时读取**——主人在「设置·自动」改了起止/开关即时
+    生效，无需重排任务。窗口外/关闭 → 静默跳过。service.generate_all 内部有刷新互斥与单步降级。
+    """
+    try:
+        cfg = runtime_config.get_auto_refresh()
+        if not cfg.get("enabled"):
+            return
+        hour = datetime.now(ZoneInfo(get_settings().tz)).hour
+        if not (cfg["start_hour"] <= hour <= cfg["end_hour"]):
+            return
+        res = service.generate_all(refresh_first=True)
+        log.info("hourly auto generate-all @%02d:00: %s", hour, res.get("steps"))
+    except Exception:  # noqa: BLE001
+        log.exception("hourly auto generate-all failed")
+
+
 def start() -> None:
     """启动每日任务（幂等）。app lifespan 调用，失败不阻断启动。"""
     global _scheduler
@@ -78,9 +100,20 @@ def start() -> None:
             replace_existing=True,
             misfire_grace_time=3600,
         )
+        # 每个整点（白天窗口由 _hourly_job 内部据 runtime_config 自判，默认 11:00–23:00）：
+        # 全部生成＝刷新信源+蒸馏当天 日报/要事/新闻要点/推特要点/机会，让信息流持续追平、可配。
+        sched.add_job(
+            _hourly_job,
+            CronTrigger(minute=0, timezone=tz),
+            id="news_hourly",
+            replace_existing=True,
+            misfire_grace_time=1800,
+            max_instances=1,  # 上一小时还没跑完就跳过这次（generate_all 较重，绝不堆叠）
+            coalesce=True,  # 错过多次只补一次
+        )
         sched.start()
         _scheduler = sched
-        log.info("news scheduler started (daily 07:30 + archive 23:30 %s)", tz)
+        log.info("news scheduler started (daily 07:30 + archive 23:30 + hourly %s)", tz)
     except Exception:  # noqa: BLE001
         log.exception("news scheduler failed to start")
 

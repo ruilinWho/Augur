@@ -7,6 +7,7 @@ I/O（网络在 ingest、磁盘在 storage、LLM 在 gateway）挡在外层，�
 from __future__ import annotations
 
 import json
+import logging
 import re
 import threading
 import time
@@ -31,7 +32,25 @@ from . import (
     translate,
 )
 
-_DIGEST_INPUT_MAX = 100  # 喂给 LLM 的标题条数上限（控 token）
+log = logging.getLogger("augur.news")
+
+# 喂给「要点/机会」LLM 的当日条目上限（控 token 与 [n] 序号空间）。超出会**记日志**，
+# 不静默丢覆盖（CLAUDE.md 准则：封顶必须可见）。日报不封顶（_headlines_block 按主题分组喂全部）。
+_CLUSTER_INPUT_MAX = 200
+
+
+def _cap_items(items: list[dict], scope: str) -> list[dict]:
+    """截到 _CLUSTER_INPUT_MAX；若有截断则记日志（别让忙日静默漏掉更早的新闻）。"""
+    if len(items) > _CLUSTER_INPUT_MAX:
+        log.info(
+            "news %s: capped %d→%d items (busy day; older items not fed to LLM)",
+            scope,
+            len(items),
+            _CLUSTER_INPUT_MAX,
+        )
+        return items[:_CLUSTER_INPUT_MAX]
+    return items
+
 
 # 主题展示名与排序（前沿方向在前；与 classify.VALID_THEMES / 前端一致）
 THEME_LABEL = {
@@ -530,7 +549,6 @@ def generate_report_stream(
 
 
 # ───────────────────────── 今日投资机会（抽取 + 接地）─────────────────────────
-_OPP_INPUT_MAX = 80
 
 
 def _parse_json_lenient(raw: str) -> dict:
@@ -645,7 +663,7 @@ def get_opportunities(report_date: str | None = None) -> dict | None:
 def generate_opportunities(report_date: str | None = None, role: str = "summarize") -> dict:
     """阶段 A（LLM 抽取）+ 阶段 B（确定性接地到 MARKET:CODE + 交叉自选）。落库覆盖当天。"""
     rd = report_date or _today()
-    items = items_for_day(rd)[:200]  # 当天全部（封顶 200，控 token 与证据序号空间）
+    items = _cap_items(items_for_day(rd), "opportunities")  # 当天全部（封顶 200，超出记日志）
     if not items:
         raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
     block, by_n = _items_block(items)
@@ -903,11 +921,11 @@ def generate_clusters(
     否则按近 days 天滚动窗口、锚定今天。
     """
     rd = day or _today()
-    # 封顶 200（实测可在合理时延内完成；更大会拖慢「生成要点」）。
+    # 封顶 200（实测可在合理时延内完成；更大会拖慢「生成要点」）；超出记日志、不静默丢。
     if day:
-        items = items_for_day(day, theme, source_prefix, category)[:200]
+        items = _cap_items(items_for_day(day, theme, source_prefix, category), "clusters")
     else:
-        items = items_for_window(days, theme, source_prefix, category)[:200]
+        items = _cap_items(items_for_window(days, theme, source_prefix, category), "clusters")
     if not items:
         raise ValueError("该范围暂无新闻，请先刷新（POST /news/refresh）")
     block, by_n = _items_block(items)
@@ -959,3 +977,51 @@ def generate_clusters(
         "item_count": len(items),
         "created_at": None,
     }
+
+
+# ───────────────────────── 全部生成（刷新 + 蒸馏当天全套）─────────────────────────
+def generate_all(
+    date: str | None = None, refresh_first: bool = True, role: str = "summarize"
+) -> dict:
+    """「全部生成」：刷新信源（RSS+推特+自选定向）+ 蒸馏当天 日报/要事/新闻要点/推特要点/机会。
+
+    **单一真相**——供前端「一键刷新并生成」按钮与白天每小时自动调度共用（CLAUDE.md §6/§12）。
+    每步独立成败、失败不阻断其余（§11 优雅降级）；LLM 未配置 → 只刷新、静默跳过蒸馏。
+    返回各步状态供 UI 状态点 / 调度日志展示。
+    """
+    rd = date or _today()
+    out: dict = {"date": rd, "steps": {}}
+    if refresh_first:
+        try:
+            out["refresh"] = refresh()  # 摄取（RSS+推特）+翻译+相关性过滤+挂钩自选+LLM 标股
+        except Exception:  # noqa: BLE001
+            out["refresh"] = {"error": True}
+        try:
+            out["directed"] = refresh_directed()  # 自选股定向抓取（按 ticker 直取）
+        except Exception:  # noqa: BLE001
+            out["directed"] = {"error": True}
+    try:
+        gateway.check_ready(role)
+    except gateway.LLMNotConfigured:
+        out["llm_ready"] = False
+        return out
+    out["llm_ready"] = True
+    steps = out["steps"]
+
+    def _step(name: str, fn) -> None:
+        try:
+            fn()
+            steps[name] = "ok"
+        except Exception:  # noqa: BLE001 — 单步失败只记状态，不连累其余
+            steps[name] = "err"
+
+    def _digest() -> None:
+        for _ in generate_report_stream(rd, role):  # 消费流以触发落库
+            pass
+
+    _step("digest", _digest)  # 趋势日报
+    # 要事＝新闻「全部」要点（同 scope）；推特要点单独 scope（source_prefix='X·'）
+    _step("clusters", lambda: generate_clusters(None, None, None, 1, role, rd))
+    _step("twitter", lambda: generate_clusters(None, "X·", None, 1, role, rd))
+    _step("opportunities", lambda: generate_opportunities(rd, role))  # 今日机会
+    return out

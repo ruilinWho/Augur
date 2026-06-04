@@ -238,6 +238,55 @@ def set_source_config(source_id: str, field: str, value) -> None:
         _write(data)
 
 
+# ───────────────────────── 应用偏好（非密钥的普通设置）─────────────────────────
+# data["prefs"][key] = JSON 可序列化值。供「设置」UI 改调度等非密钥项；gitignored、即时生效。
+def get_pref(key: str, default=None):
+    return (_read().get("prefs") or {}).get(key, default)
+
+
+def set_pref(key: str, value) -> None:
+    with _lock:
+        data = _read()
+        data.setdefault("prefs", {})[key] = value
+        _write(data)
+
+
+# 白天自动「全部生成」（刷新+蒸馏）的调度配置。主人可在「设置 · 自动」里改。
+# 默认：开启、11:00–23:00 每个整点跑一次（主人指定）。end 含端点。
+_AUTO_REFRESH_DEFAULT = {"enabled": True, "start_hour": 11, "end_hour": 23}
+
+
+def _is_int(v) -> bool:
+    # bool 是 int 的子类——排除它，否则 JSON 里手写的 start_hour:true 会被当成 1 混进来
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def get_auto_refresh() -> dict:
+    """读自动刷新配置（缺字段回退默认，read-with-fallback、非破坏式）。"""
+    cur = get_pref("auto_refresh") or {}
+    out = dict(_AUTO_REFRESH_DEFAULT)
+    if isinstance(cur.get("enabled"), bool):
+        out["enabled"] = cur["enabled"]
+    for k in ("start_hour", "end_hour"):
+        if _is_int(cur.get(k)):
+            out[k] = cur[k]
+    return out
+
+
+def set_auto_refresh(patch: dict) -> dict:
+    """合并更新自动刷新配置（只认已知字段、夹紧小时范围）。返回最新完整配置。"""
+    cur = get_auto_refresh()
+    if "enabled" in patch:
+        cur["enabled"] = bool(patch["enabled"])
+    for k in ("start_hour", "end_hour"):
+        if k in patch and _is_int(patch[k]):
+            cur[k] = max(0, min(23, patch[k]))
+    if cur["start_hour"] > cur["end_hour"]:  # 防呆：起>止则对调
+        cur["start_hour"], cur["end_hour"] = cur["end_hour"], cur["start_hour"]
+    set_pref("auto_refresh", cur)
+    return cur
+
+
 def get_role_target(role: str) -> str | None:
     return (_read().get("llm_roles") or {}).get(role)
 

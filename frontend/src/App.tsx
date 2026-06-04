@@ -80,6 +80,16 @@ const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: 'schedule',
+    label: '自动',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <circle cx="10" cy="10" r="7" />
+        <path d="M10 6v4l2.5 2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ]
 
 // 「设置」左栏导航（取代旧的装饰性 navrow，主人反馈"那栏没用上"）

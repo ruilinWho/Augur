@@ -1497,6 +1497,21 @@ body.resizing * {
   width: 150px;
   accent-color: var(--accent);
 }
+/* 自动刷新时间窗：两个小时下拉 + 「至」 */
+.sched-window {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sched-window .cfg-input {
+  width: auto;
+  min-width: 88px;
+  cursor: pointer;
+}
+.sched-window .cfg-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 /* 段控两选等宽对称 */
 .set2-body .seg button {
   min-width: 58px;

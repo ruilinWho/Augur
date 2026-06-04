@@ -13,6 +13,7 @@ import {
   useNewsReport,
   useQuote,
   useRefreshDirected,
+  useRefreshNews,
   useStockNews,
   type ClusterParams,
   type NewsCluster,
@@ -207,17 +208,36 @@ const stepDot = (s: GenStep) => (s === 'done' ? '✓' : s === 'err' ? '✗' : s 
 
 function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
   const qc = useQueryClient()
+  const refreshNews = useRefreshNews()
+  const refreshDirected = useRefreshDirected()
   const genClusters = useGenerateClusters()
   const genOpps = useGenerateOpportunities()
+  const [fetch, setFetch] = useState<GenStep>('idle')
   const [digest, setDigest] = useState<GenStep>('idle')
   const [clusters, setClusters] = useState<GenStep>('idle')
+  const [tw, setTw] = useState<GenStep>('idle')
   const [opps, setOpps] = useState<GenStep>('idle')
-  const running = [digest, clusters, opps].includes('run')
+  const running = [fetch, digest, clusters, tw, opps].includes('run')
 
+  // 一键刷新并生成：先刷新信源（新闻+推特+自选定向），再并行蒸馏 日报/要事/推特要点/机会。
+  // 先刷新后生成——否则蒸馏的是旧数据。仅今天可刷新（历史日不再抓新源）。
   const run = async () => {
+    setFetch('idle')
     setDigest('run')
     setClusters('run')
+    setTw('run')
     setOpps('run')
+    if (isToday) {
+      setFetch('run')
+      // 刷新（含相关性/标股流水线）+ 自选定向；任一失败不挡生成（用已有数据兜底）。
+      // allSettled 永不 reject → 只有两者都失败才记 ✗（部分成功仍算抓取完成，诚实标注）。
+      const r = await Promise.allSettled([
+        refreshNews.mutateAsync(),
+        refreshDirected.mutateAsync(undefined),
+      ])
+      setFetch(r.every((x) => x.status === 'rejected') ? 'err' : 'done')
+      qc.invalidateQueries({ queryKey: ['news-feed'] })
+    }
     await Promise.allSettled([
       streamReport(date, () => {})
         .then(() => {
@@ -227,9 +247,13 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         })
         .catch(() => setDigest('err')),
       genClusters
-        .mutateAsync({ days: 1, date })
+        .mutateAsync({ days: 1, date }) // 要事＝新闻「全部」要点（同 scope）
         .then(() => setClusters('done'))
         .catch(() => setClusters('err')),
+      genClusters
+        .mutateAsync({ sourcePrefix: 'X·', days: 1, date }) // 推特要点
+        .then(() => setTw('done'))
+        .catch(() => setTw('err')),
       genOpps
         .mutateAsync(date)
         .then(() => setOpps('done'))
@@ -243,11 +267,12 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
       <div className="sum-gen">
         {(running || digest !== 'idle') && (
           <span className="sum-steps faint">
-            日报 {stepDot(digest)} · 要事 {stepDot(clusters)} · 机会 {stepDot(opps)}
+            {isToday && <>抓取 {stepDot(fetch)} · </>}日报 {stepDot(digest)} · 要事{' '}
+            {stepDot(clusters)} · 推特 {stepDot(tw)} · 机会 {stepDot(opps)}
           </span>
         )}
         <button className="btn btn-primary jsm" disabled={running} onClick={run}>
-          {running ? '生成中…' : '一键生成'}
+          {running ? '生成中…' : isToday ? '一键刷新并生成' : '一键生成'}
         </button>
       </div>
     </div>
@@ -358,7 +383,8 @@ const MKTS: { key: string; label: string }[] = [
 
 // 资讯 · 某天的「新闻」或「推特」：固定那一天，主题/账号分类做**舞台内过滤** + 时间线/要点切换
 function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' }) {
-  const [mode, setMode] = useState<'time' | 'key'>('time')
+  // 默认「要点」（主人：去重聚类更易读）——但仅今天：历史日要点不会自动生成，默认时间线才有内容
+  const [mode, setMode] = useState<'time' | 'key'>(date === dayStr() ? 'key' : 'time')
   const [filter, setFilter] = useState('') // theme key（新闻）/ category key（推特）；''=全部
   const [mkt, setMkt] = useState('') // 市场前缀；''=全部
   const [onlyWatch, setOnlyWatch] = useState(false) // 仅自选（挂钩了自选股的条目）

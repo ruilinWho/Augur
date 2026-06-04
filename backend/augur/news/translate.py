@@ -17,6 +17,7 @@ from ..storage import get_conn
 
 _BATCH = 40  # 每批标题数（控对齐风险与 token）
 _MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；循环翻到清空，英文标题不漏）
+_MAX_FAILS = 5  # 连续几批翻不出就停（LLM 多半挂了；少于此则跳过毒批继续清队列）
 
 
 def _load_prompt() -> str:
@@ -46,15 +47,16 @@ def _passthrough_zh() -> int:
         conn.close()
 
 
-def _select_pending(limit: int) -> list[tuple[int, str]]:
+def _select_pending(limit: int, offset: int = 0) -> list[tuple[int, str]]:
     conn = get_conn()
     try:
         # 与 feed 同序（按发布时间）：让用户最先看到的条目最先被翻译
+        # offset：跳过「一直翻不出的毒批」，否则它会永久堵住后面的条目永不翻译。
         rows = conn.execute(
             "SELECT id, title FROM news_items WHERE title_zh IS NULL AND lang != 'zh' "
             "AND lane = 'feed' "
-            "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?",
-            (limit,),
+            "ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
         return [(r["id"], r["title"]) for r in rows]
     finally:
@@ -104,13 +106,21 @@ def translate_pending() -> int:
         return 0
     _passthrough_zh()
     done = 0
+    offset = fails = 0
     for _ in range(_MAX_ROUNDS):  # 循环翻到清空（主人：任何英文新闻/标题都快速翻中）
-        batch = _select_pending(_BATCH)
+        batch = _select_pending(_BATCH, offset)
         if not batch:
             break
         pairs = _translate_batch(batch)
         if not pairs:
-            break  # 整批没翻出（顽固/失败）→ 停，下次 refresh 再试
+            # 整批没翻出（顽固/失败）：跳过这批继续翻后面的，别让毒批堵死队列。
+            fails += 1
+            if fails >= _MAX_FAILS:
+                break  # 连续多批失败＝LLM 多半挂了 → 停，下次 refresh 再试
+            offset += _BATCH
+            continue
         _save(pairs)
         done += len(pairs)
+        fails = 0
+        offset = 0  # 成功 → 已翻项离开 pending，回到队首
     return done

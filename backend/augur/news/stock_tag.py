@@ -19,7 +19,8 @@ from ..storage import get_conn
 from . import grounding
 
 _BATCH = 20
-_MAX_PER_RUN = 200  # 单次最多标多少条（控 token；"不心疼 token" 但仍给个上界）
+_MAX_ROUNDS = 80  # 单次最多几批（×_BATCH=1600 条上界；主人"不心疼 token"，循环到清空积压）
+_MAX_FAILS = 5  # 连续几批标不出就停（LLM 多半挂了；少于此则跳过毒批继续清队列）
 _MAX_PER_ITEM = 3  # 一条新闻最多标几只（避免清单体新闻拉一长串）
 
 
@@ -37,22 +38,27 @@ def _strip_fence(s: str) -> str:
     return s.strip()
 
 
-def _select_pending(limit: int) -> list[tuple[int, str]]:
+def _select_pending(limit: int, offset: int = 0) -> list[tuple[int, str]]:
     conn = get_conn()
     try:
+        # offset：跳过「队首一直标不出的毒批」，否则它会永久堵住后面更老的相关条目。
         rows = conn.execute(
             "SELECT id, COALESCE(NULLIF(title_zh, ''), title) AS t FROM news_items "
             "WHERE tagged = 0 AND lane = 'feed' AND relevance = 1 "
-            "ORDER BY COALESCE(published_at, fetched_at) ASC LIMIT ?",
-            (limit,),
+            "ORDER BY COALESCE(published_at, fetched_at) ASC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
         return [(r["id"], r["t"]) for r in rows]
     finally:
         conn.close()
 
 
-def _tag_batch(batch: list[tuple[int, str]]) -> int:
-    """一批 → 接地后的挂钩对数。解析失败 → 0（不标 tagged，下轮重试）；解析成功即标 tagged=1。"""
+def _tag_batch(batch: list[tuple[int, str]]) -> tuple[int, int]:
+    """一批 → (标记条数, 接地挂钩对数)。
+
+    解析失败 → (0, 0)（不标 tagged，下轮重试）；解析成功即把整批标 tagged=1（即便某条 0 公司），
+    标记条数=len(batch)。供 tag_pending 据「标记条数」判停（0=顽固/失败，停；>0=继续清积压）。
+    """
     numbered = "\n".join(f"{i + 1}. {t}" for i, (_id, t) in enumerate(batch))
     prompt = _load_prompt().replace("{{LINES}}", numbered)
     try:
@@ -63,9 +69,9 @@ def _tag_batch(batch: list[tuple[int, str]]) -> int:
         )
         data = json.loads(_strip_fence(raw))
     except Exception:  # noqa: BLE001 — 网络/JSON 失败 → 整批跳过、下轮重试
-        return 0
+        return (0, 0)
     if not isinstance(data, dict):
-        return 0
+        return (0, 0)
     conn = get_conn()
     pairs = 0
     try:
@@ -90,19 +96,37 @@ def _tag_batch(batch: list[tuple[int, str]]) -> int:
                         pairs += 1
             conn.execute("UPDATE news_items SET tagged = 1 WHERE id = ?", (nid,))
         conn.commit()
-        return pairs
+        return (len(batch), pairs)
     finally:
         conn.close()
 
 
 def tag_pending() -> dict:
-    """批量给相关新闻标股（接地到真实代码）。cheap 未配置 → 静默跳过。返回 {tagged, pairs}。"""
+    """批量给相关新闻标股（接地到真实代码），**循环到清空**（主人：彻底标，别漏，新闻卡都能发现机会）。
+
+    每轮取一批最老未标的；标出即落 tagged=1（下轮自然跳过）。整批标不出（顽固/网络失败）→ 停，
+    避免空转。cheap 未配置 → 静默跳过。返回 {tagged, pairs}。
+    """
     try:
         gateway.check_ready("cheap")
     except gateway.LLMNotConfigured:
         return {"tagged": 0, "pairs": 0}
-    pending = _select_pending(_MAX_PER_RUN)
-    pairs = 0
-    for k in range(0, len(pending), _BATCH):
-        pairs += _tag_batch(pending[k : k + _BATCH])
-    return {"tagged": len(pending), "pairs": pairs}
+    tagged = pairs = 0
+    offset = fails = 0
+    for _ in range(_MAX_ROUNDS):
+        batch = _select_pending(_BATCH, offset)
+        if not batch:
+            break
+        marked, p = _tag_batch(batch)
+        if marked == 0:
+            # 整批没标出（顽固条目或网络/JSON 失败）：跳过这批继续标后面的，别让毒批堵死队列。
+            fails += 1
+            if fails >= _MAX_FAILS:
+                break  # 连续多批失败＝LLM 多半挂了 → 停，下次 refresh 再试
+            offset += _BATCH
+            continue
+        tagged += marked
+        pairs += p
+        fails = 0
+        offset = 0  # 成功 → 已标项离开 pending，回到队首
+    return {"tagged": tagged, "pairs": pairs}

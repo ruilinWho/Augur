@@ -17,6 +17,7 @@ from ..storage import get_conn
 
 _BATCH = 40  # 每批条数（控对齐风险与 token）
 _MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；主人"不心疼 token"，循环到清空积压）
+_MAX_FAILS = 5  # 连续几批判不出就停（LLM 多半挂了；少于此则跳过毒批继续清队列）
 _KEEP = {"true", "keep", "yes", "1", "相关", "保留"}
 _DROP = {"false", "drop", "no", "0", "无关", "丢弃"}
 
@@ -35,17 +36,18 @@ def _strip_fence(s: str) -> str:
     return s.strip()
 
 
-def _select_pending(limit: int) -> list[tuple[int, str, str, str]]:
+def _select_pending(limit: int, offset: int = 0) -> list[tuple[int, str, str, str]]:
     conn = get_conn()
     try:
         # ASC（最老未判优先）：单轮插入 >_MAX_PER_RUN 条时，DESC 会让最老一批永远排在末尾
         # 永不被选中 → 因「未判=保留」直接泄入信息流，从严过滤对存量尾部失效。最老的即将滑出
         # 可见窗口反而更该先判，几轮 refresh 自然清空积压。
+        # offset：让 judge_pending 跳过「队首一直解析失败的毒批」，否则它会永久堵住后面更老的条目。
         rows = conn.execute(
             "SELECT id, COALESCE(NULLIF(title_zh, ''), title) AS t, source, theme "
             "FROM news_items WHERE relevance = 0 AND lane = 'feed' "
-            "ORDER BY COALESCE(published_at, fetched_at) ASC LIMIT ?",
-            (limit,),
+            "ORDER BY COALESCE(published_at, fetched_at) ASC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
         return [(r["id"], r["t"], r["source"], r["theme"]) for r in rows]
     finally:
@@ -114,14 +116,22 @@ def judge_pending() -> dict:
     except gateway.LLMNotConfigured:
         return {"judged": 0, "dropped": 0}
     judged = dropped = 0
+    offset = fails = 0
     for _ in range(_MAX_ROUNDS):
-        batch = _select_pending(_BATCH)
+        batch = _select_pending(_BATCH, offset)
         if not batch:
             break
         pairs = _judge_batch(batch)
         if not pairs:
-            break  # 整批没判出 → 停（顽固条目或网络失败，下次 refresh 再试）
+            # 整批没判出（顽固条目或网络失败）：跳过这批继续清更老的，别让毒批堵死队列。
+            fails += 1
+            if fails >= _MAX_FAILS:
+                break  # 连续多批失败＝LLM 多半挂了 → 停，下次 refresh 再试
+            offset += _BATCH
+            continue
         _save(pairs)
         judged += len(pairs)
         dropped += sum(1 for rel, _ in pairs if rel == 2)
+        fails = 0
+        offset = 0  # 成功 → 已判项离开 pending，回到队首再清最老的
     return {"judged": judged, "dropped": dropped}

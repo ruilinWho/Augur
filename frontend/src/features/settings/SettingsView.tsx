@@ -9,7 +9,9 @@ import { useUI } from '../../store'
 import {
   useDeleteConnection,
   useLlmUsage,
+  useSchedule,
   useSetRoleTarget,
+  useSetSchedule,
   useSetSecret,
   useSetSourceConfig,
   useSettingsConfig,
@@ -110,6 +112,70 @@ function AppearancePage() {
         </Row>
       </Section>
     </>
+  )
+}
+
+// ───────────────────────── 自动（白天每小时「全部生成」）─────────────────────────
+function SchedulePage() {
+  const q = useSchedule()
+  const set = useSetSchedule()
+  const cur = q.data
+  const HOURS = Array.from({ length: 24 }, (_, i) => i)
+  if (q.isLoading && !cur) return <div className="report-card faint">加载…</div>
+  if (!cur)
+    return (
+      <div className="report-card err">
+        加载失败
+        <button className="btn jsm" style={{ marginLeft: 10 }} onClick={() => q.refetch()}>
+          重试
+        </button>
+      </div>
+    )
+  return (
+    <Section title="白天自动 · 全部生成">
+      <Row
+        label="自动刷新并生成"
+        desc="在时间窗内每个整点（:00）自动「刷新并生成」当天的 日报 / 要事 / 新闻·推特要点 / 机会，让信息流持续追平、不必手动点。"
+      >
+        <Seg
+          value={cur.enabled ? 'on' : 'off'}
+          onChange={(v) => set.mutate({ enabled: v === 'on' })}
+          options={[{ v: 'on', label: '开' }, { v: 'off', label: '关' }]}
+        />
+      </Row>
+      <Row label="时间窗" desc="起止含端点；窗内逢整点各跑一次。">
+        <div className="sched-window">
+          <select
+            className="cfg-input"
+            value={cur.start_hour}
+            disabled={!cur.enabled}
+            onChange={(e) => set.mutate({ start_hour: +e.target.value })}
+          >
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {String(h).padStart(2, '0')}:00
+              </option>
+            ))}
+          </select>
+          <span className="faint">至</span>
+          <select
+            className="cfg-input"
+            value={cur.end_hour}
+            disabled={!cur.enabled}
+            onChange={(e) => set.mutate({ end_hour: +e.target.value })}
+          >
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {String(h).padStart(2, '0')}:00
+              </option>
+            ))}
+          </select>
+        </div>
+      </Row>
+      <Row label="此外固定" desc="无论上方开关，每天 07:30 晨间抓取、23:30 当天归档各自动生成一次。">
+        <span className="faint mono">07:30 · 23:30</span>
+      </Row>
+    </Section>
   )
 }
 
@@ -572,11 +638,12 @@ function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: Sou
 export default function SettingsView() {
   const page = useUI((s) => s.settingsPage)
   const cfg = useSettingsConfig()
-  // 外观页是纯本地 CSS 变量、不依赖后端；模型/信源页需 config，缺数据时给明确反馈（不静默显空表单）
-  const needsCfg = page !== 'appearance'
+  // 外观/自动页不依赖 /settings/config（各自本地或独立查询）；模型/信源页需 config，缺数据时给明确反馈
+  const needsCfg = page === 'models' || page === 'sources'
   return (
     <div className="set2-body">
       {page === 'appearance' && <AppearancePage />}
+      {page === 'schedule' && <SchedulePage />}
       {needsCfg && cfg.isLoading && !cfg.data ? (
         <div className="report-card faint">加载配置…</div>
       ) : needsCfg && cfg.isError ? (

@@ -341,6 +341,31 @@ export function useSettingsConfig() {
   })
 }
 
+// 自动刷新调度（白天每小时「全部生成」）：{enabled, start_hour, end_hour}
+const scheduleSchema = z.object({
+  enabled: z.boolean().default(true),
+  start_hour: z.number().default(11),
+  end_hour: z.number().default(23),
+})
+export type Schedule = z.infer<typeof scheduleSchema>
+
+export function useSchedule() {
+  return useQuery({
+    queryKey: ['settings-schedule'],
+    queryFn: async () => scheduleSchema.parse(await getJSON('/settings/schedule')),
+    staleTime: 30_000,
+  })
+}
+
+export function useSetSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (patch: Partial<Schedule>) =>
+      scheduleSchema.parse(await send('/settings/schedule', 'POST', patch)),
+    onSuccess: (data) => qc.setQueryData(['settings-schedule'], data),
+  })
+}
+
 // LLM token 用量（§6 看成本）：按角色/模型聚合最近 days 天
 const usageRowSchema = z.object({
   role: z.string().default(''),
@@ -890,7 +915,8 @@ export function useRefreshDirected() {
     mutationFn: async (symbol?: string) =>
       send(`/news/directed/refresh${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`, 'POST'),
     onSuccess: (_d, symbol) => {
-      if (symbol) qc.invalidateQueries({ queryKey: ['stock-news', symbol] })
+      // 指定股 → 只失效那只；全量刷新（一键里以 undefined 调）→ 失效整个 stock-news 前缀
+      qc.invalidateQueries({ queryKey: symbol ? ['stock-news', symbol] : ['stock-news'] })
     },
   })
 }
