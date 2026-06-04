@@ -3932,3 +3932,47 @@ a.opp-ev-item:hover {
   margin-top: 12px;
   font-size: 0.72rem;
 }
+
+/* 52 周位置（看·头部）：当前价在一年区间的分位，含一条极简位置条 */
+.wk52 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  margin-top: 7px;
+}
+.wk52-bar {
+  display: inline-block;
+  width: 64px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.wk52-fill {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* 个股叙事头部的「看 / 研」直通 chip + 新鲜度提示 */
+.ncta {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.ncta:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-weak);
+}
+.narr-fresh {
+  color: var(--accent);
+}

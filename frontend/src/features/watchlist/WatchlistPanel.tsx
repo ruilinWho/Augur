@@ -49,8 +49,9 @@ const CODE_RE: Record<string, RegExp> = {
   KR: /^\d{6}$/,
 }
 const fmtPrice = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+// 去重计数：一只标的可同属直属 + 多个二级（§8），徽标须与去重后的实际行数一致（否则数对不上）
 const countSymbols = (s: Section) =>
-  s.items.length + s.children.reduce((a, c) => a + c.items.length, 0)
+  new Set([...s.items, ...s.children.flatMap((c) => c.items)].map((i) => i.symbol)).size
 const DIRECT = -1 // col2 里「直属标的」伪条目的 id
 const ALL = -2 // col2 里「全部」伪条目（聚合直属 + 所有二级的标的，只读）
 

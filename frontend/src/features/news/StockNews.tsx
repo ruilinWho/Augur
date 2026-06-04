@@ -1,17 +1,7 @@
 import { useState } from 'react'
 import Collapse from '../../components/Collapse'
 import { useNewsForSymbol } from '../../api'
-
-function ago(iso: string | null): string {
-  if (!iso) return ''
-  const then = new Date(iso).getTime()
-  if (Number.isNaN(then)) return ''
-  const mins = Math.round((Date.now() - then) / 60000)
-  if (mins < 60) return `${Math.max(mins, 1)}分钟前`
-  const h = Math.round(mins / 60)
-  if (h < 24) return `${h}小时前`
-  return `${Math.round(h / 24)}天前`
-}
+import { ago } from './shared'
 
 // 个股「相关资讯」：从「知」聚合的新闻里筛出提到该公司的条目，链接到原文。
 export default function StockNews({ symbol }: { symbol: string }) {

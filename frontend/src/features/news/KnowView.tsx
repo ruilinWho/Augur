@@ -385,8 +385,19 @@ function StockNarrative({ symbol }: { symbol: string }) {
   const fetchD = useRefreshDirected()
   const news = useStockNews(symbol, 0)
   const q = useQuote(symbol)
+  const select = useUI((s) => s.select)
+  const research = useUI((s) => s.research)
   const [mkt, code] = symbol.split(':')
   const data = nar.data
+  // 自生成叙事以来新增的资讯条数（确定性、零 LLM）——提示是否值得重生成（§11 暴露新鲜度）
+  const freshCount = useMemo(() => {
+    if (!data?.created_at) return 0
+    const lo = new Date(data.created_at.replace(' ', 'T') + 'Z').getTime()
+    return (news.data ?? []).filter((it) => {
+      const t = new Date(it.published_at ?? '').getTime()
+      return !Number.isNaN(t) && t > lo
+    }).length
+  }, [news.data, data?.created_at])
   return (
     <div className="know">
       <div className="know-head">
@@ -394,6 +405,12 @@ function StockNarrative({ symbol }: { symbol: string }) {
           {q.data?.name || code} <span className="narr-sub">{code} · {mkt}</span>
         </h2>
         <div className="narr-actions">
+          <button className="ncta" onClick={() => select(symbol)} title="在「看」里查看 K 线">
+            看
+          </button>
+          <button className="ncta" onClick={() => research(symbol)} title="生成深度研究">
+            研
+          </button>
           <button className="btn jsm" disabled={fetchD.isPending} onClick={() => fetchD.mutate(symbol)}>
             {fetchD.isPending ? '抓取中…' : '↻ 抓取最新'}
           </button>
@@ -437,7 +454,13 @@ function StockNarrative({ symbol }: { symbol: string }) {
               )
             })}
           </div>
-          <div className="report-foot faint">融合 {data.item_count} 条资讯</div>
+          <div className="report-foot faint">
+            融合 {data.item_count} 条资讯
+            {data.created_at && ` · 生成于 ${data.created_at.slice(0, 10)}`}
+            {freshCount > 0 && (
+              <span className="narr-fresh"> · 自生成后新增 {freshCount} 条（可重生成）</span>
+            )}
+          </div>
         </>
       ) : nar.isLoading ? (
         <div className="report-card faint">加载…</div>
