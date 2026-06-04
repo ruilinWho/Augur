@@ -1,6 +1,6 @@
 # LLM 结构化 JSON 输出的健壮性（坑）
 
-**症状**：主人把 `summarize` 角色指到 **MiMo（mimo-v2.5-pro，推理模型）**后，「一键生成」
+**症状**：作者把 `summarize` 角色指到 **MiMo（mimo-v2.5-pro，推理模型）**后，「一键生成」
 偶发看不到「今日要事 / 今日机会」——DB 里 `news_clusters` 当天 `news:all@1d` 的 `body=[]`（空），
 但 `item_count=488`（说明喂进去了、LLM 也调用了，是**解析**出 0）。推特要点（只 15 条输入）却稳定正常。
 

@@ -1,7 +1,7 @@
 """新闻投资相关性过滤（cheap 角色批量判，落 news_items.relevance）。
 
-主人反馈「知」里仍有与投资无关的新闻；规则法 `filter.py` 滤不掉的更隐蔽的，交给**便宜小模型**
-判（CLAUDE.md §6，复用 cheap 角色＝主人授权的出站目的地，不引入新外发面）。批量编号清单 in/out、
+作者反馈「知」里仍有与投资无关的新闻；规则法 `filter.py` 滤不掉的更隐蔽的，交给**便宜小模型**
+判（CLAUDE.md §6，复用 cheap 角色＝作者授权的出站目的地，不引入新外发面）。批量编号清单 in/out、
 落库（每条只判一次：WHERE relevance=0）、失败静默降级（保留=不丢、下轮重试，绝不阻断摄取）。
 relevance：0 未判 / 1 投资相关保留 / 2 无关丢弃。判据见 resources/prompts/news_relevance.md。
 """
@@ -17,7 +17,7 @@ from ..storage import get_conn
 from . import _batch
 
 _BATCH = 40  # 每批条数（控对齐风险与 token）
-_MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；主人"不心疼 token"，循环到清空积压）
+_MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；作者"不心疼 token"，循环到清空积压）
 _MAX_FAILS = 5  # 连续几批判不出就停（LLM 多半挂了；少于此则跳过毒批继续清队列）
 _KEEP = {"true", "keep", "yes", "1", "相关", "保留"}
 _DROP = {"false", "drop", "no", "0", "无关", "丢弃"}
@@ -107,7 +107,7 @@ def _judge_batch(batch: list[tuple[int, str, str, str]]) -> list[tuple[int, int]
 
 
 def judge_pending() -> dict:
-    """批量判定未判条目的投资相关性，**循环到清空**（主人：彻底滤掉垃圾，别漏）。
+    """批量判定未判条目的投资相关性，**循环到清空**（作者：彻底滤掉垃圾，别漏）。
 
     每轮取一批最老未判的判定；判出即落库（下轮自然跳过）。整批判不出（顽固/失败）→ 停，
     避免空转。cheap 未配置 → 静默跳过。返回 {judged, dropped}。
@@ -118,7 +118,7 @@ def judge_pending() -> dict:
         return {"judged": 0, "dropped": 0}
     judged = dropped = 0
     offset = fails = 0
-    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**判（主人：尽量并行）
+    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**判（作者：尽量并行）
     for _ in range(_MAX_ROUNDS):
         items = _select_pending(window, offset)
         if not items:

@@ -2,9 +2,9 @@
 
 - **状态：** 已接受
 - **日期：** 2026-06-03
-- **决策者：** 主人 + Claude
+- **决策者：** 作者 + Claude
 
-> 主人指令：前面一批前端反馈做完之后，**开始做「研」支柱的设计与实现**。「研」= 三根支柱之二：用 LLM 对单支股票做详尽分析。
+> 作者指令：前面一批前端反馈做完之后，**开始做「研」支柱的设计与实现**。「研」= 三根支柱之二：用 LLM 对单支股票做详尽分析。
 
 ## 背景
 
@@ -44,7 +44,7 @@
 
 ### 4. 角色、流式、持久化
 
-- 走 **deep_research 角色**（主人路由到长上下文模型；现状 relay·claude-sonnet）。`generate` 前 `gateway.check_ready("deep_research")`，未配回 503。
+- 走 **deep_research 角色**（作者路由到长上下文模型；现状 relay·claude-sonnet）。`generate` 前 `gateway.check_ready("deep_research")`，未配回 503。
 - **SSE 流式**（同步生成器在 threadpool 迭代，与 `/news`、`/llm` 一致）：`POST /research/stock/generate?symbol=` 增量吐 Markdown，完成落库。
 - **持久化**：`research_reports(symbol UNIQUE, name, body, sources, model, created_at)`，**一股一份、重生成覆盖**（`ON CONFLICT(symbol) DO UPDATE`）。`GET /research/stock?symbol=`（404=暂无）。一股一份够用（研究是「当前快照」），版本历史列为后续。
 

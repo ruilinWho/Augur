@@ -3,7 +3,7 @@
 每个角色（chat/deep_research/summarize/cheap）指到一个**连接** `{name, base_url, api_key, model}`
 （在「设置 · 模型」里增删/指派，存 runtime_config）。连接一律按 **OpenAI 兼容**调用
 （litellm `model="openai/<model>"` + `api_base` + `api_key`）——覆盖 DeepSeek / 中转站 /
-OpenRouter / 国产模型 / OpenAI 本身。原生 Anthropic 走中转站即可（主人现状）。
+OpenRouter / 国产模型 / OpenAI 本身。原生 Anthropic 走中转站即可（作者现状）。
 """
 
 from __future__ import annotations

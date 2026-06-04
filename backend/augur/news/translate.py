@@ -1,6 +1,6 @@
 """新闻英文/韩文标题 → 中文（cheap 角色批量翻译，缓存到 news_items.title_zh）。
 
-CLAUDE.md §5/§6：复用 LLM 网关 cheap 角色（已在 .env 配置＝主人授权的出站目的地），
+CLAUDE.md §5/§6：复用 LLM 网关 cheap 角色（已在 .env 配置＝作者授权的出站目的地），
 不引入 DeepL/Google 等新数据外发面。批量编号清单 in/out、落库缓存（每条只翻一次：
 WHERE title_zh IS NULL）、失败静默降级（前端回退原文），绝不阻断摄取/日报。
 lang='zh' 的条目跳过翻译、直接 title_zh=title。
@@ -108,8 +108,8 @@ def translate_pending() -> int:
     _passthrough_zh()
     done = 0
     offset = fails = 0
-    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**翻（主人：尽量并行）
-    for _ in range(_MAX_ROUNDS):  # 循环翻到清空（主人：任何英文新闻/标题都快速翻中）
+    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**翻（作者：尽量并行）
+    for _ in range(_MAX_ROUNDS):  # 循环翻到清空（作者：任何英文新闻/标题都快速翻中）
         items = _select_pending(window, offset)
         if not items:
             break

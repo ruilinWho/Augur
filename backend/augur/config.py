@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     port: int = 8788
     tz: str = "Asia/Shanghai"
 
-    # SEC EDGAR 公平获取要求可识别 UA（无则 403）。默认非 PII；主人可在 .env 配
+    # SEC EDGAR 公平获取要求可识别 UA（无则 403）。默认非 PII；作者可在 .env 配
     # AUGUR_SEC_USER_AGENT="你的名字 you@example.com" 以最稳妥地符合 SEC 规范。
     sec_user_agent: str = "Augur/0.1 personal-investment-research non-commercial"
 

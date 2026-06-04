@@ -101,7 +101,7 @@ async def narrative_generate(symbol: str) -> dict:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-# ───────── 每股专属信源画像（组件化信源：LLM 调研 + 主人策展 mark）─────────
+# ───────── 每股专属信源画像（组件化信源：LLM 调研 + 作者策展 mark）─────────
 @router.get("/sources")
 async def stock_sources_list(symbol: str) -> list[dict]:
     """某股的专属信源清单（启用在前）。"""
@@ -141,7 +141,7 @@ class _EnabledIn(BaseModel):
 
 @router.patch("/sources/{source_id}")
 async def stock_sources_toggle(source_id: int, body: _EnabledIn) -> dict:
-    """启用/停用某信源（主人拍板）。"""
+    """启用/停用某信源（作者拍板）。"""
     try:
         await run_in_threadpool(stock_sources.set_enabled, source_id, body.enabled)
     except ValueError as e:

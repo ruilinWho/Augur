@@ -1,13 +1,13 @@
 """运行时可配置项的本地存储：LLM 连接列表 / 角色路由 / 数据信源 key——供「设置」页 UI 改。
 
 护栏（CLAUDE.md §11）：**密钥永不入 git、永不打日志**。存 gitignored `data/config.local.json`
-（0600）。主人明确要求**本地单用户「设置」UI 直接回显明文 key**（"反正只有我自己用"）——故
+（0600）。作者明确要求**本地单用户「设置」UI 直接回显明文 key**（"反正只有我自己用"）——故
 GET 会带明文，仅在 localhost 后端↔前端间流动；硬护栏（不入 git/日志）不变。
 
 LLM 模型 = **可动态增删的连接列表**：每个连接 `{id, name, base_url, api_key, model}`（一律按
 OpenAI 兼容，覆盖 DeepSeek / 中转站 / OpenRouter / 国产模型）。4 个角色
 chat/deep_research/summarize/cheap 各指到一个连接。首次加载若无连接，**自动从旧 `.env`
-（AUGUR_ROLE_* + 厂商 key）迁成连接**，不中断主人现有配置。
+（AUGUR_ROLE_* + 厂商 key）迁成连接**，不中断作者现有配置。
 
 数据信源 key（X 桥等）仍走 `secrets`：加载时注入 `os.environ`，使各适配器 `os.getenv`
 在不重启下即时可见。单用户本地工具，读文件成本可忽略，每次读盘取最新值。
@@ -147,7 +147,7 @@ def secret_hint(name: str) -> str:
 
 
 def get_secret(name: str) -> str:
-    """明文取某数据信源 key——**仅供本地单用户「设置」UI 回显**（主人明确要求直接看原文）。
+    """明文取某数据信源 key——**仅供本地单用户「设置」UI 回显**（作者明确要求直接看原文）。
 
     护栏不变：key 只在 localhost 后端↔前端间流动，**永不打日志、永不入 git**（data/ 被忽略）。
     """
@@ -271,8 +271,8 @@ def set_pref(key: str, value) -> None:
         _write(data)
 
 
-# 白天自动「全部生成」（刷新+蒸馏）的调度配置。主人可在「设置 · 自动」里改。
-# 默认：开启、11:00–23:00 每个整点跑一次（主人指定）。end 含端点。
+# 白天自动「全部生成」（刷新+蒸馏）的调度配置。作者可在「设置 · 自动」里改。
+# 默认：开启、11:00–23:00 每个整点跑一次（作者指定）。end 含端点。
 _AUTO_REFRESH_DEFAULT = {"enabled": True, "start_hour": 11, "end_hour": 23}
 
 
@@ -329,7 +329,7 @@ def set_cluster_input_max(n: int) -> int:
     return n
 
 
-# 「今日要事」(晨读 Top) 显示条数。默认 5（原写死 3，主人要可配）。
+# 「今日要事」(晨读 Top) 显示条数。默认 5（原写死 3，作者要可配）。
 _BRIEF_TOP_DEFAULT = 5
 
 

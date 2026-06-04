@@ -274,7 +274,7 @@ function ConnectionCard({
   const [key, setKey] = useState(conn?.api_key ?? '') // 明文预填（仅本地）
   const [result, setResult] = useState<TestResult | null>(null)
   const shown = result ?? injected ?? null
-  // 保存后刷新会带回已存明文 key → 回灌输入框，保证**长期明文可见**（主人要求）。
+  // 保存后刷新会带回已存明文 key → 回灌输入框，保证**长期明文可见**（作者要求）。
   // 依赖 conn.api_key：仅它真正变化（即保存成功后）才同步，不会覆盖正在输入的内容。
   useEffect(() => {
     setKey(conn?.api_key ?? '')
@@ -282,7 +282,7 @@ function ConnectionCard({
   const isNew = !conn
   const canTest = !!base && !!model && (!isNew || !!key)
 
-  // web_search 不再在此 UI 暴露（主人：先去掉联网检索按钮）；省略该字段＝后端保留已存值不动。
+  // web_search 不再在此 UI 暴露（作者：先去掉联网检索按钮）；省略该字段＝后端保留已存值不动。
   const save = async () => {
     // 不清空 key：卡片按 id keyed 不重挂载，清空会让明文 key「看起来消失」（数据其实已存）
     await upsert.mutateAsync({ id: conn?.id, name, base_url: base, model, api_key: key || null })
@@ -420,7 +420,7 @@ function fmtTok(n: number | null | undefined): string {
 }
 
 // 用量（§6 看成本）：近 30 天 token 按 角色/模型 聚合。成本多半算不出（中转/国产模型不在价表），
-// 但 token 始终有——主人据此知道每天烧了多少。
+// 但 token 始终有——作者据此知道每天烧了多少。
 function UsageSection() {
   const usage = useLlmUsage(30)
   const d = usage.data
@@ -548,7 +548,7 @@ function SourceDetail({ s }: { s: SourceStatus }) {
   const test = useTestSource()
   const [key, setKey] = useState(s.key_value ?? '') // 明文预填（仅本地）
   const [tres, setTres] = useState<Awaited<ReturnType<typeof test.mutateAsync>> | null>(null)
-  // 保存后刷新带回已存明文 key → 回灌输入框，保证长期明文可见（主人要求）。
+  // 保存后刷新带回已存明文 key → 回灌输入框，保证长期明文可见（作者要求）。
   useEffect(() => setKey(s.key_value ?? ''), [s.key_value])
   const isToken = s.cred === 'token'
   const hasNothing = !s.key_env && s.config.length === 0

@@ -385,7 +385,7 @@ const MKTS: { key: string; label: string }[] = [
 
 // 资讯 · 某天的「新闻」或「推特」：固定那一天，主题/账号分类做**舞台内过滤** + 时间线/要点切换
 function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' }) {
-  // 默认「要点」（主人：去重聚类更易读）——但仅今天：历史日要点不会自动生成，默认时间线才有内容
+  // 默认「要点」（作者：去重聚类更易读）——但仅今天：历史日要点不会自动生成，默认时间线才有内容
   const [mode, setMode] = useState<'time' | 'key'>(date === dayStr() ? 'key' : 'time')
   const [filter, setFilter] = useState('') // theme key（新闻）/ category key（推特）；''=全部
   const [mkt, setMkt] = useState('') // 市场前缀；''=全部

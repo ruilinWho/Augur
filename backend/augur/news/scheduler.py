@@ -59,7 +59,7 @@ def _daily_job() -> None:
 def _hourly_job() -> None:
     """白天每个整点：若「自动刷新」开启且当前小时在窗口内 → 全部生成（刷新+蒸馏当天全套）。
 
-    配置（runtime_config.get_auto_refresh）**运行时读取**——主人在「设置·自动」改了起止/开关即时
+    配置（runtime_config.get_auto_refresh）**运行时读取**——作者在「设置·自动」改了起止/开关即时
     生效，无需重排任务。窗口外/关闭 → 静默跳过。service.generate_all 内部有刷新互斥与单步降级。
     """
     try:
@@ -91,7 +91,7 @@ def start() -> None:
             replace_existing=True,
             misfire_grace_time=3600,
         )
-        # 每天本地 23:30：**当天归档**——哪天主人没手动点「生成」，也把当天全量新闻蒸馏存档
+        # 每天本地 23:30：**当天归档**——哪天作者没手动点「生成」，也把当天全量新闻蒸馏存档
         # （日报/要点/机会，ON CONFLICT 覆盖），这样久未打开回来翻每一天都有快照。job 幂等。
         sched.add_job(
             _daily_job,

@@ -960,7 +960,7 @@ export function useRefreshDirected() {
   })
 }
 
-// ── 每股专属信源画像（组件化信源：LLM 调研 + 主人策展）──
+// ── 每股专属信源画像（组件化信源：LLM 调研 + 作者策展）──
 const stockSourceSchema = z.object({
   id: z.number(),
   symbol: z.string(),

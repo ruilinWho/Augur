@@ -1436,7 +1436,7 @@ body.resizing * {
   color: var(--accent);
 }
 
-/* 内容区：占满舞台宽度（主人偏好全宽，不设窄列上限） */
+/* 内容区：占满舞台宽度（作者偏好全宽，不设窄列上限） */
 .set2-body {
   padding-bottom: 40px;
 }
@@ -2708,7 +2708,7 @@ input:focus:not(:focus-visible) {
 
 /* 主舞台：充满舞台宽度（与「看」一致，不再钉死 768） */
 .know {
-  width: 100%; /* 填满舞台（主人要求占满左右）；长正文各自用 --measure 护行宽 */
+  width: 100%; /* 填满舞台（作者要求占满左右）；长正文各自用 --measure 护行宽 */
 }
 .know-head {
   display: flex;
@@ -2758,8 +2758,8 @@ input:focus:not(:focus-visible) {
 .digest h4:first-child {
   margin-top: 0;
 }
-/* 主人偏好：日报/研报正文**占满舞台宽度**（多次要求"占满左右"），不做 --measure 行宽约束。
-   （设计规范的 45–75ch 理想在此让位于主人明确偏好。）*/
+/* 作者偏好：日报/研报正文**占满舞台宽度**（多次要求"占满左右"），不做 --measure 行宽约束。
+   （设计规范的 45–75ch 理想在此让位于作者明确偏好。）*/
 .digest p {
   font-size: 0.92rem;
   line-height: var(--leading); /* 行距随用户设置（此前写死 1.75，不跟随外观设置） */

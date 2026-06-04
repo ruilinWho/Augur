@@ -1,7 +1,7 @@
 """「设置」域 HTTP 路由：UI 里配 LLM 连接（动态列表）/ 角色路由 / 数据信源 key。
 
 护栏（§11）：密钥经 `runtime_config` 落 gitignored `data/config.local.json`，**绝不入 git、
-绝不打日志**。本地单用户 UI **以明文回显** LLM 连接 api_key 与数据信源 key（主人明确要求
+绝不打日志**。本地单用户 UI **以明文回显** LLM 连接 api_key 与数据信源 key（作者明确要求
 「反正只有我自己用」——key 仅在 localhost 后端↔前端间流动，见 §6）。数据信源 secret 仅接受
 **凭证形状**的 env 名（白名单 + 后缀模式）。改动即时生效，无需重启。
 """

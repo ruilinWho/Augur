@@ -18,7 +18,7 @@
 
 ## 代理怪癖（本机沙箱 2026-06 实测）
 - `searchapi.eastmoney.com`（suggest）**可达** ✅；但 `push2.eastmoney.com`（akshare 行情/列表用）**被代理拦截**（`ProxyError: Unable to connect to proxy`）。
-- 所以：**akshare 的港股列表 `stock_hk_spot_em()` 在本机必失败**（走 push2）。主人自己的 Mac（直连）多半 OK，但别依赖它——港股检索已由东财 suggest 兜底。
+- 所以：**akshare 的港股列表 `stock_hk_spot_em()` 在本机必失败**（走 push2）。作者自己的 Mac（直连）多半 OK，但别依赖它——港股检索已由东财 suggest 兜底。
 - httpx/requests 都吃环境代理；suggest 用 httpx，和 curl 一样能过。
 
 ## 本地目录（listings.py）—— 离线兜底 + 美股名 + 韩股

@@ -92,7 +92,7 @@ const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
   },
 ]
 
-// 「设置」左栏导航（取代旧的装饰性 navrow，主人反馈"那栏没用上"）
+// 「设置」左栏导航（取代旧的装饰性 navrow，作者反馈"那栏没用上"）
 function SettingsNav() {
   const page = useUI((s) => s.settingsPage)
   const setPage = useUI((s) => s.setSettingsPage)

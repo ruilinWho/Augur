@@ -1,6 +1,6 @@
 """并发批处理小工具：把待处理项切批、最多 N 个并发跑。
 
-供 translate/relevance/stock_tag 每轮的批量 LLM 调用提速（主人：尽量并行、不担心 token）。
+供 translate/relevance/stock_tag 每轮的批量 LLM 调用提速（作者：尽量并行、不担心 token）。
 每批独立成败，失败的批由各自循环逻辑处理（保留待下轮/跳过毒窗）。WORKERS 兼顾速度与
 §11 限流——8 个并发对 paid LLM 端点是可承受的常见量级。
 """

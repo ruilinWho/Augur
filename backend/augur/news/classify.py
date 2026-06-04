@@ -2,7 +2,7 @@
 
 规则法零成本、可解释、ingest 同步完成：对「标题 + 摘要」匹配关键词 → topics（多标签），
 theme 取命中里优先级最高者；都没命中则回退信源 category，再不行 other。关键词在
-resources/sources/themes.yaml（版本化、主人可编辑）。把泛 tech/markets 源里的前沿内容
+resources/sources/themes.yaml（版本化、作者可编辑）。把泛 tech/markets 源里的前沿内容
 正确归到 ai/chips/robotics/space。
 
 ⚠️ ASCII 关键词用**词边界**匹配（\\b），否则 "AI" 会子串命中 "again/Thailand/email"、

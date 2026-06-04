@@ -1,11 +1,11 @@
-# 新闻信源清单（CLAUDE.md §1「知」/ M3）——版本化、主人可编辑。
+# 新闻信源清单（CLAUDE.md §1「知」/ M3）——版本化、作者可编辑。
 # 每条一个 RSS/Atom 源；ingest 并发抓取、容忍单源失败、按发布时间过滤近期。
 #   lang:     en / zh / ko
 #   category: 既是信源粗类、也作主题分类(classify)的回退输入
 #             ai 大模型 · chips 芯片 · robotics 机器人 · space 航天 · tech 泛科技
 #             · markets 行情 · macro 宏观/政策（美联储/经济数据/监管） · world 国际
 #
-# 取舍原则（2026-06 调研定稿，主人："顶级一手信源是整个系统的生死攸关"）：
+# 取舍原则（2026-06 调研定稿，作者："顶级一手信源是整个系统的生死攸关"）：
 #   一手 > 二手。优先 央行/监管机构/官方编号数据/公司新闻室·IR/官方研究博客，
 #   其次才是精英二手（WSJ/FT/The Information/SemiAnalysis…）。
 #   公司**个股**级一手（SEC EDGAR 财报/8-K、IR、官方 X）走 news/edgar.py 一条龙，不在此清单。

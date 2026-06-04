@@ -146,7 +146,7 @@ def recent_items(
 
     source_prefix 供「推特」视图取 X·<handle> 源（传 "X·"）；days 供时间范围（近 N 天，看历史）。
     day 给定 → 只取那个**日历日**（某天快照「当日要闻」），优先于 days。
-    新闻一直持久化在 news_items（不按龄删除），day/days 让主人翻看已存历史而非只看当前。
+    新闻一直持久化在 news_items（不按龄删除），day/days 让作者翻看已存历史而非只看当前。
     """
     if day:
         return linker.attach_symbols(items_for_day(day, theme, source_prefix)[:limit])
@@ -175,7 +175,7 @@ def recent_items(
 
 
 def _day_bounds_utc(day: str | None) -> tuple[str, str]:
-    """某日（主人时区）的 [起,止) → UTC 'YYYY-MM-DD HH:MM:SS'（供 sqlite datetime() 比较）。"""
+    """某日（作者时区）的 [起,止) → UTC 'YYYY-MM-DD HH:MM:SS'（供 sqlite datetime() 比较）。"""
     tz = ZoneInfo(get_settings().tz)
     if day:
         start = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=tz)
@@ -189,7 +189,7 @@ def _day_bounds_utc(day: str | None) -> tuple[str, str]:
 
 
 def _window_bounds_utc(days: int) -> tuple[str, str]:
-    """近 days 天（含今天，主人时区，日对齐）的 [起,止) → UTC 字符串。"""
+    """近 days 天（含今天，作者时区，日对齐）的 [起,止) → UTC 字符串。"""
     tz = ZoneInfo(get_settings().tz)
     end = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
     start = end - timedelta(days=max(1, days))
@@ -250,7 +250,7 @@ def items_for_day(
     source_prefix: str | None = None,
     category: str | None = None,
 ) -> list[dict]:
-    """某日（默认今天，主人时区）的相关条目（relevance!=2），时间倒序。
+    """某日（默认今天，作者时区）的相关条目（relevance!=2），时间倒序。
 
     theme/source_prefix/category 过滤同 items_for_window——供「资讯·某天·新闻/推特」按天取。
     """
@@ -261,8 +261,8 @@ def items_for_day(
 def items_for_symbol(symbol: str, days: int = 0, limit: int = 60) -> list[dict]:
     """某自选股**持久化挂钩**的新闻流（定向 lane ∪ 任何挂到它的聚合条目），时间倒序。
 
-    供个股「标的叙事」与个股新闻流。不按 relevance 过滤——主人主动跟踪的票，全给他看。
-    days>0 限近 N 天（日对齐，主人时区）。
+    供个股「标的叙事」与个股新闻流。不按 relevance 过滤——作者主动跟踪的票，全给他看。
+    days>0 限近 N 天（日对齐，作者时区）。
     """
     conn = get_conn()
     try:
@@ -620,7 +620,7 @@ def _complete_json(prompt: str, role: str, want_key: str, attempts: int = 2) -> 
     """调 LLM 拿 JSON 并解析；若解析为空 / 缺 want_key，最多重试 attempts 次。
 
     应对推理模型在大输入下**偶发**产出非 JSON 前言/畸形（实测 MiMo 聚类 488 条时偶尔解析空，
-    重试即得正常结果）——主人 bug：一键生成后看不到今日要事/机会。每次重试都是新一轮采样。
+    重试即得正常结果）——作者 bug：一键生成后看不到今日要事/机会。每次重试都是新一轮采样。
     """
     data: dict = {}
     for _ in range(max(1, attempts)):
@@ -1063,7 +1063,7 @@ def generate_all(
         for _ in generate_report_stream(rd, role):  # 消费流以触发落库
             pass
 
-    # 4 个生成彼此独立 → **并发**跑（主人：尽量并行、不担心 token）。各写不同表/scope，
+    # 4 个生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
     # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；推特要点单独 scope（'X·'）。
     tasks = {
         "digest": _digest,

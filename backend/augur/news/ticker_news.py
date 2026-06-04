@@ -1,6 +1,6 @@
 """个股相关新闻——来自雅虎财经的**逐 ticker** 新闻 API（yfinance `.news`）。
 
-主人问"个股相关新闻能否从 API 找"：能。yfinance 已是依赖、免费、覆盖四市场，按 ticker 直接
+作者问"个股相关新闻能否从 API 找"：能。yfinance 已是依赖、免费、覆盖四市场，按 ticker 直接
 返回该公司新闻（比在聚合流里按公司名模糊匹配更准、更全）。归一化为
 {source,title,url,published_at}，3h 内存缓存、失败降级 []。兼容 yfinance 新旧两种 `.news`
 结构（新版用 `content` 包裹 + ISO 时间；旧版扁平 + epoch 时间）。复用 fundamentals 的

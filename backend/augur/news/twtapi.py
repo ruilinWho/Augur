@@ -1,6 +1,6 @@
 """twtapi（twtapi.com）适配器：拉 X/Twitter 官方账号近期推文，归一进「知」摄取。
 
-主人选定 twtapi 作 X 桥（有免费试用 + 月付，免国际卡；见 ADR-0007 §5）。key 走
+作者选定 twtapi 作 X 桥（有免费试用 + 月付，免国际卡；见 ADR-0007 §5）。key 走
 `runtime_config` 的 `TWTAPI_KEY`（gitignored，UI/.env 可配、注入 os.environ）；无 key → 返回 []。
 
 两步（端点经实测，docs 为 SPA 仅给 base/鉴权）：
@@ -70,7 +70,7 @@ def default_accounts() -> list[dict]:
 
 
 def accounts() -> list[dict]:
-    """生效账号清单：主人在「设置」里配的优先，否则用 yaml 默认。"""
+    """生效账号清单：作者在「设置」里配的优先，否则用 yaml 默认。"""
     cfg = runtime_config.get_source_config("twtapi", "accounts")
     return _norm_accounts(cfg) if cfg is not None else default_accounts()
 

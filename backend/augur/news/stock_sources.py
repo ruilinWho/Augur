@@ -1,13 +1,13 @@
 """每股专属信源画像（CLAUDE.md §1 三支柱融合 · 知·个股）。
 
-主人想法「组件化信源」：对某只股，先用 LLM（最好**联网**，如 Perplexity）调研「该看哪些
-重要信源」（官网/IR/官方X/大V/Reddit/雪球/财经站），存为**待确认候选**，主人逐个
+作者想法「组件化信源」：对某只股，先用 LLM（最好**联网**，如 Perplexity）调研「该看哪些
+重要信源」（官网/IR/官方X/大V/Reddit/雪球/财经站），存为**待确认候选**，作者逐个
 mark（启用/增删）。启用的源**后续**喂给定向抓取 lane（X→twtapi、RSS→feedparser、
 Reddit→待加），汇入该股叙事。每只股一套、各不相同。
 
-防幻觉（§11）：LLM 易编造句柄/URL → 候选默认 `enabled=0 verified=0`，由主人拍板；
+防幻觉（§11）：LLM 易编造句柄/URL → 候选默认 `enabled=0 verified=0`，由作者拍板；
 能验证的后续验证（X 句柄过 twtapi、子版过 Reddit、URL 探活）。调研走 `deep_research`
-角色——主人把它指到联网模型即准；未配则 `LLMNotConfigured`，端点转可读提示。
+角色——作者把它指到联网模型即准；未配则 `LLMNotConfigured`，端点转可读提示。
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ def _upsert(symbol: str, rows: list[tuple[str, str, str, str]], added_by: str) -
 def discover(symbol: str, role: str = "deep_research") -> dict:
     """LLM 调研某股该看哪些信源 → 落库为待确认候选。返回 {discovered, sources}。
 
-    走 `deep_research` 角色（主人指到联网模型即准）；未配置 → 抛 LLMNotConfigured。
+    走 `deep_research` 角色（作者指到联网模型即准）；未配置 → 抛 LLMNotConfigured。
     """
     gateway.check_ready(role)
     name = search.display_name(symbol)

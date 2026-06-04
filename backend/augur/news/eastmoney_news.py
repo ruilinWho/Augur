@@ -1,6 +1,6 @@
 """东方财富——免费关键词科技资讯（search-api-web JSONP；CLAUDE.md §1 / ADR-0007）。
 
-按主人关注的前沿关键词检索、按时间排序，聚合多家媒体的科技报道（与现有东财检索同源）。
+按作者关注的前沿关键词检索、按时间排序，聚合多家媒体的科技报道（与现有东财检索同源）。
 免费、无需 key。失败降级 []。归一化为 news_items 同形条目，复用 classify + 噪音过滤；
 中文无需翻译。source 固定为「东方财富」（聚合器；保证 ingest 的 prune 不误删，见 ingest.py）。
 """
@@ -27,7 +27,7 @@ _CST = ZoneInfo("Asia/Shanghai")
 
 
 def keywords() -> list[str]:
-    """生效检索关键词：主人在「设置」里配的优先，否则用内置默认。"""
+    """生效检索关键词：作者在「设置」里配的优先，否则用内置默认。"""
     cfg = runtime_config.get_source_config("eastmoney_news", "keywords")
     if isinstance(cfg, list):
         kws = [str(k).strip() for k in cfg if str(k).strip()]

@@ -66,7 +66,7 @@ def list_tree(market: str | None = None) -> list[dict]:
 
     # 分区按"标的所在市场"显示（CLAUDE.md §8）：选了具体市场时，只露出在该市场有标的的分区+该
     # 市场的标的；**有标的但本市场无的**分区剪掉（防 大模型 污染韩股）。但**真正的空分区**（任何
-    # 市场都没标的）在所有市场都显示——它无市场归属，便于在任何视图里就地创建并填充（主人反馈）。
+    # 市场都没标的）在所有市场都显示——它无市场归属，便于在任何视图里就地创建并填充（作者反馈）。
     def to_out(s: sqlite3.Row) -> dict | None:
         items_out = [_item_out(i) for i in items_by_section.get(s["id"], [])]
         children: list[dict] = []

@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS news_clusters (
 );
 
 -- 每股专属信源画像（M3「知·个股」）：LLM（最好联网）调研出某股该看哪些源 → 你策展 mark。
--- 每只股一套、各不相同（官网/IR/官方X/大V/Reddit/雪球/财经站）。enabled 由主人拍板。
+-- 每只股一套、各不相同（官网/IR/官方X/大V/Reddit/雪球/财经站）。enabled 由作者拍板。
 CREATE TABLE IF NOT EXISTS stock_sources (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol      TEXT    NOT NULL,                  -- MARKET:CODE
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS stock_sources (
     name        TEXT    NOT NULL,
     ref         TEXT    NOT NULL DEFAULT '',       -- URL / @handle / r/sub
     note        TEXT    NOT NULL DEFAULT '',
-    enabled     INTEGER NOT NULL DEFAULT 0,        -- 0待确认/1已启用（主人拍板）
+    enabled     INTEGER NOT NULL DEFAULT 0,        -- 0待确认/1已启用（作者拍板）
     verified    INTEGER NOT NULL DEFAULT 0,        -- 0未验证/1已验证（X句柄/子版/URL 探活）
     added_by    TEXT    NOT NULL DEFAULT 'llm',    -- llm/manual
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS stock_narratives (
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
--- 导入研报（M2「研」）：主人粘贴他人写的研报（markdown），一股可多份、可拖排序、各带我的评论。
+-- 导入研报（M2「研」）：作者粘贴他人写的研报（markdown），一股可多份、可拖排序、各带我的评论。
 CREATE TABLE IF NOT EXISTS imported_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol      TEXT    NOT NULL,                  -- MARKET:CODE
@@ -220,7 +220,7 @@ def get_conn() -> sqlite3.Connection:
 
 
 # 幂等迁移：给**已存在**的表补列（CREATE TABLE IF NOT EXISTS 不会改已建的表）。
-# 主人机器上 augur.db 已有数据，故新列必须靠 PRAGMA 探测 + ALTER 补，而非只改 SCHEMA 字符串。
+# 作者机器上 augur.db 已有数据，故新列必须靠 PRAGMA 探测 + ALTER 补，而非只改 SCHEMA 字符串。
 # 新增列时在此追加一行 (表, 列, 列定义)；与 SCHEMA 里的定义保持一致。
 _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "theme", "TEXT NOT NULL DEFAULT ''"),

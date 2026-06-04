@@ -1,4 +1,4 @@
-"""新闻自动标股（不限自选）——主人：「看到新闻去看相应的股票，即使不在自选，才叫发现机会」。
+"""新闻自动标股（不限自选）——作者：「看到新闻去看相应的股票，即使不在自选，才叫发现机会」。
 
 对**已判相关**(relevance=1)、未标股(tagged=0)的 feed 条目，批量让 cheap LLM 识别它主要涉及的
 上市公司（名+市场+code 猜测），再经 `grounding` **确定性接地**到真实 MARKET:CODE（防编造：只认
@@ -19,7 +19,7 @@ from ..storage import get_conn
 from . import _batch, grounding
 
 _BATCH = 20
-_MAX_ROUNDS = 80  # 单次最多几批（×_BATCH=1600 条上界；主人"不心疼 token"，循环到清空积压）
+_MAX_ROUNDS = 80  # 单次最多几批（×_BATCH=1600 条上界；作者"不心疼 token"，循环到清空积压）
 _MAX_FAILS = 5  # 连续几批标不出就停（LLM 多半挂了；少于此则跳过毒批继续清队列）
 _MAX_PER_ITEM = 3  # 一条新闻最多标几只（避免清单体新闻拉一长串）
 
@@ -102,7 +102,7 @@ def _tag_batch(batch: list[tuple[int, str]]) -> tuple[int, int]:
 
 
 def tag_pending() -> dict:
-    """批量给相关新闻标股（接地到真实代码），**循环到清空**（主人：彻底标，别漏，新闻卡都能发现机会）。
+    """批量给相关新闻标股（接地到真实代码），**循环到清空**（作者：彻底标，别漏，新闻卡都能发现机会）。
 
     每轮取一批最老未标的；标出即落 tagged=1（下轮自然跳过）。整批标不出（顽固/网络失败）→ 停，
     避免空转。cheap 未配置 → 静默跳过。返回 {tagged, pairs}。
@@ -113,7 +113,7 @@ def tag_pending() -> dict:
         return {"tagged": 0, "pairs": 0}
     tagged = pairs = 0
     offset = fails = 0
-    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**标（主人：尽量并行）
+    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**标（作者：尽量并行）
     for _ in range(_MAX_ROUNDS):
         items = _select_pending(window, offset)
         if not items:
