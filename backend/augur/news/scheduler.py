@@ -61,7 +61,7 @@ def start() -> None:
     try:
         tz = get_settings().tz
         sched = BackgroundScheduler(timezone=tz)
-        # 每天本地 07:30：抓取 +（若已配置）生成日报
+        # 每天本地 07:30：晨间抓取 +（若已配置）生成日报/要点/机会 → 晨读即就绪
         sched.add_job(
             _daily_job,
             CronTrigger(hour=7, minute=30, timezone=tz),
@@ -69,9 +69,18 @@ def start() -> None:
             replace_existing=True,
             misfire_grace_time=3600,
         )
+        # 每天本地 23:30：**当天归档**——哪天主人没手动点「生成」，也把当天全量新闻蒸馏存档
+        # （日报/要点/机会，ON CONFLICT 覆盖），这样久未打开回来翻每一天都有快照。job 幂等。
+        sched.add_job(
+            _daily_job,
+            CronTrigger(hour=23, minute=30, timezone=tz),
+            id="news_archive",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
         sched.start()
         _scheduler = sched
-        log.info("news scheduler started (daily 07:30 %s)", tz)
+        log.info("news scheduler started (daily 07:30 + archive 23:30 %s)", tz)
     except Exception:  # noqa: BLE001
         log.exception("news scheduler failed to start")
 

@@ -2648,12 +2648,8 @@ input:focus:not(:focus-visible) {
 .digest h4:first-child {
   margin-top: 0;
 }
-/* 阅读行宽（§9 一等公民）：长正文落在 ~64ch 舒适行宽、左对齐；表格/分隔不受限（见 .rep-table-wrap） */
-.digest p,
-.digest li,
-.digest blockquote {
-  max-width: var(--measure);
-}
+/* 主人偏好：日报/研报正文**占满舞台宽度**（多次要求"占满左右"），不做 --measure 行宽约束。
+   （设计规范的 45–75ch 理想在此让位于主人明确偏好。）*/
 .digest p {
   font-size: 0.92rem;
   line-height: var(--leading); /* 行距随用户设置（此前写死 1.75，不跟随外观设置） */

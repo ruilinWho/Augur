@@ -145,7 +145,11 @@ function MorningBrief({
 function SinceLast() {
   const lastSeen = useUI((s) => s.lastSeenNewsAt)
   const markSeen = useUI((s) => s.markNewsSeen)
-  const feed = useNewsFeed(150, { days: 7 })
+  // 窗口随「距上次」自适应（久未点也能看全，封顶 30 天）；上限放宽到 500（修原 150 封顶）
+  const days = lastSeen
+    ? Math.min(30, Math.max(1, Math.ceil((Date.now() - new Date(lastSeen).getTime()) / 86400000) + 1))
+    : 7
+  const feed = useNewsFeed(500, { days })
   const [open, setOpen] = useState(true)
   const fresh = useMemo(() => {
     if (!lastSeen) return []
