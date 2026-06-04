@@ -14,6 +14,7 @@ import re
 from ..config import get_settings
 from ..llm import gateway
 from ..storage import get_conn
+from . import _batch
 
 _BATCH = 40  # 每批条数（控对齐风险与 token）
 _MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；主人"不心疼 token"，循环到清空积压）
@@ -117,17 +118,19 @@ def judge_pending() -> dict:
         return {"judged": 0, "dropped": 0}
     judged = dropped = 0
     offset = fails = 0
+    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**判（主人：尽量并行）
     for _ in range(_MAX_ROUNDS):
-        batch = _select_pending(_BATCH, offset)
-        if not batch:
+        items = _select_pending(window, offset)
+        if not items:
             break
-        pairs = _judge_batch(batch)
+        results = _batch.map_batches(items, _BATCH, _judge_batch)
+        pairs = [p for r in results for p in r]
         if not pairs:
-            # 整批没判出（顽固条目或网络失败）：跳过这批继续清更老的，别让毒批堵死队列。
+            # 整窗没判出（顽固条目或 LLM 挂）：跳过这窗继续清更老的，别让毒批堵死队列。
             fails += 1
             if fails >= _MAX_FAILS:
-                break  # 连续多批失败＝LLM 多半挂了 → 停，下次 refresh 再试
-            offset += _BATCH
+                break  # 连续多窗失败＝LLM 多半挂了 → 停，下次 refresh 再试
+            offset += window
             continue
         _save(pairs)
         judged += len(pairs)

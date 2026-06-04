@@ -14,6 +14,7 @@ import re
 from ..config import get_settings
 from ..llm import gateway
 from ..storage import get_conn
+from . import _batch
 
 _BATCH = 40  # 每批标题数（控对齐风险与 token）
 _MAX_ROUNDS = 60  # 单次最多几批（×_BATCH≈2400 条上界；循环翻到清空，英文标题不漏）
@@ -107,17 +108,19 @@ def translate_pending() -> int:
     _passthrough_zh()
     done = 0
     offset = fails = 0
+    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**翻（主人：尽量并行）
     for _ in range(_MAX_ROUNDS):  # 循环翻到清空（主人：任何英文新闻/标题都快速翻中）
-        batch = _select_pending(_BATCH, offset)
-        if not batch:
+        items = _select_pending(window, offset)
+        if not items:
             break
-        pairs = _translate_batch(batch)
+        results = _batch.map_batches(items, _BATCH, _translate_batch)
+        pairs = [p for r in results for p in r]
         if not pairs:
-            # 整批没翻出（顽固/失败）：跳过这批继续翻后面的，别让毒批堵死队列。
+            # 整窗没翻出（顽固/失败）：跳过这窗继续翻后面的，别让毒批堵死队列。
             fails += 1
             if fails >= _MAX_FAILS:
-                break  # 连续多批失败＝LLM 多半挂了 → 停，下次 refresh 再试
-            offset += _BATCH
+                break  # 连续多窗失败＝LLM 多半挂了 → 停，下次 refresh 再试
+            offset += window
             continue
         _save(pairs)
         done += len(pairs)

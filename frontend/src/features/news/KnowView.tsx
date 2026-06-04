@@ -14,6 +14,7 @@ import {
   useQuote,
   useRefreshDirected,
   useRefreshNews,
+  useSchedule,
   useStockNews,
   type ClusterParams,
   type NewsCluster,
@@ -84,7 +85,7 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
   )
 }
 
-// ── 晨读 · 今日要事（Top3）：复用 news@1d 要点的前 3 条，scheduler 每日预生成 ──
+// ── 晨读 · 今日要事：复用 news@1d 要点的前 N 条（N 可配，设置「自动·生成」），每日预生成 ──
 // date 给定（某天快照）→ 取/生成那一天的要点；省略＝今天。
 function MorningBrief({
   date,
@@ -98,7 +99,8 @@ function MorningBrief({
   const params = { days: 1, date }
   const clusters = useClusters(params)
   const gen = useGenerateClusters()
-  const top = (clusters.data?.clusters ?? []).slice(0, 3)
+  const topN = useSchedule().data?.brief_top_n ?? 5
+  const top = (clusters.data?.clusters ?? []).slice(0, topN)
   return (
     <section className="brief">
       <div className="sec-head">

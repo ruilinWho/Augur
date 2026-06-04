@@ -12,6 +12,7 @@ import re
 import threading
 import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -1008,20 +1009,25 @@ def generate_all(
     out["llm_ready"] = True
     steps = out["steps"]
 
-    def _step(name: str, fn) -> None:
-        try:
-            fn()
-            steps[name] = "ok"
-        except Exception:  # noqa: BLE001 — 单步失败只记状态，不连累其余
-            steps[name] = "err"
-
     def _digest() -> None:
         for _ in generate_report_stream(rd, role):  # 消费流以触发落库
             pass
 
-    _step("digest", _digest)  # 趋势日报
-    # 要事＝新闻「全部」要点（同 scope）；推特要点单独 scope（source_prefix='X·'）
-    _step("clusters", lambda: generate_clusters(None, None, None, 1, role, rd))
-    _step("twitter", lambda: generate_clusters(None, "X·", None, 1, role, rd))
-    _step("opportunities", lambda: generate_opportunities(rd, role))  # 今日机会
+    # 4 个生成彼此独立 → **并发**跑（主人：尽量并行、不担心 token）。各写不同表/scope，
+    # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；推特要点单独 scope（'X·'）。
+    tasks = {
+        "digest": _digest,
+        "clusters": lambda: generate_clusters(None, None, None, 1, role, rd),
+        "twitter": lambda: generate_clusters(None, "X·", None, 1, role, rd),
+        "opportunities": lambda: generate_opportunities(rd, role),
+    }
+    with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
+        futs = {ex.submit(fn): name for name, fn in tasks.items()}
+        for fut in as_completed(futs):
+            name = futs[fut]
+            try:
+                fut.result()
+                steps[name] = "ok"
+            except Exception:  # noqa: BLE001 — 单步失败只记状态，不连累其余
+                steps[name] = "err"
     return out

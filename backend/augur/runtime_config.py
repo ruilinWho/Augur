@@ -329,6 +329,25 @@ def set_cluster_input_max(n: int) -> int:
     return n
 
 
+# 「今日要事」(晨读 Top) 显示条数。默认 5（原写死 3，主人要可配）。
+_BRIEF_TOP_DEFAULT = 5
+
+
+def get_brief_top_n() -> int:
+    """读今日要事显示条数（默认 5）。非法值回退默认。"""
+    n = get_pref("brief_top_n")
+    if _is_int(n) and n >= 1:
+        return min(n, 50)
+    return _BRIEF_TOP_DEFAULT
+
+
+def set_brief_top_n(n: int) -> int:
+    """设今日要事显示条数（夹紧到 [1, 50]）。返回落库值。"""
+    n = _BRIEF_TOP_DEFAULT if not _is_int(n) else max(1, min(n, 50))
+    set_pref("brief_top_n", n)
+    return n
+
+
 def get_role_target(role: str) -> str | None:
     return (_read().get("llm_roles") or {}).get(role)
 

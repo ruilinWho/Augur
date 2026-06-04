@@ -16,7 +16,7 @@ import re
 from ..config import get_settings
 from ..llm import gateway
 from ..storage import get_conn
-from . import grounding
+from . import _batch, grounding
 
 _BATCH = 20
 _MAX_ROUNDS = 80  # 单次最多几批（×_BATCH=1600 条上界；主人"不心疼 token"，循环到清空积压）
@@ -113,20 +113,22 @@ def tag_pending() -> dict:
         return {"tagged": 0, "pairs": 0}
     tagged = pairs = 0
     offset = fails = 0
+    window = _BATCH * _batch.WORKERS  # 每轮取这么多、切成多批**并发**标（主人：尽量并行）
     for _ in range(_MAX_ROUNDS):
-        batch = _select_pending(_BATCH, offset)
-        if not batch:
+        items = _select_pending(window, offset)
+        if not items:
             break
-        marked, p = _tag_batch(batch)
+        results = _batch.map_batches(items, _BATCH, _tag_batch)
+        marked = sum(m for m, _ in results)
         if marked == 0:
-            # 整批没标出（顽固条目或网络/JSON 失败）：跳过这批继续标后面的，别让毒批堵死队列。
+            # 整窗没标出（顽固条目或网络/JSON 失败）：跳过这窗继续标后面的，别让毒批堵死队列。
             fails += 1
             if fails >= _MAX_FAILS:
-                break  # 连续多批失败＝LLM 多半挂了 → 停，下次 refresh 再试
-            offset += _BATCH
+                break  # 连续多窗失败＝LLM 多半挂了 → 停，下次 refresh 再试
+            offset += window
             continue
         tagged += marked
-        pairs += p
+        pairs += sum(p for _, p in results)
         fails = 0
         offset = 0  # 成功 → 已标项离开 pending，回到队首
     return {"tagged": tagged, "pairs": pairs}

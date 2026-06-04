@@ -207,11 +207,15 @@ function SchedulePage() {
 }
 
 const CAP_PRESETS = [200, 500, 1000, 2000, 3000, 5000]
+const BRIEF_PRESETS = [3, 5, 8, 10, 15]
 
 // 蒸馏深度：要事/机会喂 LLM 的当日条数上限（日报不受限）。同属「知·生成」配置，放「自动」页。
 function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof useSetSchedule> }) {
   const cap = cur.cluster_input_max
   const list = cap > 0 && !CAP_PRESETS.includes(cap) ? [...CAP_PRESETS, cap].sort((a, b) => a - b) : CAP_PRESETS
+  const briefList = BRIEF_PRESETS.includes(cur.brief_top_n)
+    ? BRIEF_PRESETS
+    : [...BRIEF_PRESETS, cur.brief_top_n].sort((a, b) => a - b)
   return (
     <Section title="生成 · 蒸馏深度">
       <Row
@@ -229,6 +233,22 @@ function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof u
             </option>
           ))}
           <option value={0}>不限</option>
+        </select>
+      </Row>
+      <Row
+        label="今日要事 显示条数"
+        desc="「资讯·总结」里「今日要事 / 晨读」展示前几条要点（按重要性排序）。"
+      >
+        <select
+          className="cfg-input"
+          value={cur.brief_top_n}
+          onChange={(e) => set.mutate({ brief_top_n: +e.target.value })}
+        >
+          {briefList.map((n) => (
+            <option key={n} value={n}>
+              {n} 条
+            </option>
+          ))}
         </select>
       </Row>
     </Section>
