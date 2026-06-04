@@ -347,16 +347,32 @@ function ClusterList({ params }: { params: ClusterParams }) {
   )
 }
 
+// 市场过滤：按条目挂钩的自选股 symbol 前缀（linker 只挂自选股 → symbols 即"我关注的票"）
+const MKTS: { key: string; label: string }[] = [
+  { key: '', label: '全部' },
+  { key: 'US', label: '美' },
+  { key: 'HK', label: '港' },
+  { key: 'CN', label: 'A' },
+  { key: 'KR', label: '韩' },
+]
+
 // 资讯 · 某天的「新闻」或「推特」：固定那一天，主题/账号分类做**舞台内过滤** + 时间线/要点切换
 function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' }) {
   const [mode, setMode] = useState<'time' | 'key'>('time')
   const [filter, setFilter] = useState('') // theme key（新闻）/ category key（推特）；''=全部
+  const [mkt, setMkt] = useState('') // 市场前缀；''=全部
+  const [onlyWatch, setOnlyWatch] = useState(false) // 仅自选（挂钩了自选股的条目）
   const opts = kind === 'news' ? THEMES : TW_CATS
   const theme = kind === 'news' && filter ? filter : undefined
   const sourcePrefix = kind === 'twitter' ? 'X·' : undefined
   const category = kind === 'twitter' && filter ? filter : undefined
   const feed = useNewsFeed(250, { theme, sourcePrefix, day: date })
-  const items = (feed.data ?? []).filter((i) => kind !== 'twitter' || !filter || i.category === filter)
+  const items = (feed.data ?? []).filter((i) => {
+    if (kind === 'twitter' && filter && i.category !== filter) return false
+    if (onlyWatch && i.symbols.length === 0) return false
+    if (mkt && !i.symbols.some((s) => s.symbol.startsWith(`${mkt}:`))) return false
+    return true
+  })
   const clusterParams: ClusterParams = { theme, sourcePrefix, category, days: 1, date }
   return (
     <div className="know">
@@ -383,6 +399,25 @@ function DayScopedNews({ date, kind }: { date: string; kind: 'news' | 'twitter' 
             {o.label}
           </button>
         ))}
+      </div>
+      {/* 市场 + 仅自选（挂钩自选股的条目）——"我关注的盘子今天发生了什么" */}
+      <div className="tfilter tfilter-mkt">
+        {MKTS.map((o) => (
+          <button
+            key={o.key}
+            className={`tfilter-chip ${mkt === o.key ? 'active' : ''}`}
+            onClick={() => setMkt(o.key)}
+          >
+            {o.label}
+          </button>
+        ))}
+        <button
+          className={`tfilter-chip ow ${onlyWatch ? 'active' : ''}`}
+          onClick={() => setOnlyWatch((v) => !v)}
+          title="只看挂钩了自选股的资讯"
+        >
+          仅自选
+        </button>
       </div>
       {mode === 'time' ? (
         <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '这一天暂无内容'} />

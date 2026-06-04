@@ -696,6 +696,14 @@ button {
   gap: 6px;
   margin: 0 0 16px;
 }
+.tfilter-mkt {
+  margin-top: -8px; /* 紧贴主题行 */
+  align-items: center;
+}
+.tfilter-chip.ow {
+  margin-left: 6px;
+  border-style: dashed; /* 与市场 chip 区分：仅自选是开关 */
+}
 .tfilter-chip {
   font: inherit;
   font-size: 0.78rem;
