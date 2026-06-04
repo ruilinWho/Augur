@@ -15,6 +15,7 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from .. import runtime_config
 from ..config import get_settings
 from ..llm import gateway
 from ..market import search
@@ -34,21 +35,20 @@ from . import (
 
 log = logging.getLogger("augur.news")
 
-# 喂给「要点/机会」LLM 的当日条目上限（控 token 与 [n] 序号空间）。超出会**记日志**，
-# 不静默丢覆盖（CLAUDE.md 准则：封顶必须可见）。日报不封顶（_headlines_block 按主题分组喂全部）。
-_CLUSTER_INPUT_MAX = 200
-
 
 def _cap_items(items: list[dict], scope: str) -> list[dict]:
-    """截到 _CLUSTER_INPUT_MAX；若有截断则记日志（别让忙日静默漏掉更早的新闻）。"""
-    if len(items) > _CLUSTER_INPUT_MAX:
+    """喂给「要点/机会」LLM 的当日条目上限（可配，`runtime_config.get_cluster_input_max`，
+    默认 1000，0=不限；日报不受此限）。超出会**记日志**，不静默丢覆盖（CLAUDE.md 准则：
+    封顶必须可见）。条目按时间倒序，截断保留最新的若干条。"""
+    cap = runtime_config.get_cluster_input_max()
+    if cap and len(items) > cap:
         log.info(
-            "news %s: capped %d→%d items (busy day; older items not fed to LLM)",
+            "news %s: capped %d→%d items (configurable cluster_input_max; older items dropped)",
             scope,
             len(items),
-            _CLUSTER_INPUT_MAX,
+            cap,
         )
-        return items[:_CLUSTER_INPUT_MAX]
+        return items[:cap]
     return items
 
 

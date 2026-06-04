@@ -121,9 +121,7 @@ async def test_all_connections() -> dict[str, dict]:
         out: dict[str, dict] = {}
         with ThreadPoolExecutor(max_workers=8) as ex:
             futs = {
-                ex.submit(
-                    gateway.test_connection, c["base_url"], c["api_key"], c["model"]
-                ): c["id"]
+                ex.submit(gateway.test_connection, c["base_url"], c["api_key"], c["model"]): c["id"]
                 for c in conns
             }
             for fut in as_completed(futs):
@@ -167,19 +165,37 @@ class ScheduleIn(BaseModel):
     enabled: bool | None = None
     start_hour: int | None = None
     end_hour: int | None = None
+    cluster_input_max: int | None = None  # 要事/机会喂 LLM 的当日条数上限（0=不限）
+
+
+def _schedule_snapshot() -> dict:
+    return {
+        **runtime_config.get_auto_refresh(),
+        "cluster_input_max": runtime_config.get_cluster_input_max(),
+    }
 
 
 @router.get("/schedule")
 async def get_schedule() -> dict:
-    """读自动刷新配置：{enabled, start_hour, end_hour}。窗口内每个整点自动「全部生成」。"""
-    return await run_in_threadpool(runtime_config.get_auto_refresh)
+    """读「知·生成」配置：{enabled, start_hour, end_hour, cluster_input_max}。"""
+    return await run_in_threadpool(_schedule_snapshot)
 
 
 @router.post("/schedule")
 async def set_schedule(body: ScheduleIn) -> dict:
-    """改自动刷新配置（即时生效，调度任务运行时读取，无需重启）。返回最新完整配置。"""
-    patch = {k: v for k, v in body.model_dump().items() if v is not None}
-    return await run_in_threadpool(runtime_config.set_auto_refresh, patch)
+    """改「知·生成」配置（即时生效，运行时读取，无需重启）。返回最新完整配置。"""
+
+    def _apply() -> dict:
+        patch = {
+            k: v for k, v in body.model_dump().items() if v is not None and k != "cluster_input_max"
+        }
+        if patch:
+            runtime_config.set_auto_refresh(patch)
+        if body.cluster_input_max is not None:
+            runtime_config.set_cluster_input_max(body.cluster_input_max)
+        return _schedule_snapshot()
+
+    return await run_in_threadpool(_apply)
 
 
 @router.post("/secret")

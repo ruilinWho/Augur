@@ -307,6 +307,28 @@ def set_auto_refresh(patch: dict) -> dict:
     return cur
 
 
+# 「要事/机会」单次喂给 LLM 的当日条目上限（日报不受此限）。默认 1000；0=不限。
+_CLUSTER_MAX_DEFAULT = 1000
+
+
+def get_cluster_input_max() -> int:
+    """读蒸馏条数上限（默认 1000；0=不限）。非法值回退默认。"""
+    n = get_pref("cluster_input_max")
+    if _is_int(n) and n >= 0:
+        return min(n, 20000)  # 给个极宽的安全上界，防手写配置写出天文数字撑爆上下文
+    return _CLUSTER_MAX_DEFAULT
+
+
+def set_cluster_input_max(n: int) -> int:
+    """设蒸馏条数上限（0=不限；正值夹紧到 [50, 20000]）。返回落库值。"""
+    if not _is_int(n) or n < 0:
+        n = _CLUSTER_MAX_DEFAULT
+    elif n > 0:
+        n = max(50, min(n, 20000))
+    set_pref("cluster_input_max", n)
+    return n
+
+
 def get_role_target(role: str) -> str | None:
     return (_read().get("llm_roles") or {}).get(role)
 

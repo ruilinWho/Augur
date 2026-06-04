@@ -346,6 +346,7 @@ const scheduleSchema = z.object({
   enabled: z.boolean().default(true),
   start_hour: z.number().default(11),
   end_hour: z.number().default(23),
+  cluster_input_max: z.number().default(1000), // 要事/机会喂 LLM 的当日条数上限（0=不限）
 })
 export type Schedule = z.infer<typeof scheduleSchema>
 

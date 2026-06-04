@@ -40,6 +40,7 @@ import {
   useUpsertConnection,
   type Connection,
   type RoleTarget,
+  type Schedule,
   type SourceGroup,
   type SourceStatus,
   type TestResult,
@@ -155,7 +156,8 @@ function SchedulePage() {
       </div>
     )
   return (
-    <Section title="白天自动 · 全部生成">
+    <>
+      <Section title="白天自动 · 全部生成">
       <Row
         label="自动刷新并生成"
         desc="在时间窗内每个整点（:00）自动「刷新并生成」当天的 日报 / 要事 / 新闻·推特要点 / 机会，让信息流持续追平、不必手动点。"
@@ -197,6 +199,37 @@ function SchedulePage() {
       </Row>
       <Row label="此外固定" desc="无论上方开关，每天 07:30 晨间抓取、23:30 当天归档各自动生成一次。">
         <span className="faint mono">07:30 · 23:30</span>
+      </Row>
+      </Section>
+      <GenDepthSection cur={cur} set={set} />
+    </>
+  )
+}
+
+const CAP_PRESETS = [200, 500, 1000, 2000, 3000, 5000]
+
+// 蒸馏深度：要事/机会喂 LLM 的当日条数上限（日报不受限）。同属「知·生成」配置，放「自动」页。
+function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof useSetSchedule> }) {
+  const cap = cur.cluster_input_max
+  const list = cap > 0 && !CAP_PRESETS.includes(cap) ? [...CAP_PRESETS, cap].sort((a, b) => a - b) : CAP_PRESETS
+  return (
+    <Section title="生成 · 蒸馏深度">
+      <Row
+        label="要事 / 机会 喂入条数上限"
+        desc="生成「要事」「今日机会」时，最多喂给 LLM 当天多少条新闻（取最新的若干条）。趋势日报不受此限、始终喂全部。条数越大越全、也越慢越费 token。"
+      >
+        <select
+          className="cfg-input"
+          value={cap}
+          onChange={(e) => set.mutate({ cluster_input_max: +e.target.value })}
+        >
+          {list.map((n) => (
+            <option key={n} value={n}>
+              {n} 条
+            </option>
+          ))}
+          <option value={0}>不限</option>
+        </select>
       </Row>
     </Section>
   )
