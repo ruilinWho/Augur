@@ -30,6 +30,8 @@ import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
 import NewsNav from './features/news/NewsNav'
 import KnowView from './features/news/KnowView'
+import NotesNav from './features/notes/NotesNav'
+import NotesView from './features/notes/NotesView'
 import { useNews } from './features/news/store'
 import StockNews from './features/news/StockNews'
 import ResearchView from './features/research/ResearchView'
@@ -38,6 +40,7 @@ const TABS: { v: View; label: string }[] = [
   { v: 'kan', label: '看' },
   { v: 'yan', label: '研' },
   { v: 'zhi', label: '知' },
+  { v: 'ji', label: '记' },
 ]
 
 const EASE = [0.22, 1, 0.36, 1] as const // easeOutExpo——柔和"落定"
@@ -291,6 +294,11 @@ export default function App() {
               <NewsNav />
               {newsCols >= 3 && <NewsResizeHandle />}
             </>
+          ) : view === 'ji' ? (
+            <>
+              <NotesNav />
+              <ResizeHandle />
+            </>
           ) : (
             <>
               <SettingsNav />
@@ -317,6 +325,7 @@ export default function App() {
               )}
               {view === 'yan' && <ResearchView />}
               {view === 'zhi' && <KnowView />}
+              {view === 'ji' && <NotesView />}
               {view === 'set' && <SettingsView />}
             </motion.div>
           </main>

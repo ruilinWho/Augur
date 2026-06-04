@@ -173,6 +173,18 @@ CREATE TABLE IF NOT EXISTS imported_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_imported_symbol ON imported_reports(symbol);
 
+-- 「记」（第 4 支柱）：与个股无关的长文笔记（市场随想/方法论/复盘思考），markdown 正文。
+-- 区别于 journal（绑定个股的判断日记）与 imported_reports（绑定个股的他人研报）——这是自由长文。
+CREATE TABLE IF NOT EXISTS notes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT    NOT NULL DEFAULT '',
+    body        TEXT    NOT NULL DEFAULT '',       -- markdown 正文
+    pinned      INTEGER NOT NULL DEFAULT 0,        -- 0/1 置顶（列表中置顶在前）
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(pinned DESC, updated_at DESC);
+
 -- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
 CREATE TABLE IF NOT EXISTS research_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,

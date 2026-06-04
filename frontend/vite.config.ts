@@ -16,6 +16,7 @@ export default defineConfig({
       '/journal': backend,
       '/news': backend,
       '/research': backend,
+      '/notes': backend,
       '/settings': backend,
       '/health': backend,
     },

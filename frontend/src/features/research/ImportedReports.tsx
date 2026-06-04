@@ -24,7 +24,7 @@ import {
   useUpdateImported,
   type ImportedReport,
 } from '../../api'
-import { Digest } from '../news/shared'
+import Markdown from '../../components/Markdown'
 
 function fmtWhen(iso: string | null): string {
   if (!iso) return ''
@@ -110,7 +110,7 @@ function ImpCard({ r }: { r: ImportedReport }) {
         />
       ) : body.trim() ? (
         <div className="imp-body">
-          <Digest body={body} />
+          <Markdown body={body} />
         </div>
       ) : (
         <div className="imp-body faint">空正文</div>

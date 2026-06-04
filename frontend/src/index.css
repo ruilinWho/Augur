@@ -3751,3 +3751,184 @@ a.opp-ev-item:hover {
   color: var(--text-faint);
   text-align: center;
 }
+
+/* ───────────────────────── 「记」· 自由长文笔记（第 4 支柱）───────────────────────── */
+.notes-nav {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.notes-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.notes-new {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  font-size: 0.74rem;
+  padding: 3px 11px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.notes-new:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.note-row {
+  display: block;
+  text-align: left;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.14s ease;
+}
+.note-row:hover {
+  background: var(--surface-2);
+}
+.note-row.active {
+  background: var(--accent-weak);
+  border-left-color: var(--accent);
+}
+.note-row-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.note-pin {
+  color: var(--accent);
+  font-size: 0.6rem;
+  line-height: 1;
+}
+.note-row-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-row-prev {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-row-when {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.note-edit {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-width: 920px;
+}
+.note-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.note-title-in {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  padding: 2px 0;
+}
+.note-title-in::placeholder {
+  color: var(--text-faint);
+}
+.note-title-in:focus {
+  outline: none;
+}
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.note-status {
+  font-size: 0.72rem;
+  min-width: 44px;
+  text-align: right;
+}
+.note-act {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.note-act:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.note-act.on {
+  background: var(--accent-weak);
+  border-color: transparent;
+  color: var(--accent);
+}
+.note-act.danger:hover {
+  border-color: var(--down);
+  color: var(--down);
+}
+.note-seg {
+  flex-shrink: 0;
+}
+.note-body-in {
+  flex: 1;
+  width: 100%;
+  min-height: 420px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 22px 26px;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: var(--leading);
+  color: var(--text);
+}
+.note-body-in::placeholder {
+  color: var(--text-faint);
+}
+.note-body-in:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.note-preview {
+  flex: 1;
+}
+.note-foot {
+  margin-top: 12px;
+  font-size: 0.72rem;
+}

@@ -9,13 +9,14 @@
 
 ## 1. Augur 是什么 —— 以及不是什么
 
-三根支柱 / three pillars：
+四根支柱 / four pillars：
 
 1. **看 · View** —— 美股 / 港股 / A股 / 韩股的 K 线，以**极致美观**的方式渲染。
 2. **研 · Research** —— 用 LLM + Deep Research 对单支股票做详尽分析。
 3. **知 · Know** —— 每天聚合全球顶级信源，由 LLM 蒸馏成**趋势日报**，让主人在天级别与世界信息流同步。
+4. **记 · Note** —— **与个股无关的自由长文笔记**（市场随想 / 方法论 / 复盘思考），markdown 长文、置顶、防抖自动保存。区别于绑定个股的「判断日记」「导入研报」。
 
-贯穿三者的基础设施：
+贯穿四者的基础设施：
 
 - **自选分区（两级板块）** —— 自定义 List / 板块来组织你跟踪的标的（见 §8）。
 - **统一 LLM 网关** —— 任意厂商、可自配 `base_url`（见 §6）。
@@ -49,6 +50,7 @@
 │  llm/       → litellm 网关（任意厂商、自配 base_url）      │
 │  research/  → deep-research 编排                         │
 │  news/      → RSS/API 摄取 + APScheduler + 趋势日报       │
+│  notes/     → 「记」自由长文笔记（与个股无关）             │
 │  storage/   → SQLite（元数据）+ Parquet（行情缓存）        │
 └───────────────────────┬──────────────────────────────┘
                         │  （Phase 2）
@@ -73,7 +75,7 @@ Augur/
 │   └── memory/            ← 跨会话项目记忆（见 §10）
 ├── backend/               ← Python（uv 管理）FastAPI 服务
 │   ├── pyproject.toml
-│   └── augur/  market/ · watchlist/ · journal/ · llm/ · research/ · news/ · storage/ · config.py · main.py
+│   └── augur/  market/ · watchlist/ · journal/ · llm/ · research/ · news/ · notes/ · storage/ · config.py · main.py
 ├── frontend/              ← React + Vite + TS（M1 搭建）
 ├── resources/             ← 入库的静态资产（版本控制）
 │   ├── fonts/             ← 自带字体
@@ -199,7 +201,7 @@ cd frontend && pnpm dev
 - **标志性强调色** ≈ 陶土/珊瑚 `#D97757`，少量点睛。其余低饱和、安静的配色。
 - **排版 = 英文衬线 + 中文苹方**（Anthropic 路子）：英文/标题用 **Source Serif 4** 衬线，**所有中文用苹方**（`PingFang SC`，系统）——不用中文宋体。仅 Source Serif 4/JetBrains Mono 自托管到 `resources/fonts/`。
 - **K线红绿要「蜡笔纸感」**：**规整矩形 · 直角不加圆角**（圆角小尺寸下显歪）、哑光低饱和、半透明、轻 + 极淡纸纹，绝不鲜艳实心。涨跌色习惯可配（美股绿涨红跌；A/港/韩红涨绿跌）。
-- **导航外壳：** 功能切换在**顶栏**（`Augur` 一行横向 Tab 看/研/知 + 右上齿轮进设置）；下方两栏＝上下文面板（自选分区树 / 日报列表 / 设置分类）＋主舞台。**所有 Meta 设置集中在「设置」**，不散落顶栏。
+- **导航外壳：** 功能切换在**顶栏**（`Augur` 一行横向 Tab 看/研/知/记 + 右上齿轮进设置）；下方两栏＝上下文面板（自选分区树 / 日报列表 / 笔记列表 / 设置分类）＋主舞台。**所有 Meta 设置集中在「设置」**，不散落顶栏。
 - **字体/字号/行距/行宽是用户可调的一等公民**，全部走 CSS 变量；组件只读 token。
 
 ---
@@ -229,7 +231,9 @@ cd frontend && pnpm dev
 ## 12. 当前状态与下一步
 
 - **现在：** M1 + M1.5 + M1.6 + M2 ✅，**M3「知」推进中**。M1.6 = 全市场检索加股、拖拽换区、可调栏宽、判断日记、个股显示中文名（详见 §7/§8）。**M2**：**LLM 网关接通**（`.env` 配 DeepSeek + OhMyGPT 中转，`config.py` load_dotenv，四角色实测可用，/llm/chat 流式验证）、**基本面**（yfinance）：快照指标条（市值/P-E/净利率）置于 **K 线上方**；K 线下方 **财报分析** 历史趋势表（营收/增长/净利/净利率/EPS/FCF，**季度（默认）/ 年度可切**、最新在右、横向可滚，关键行默认显示、「更多指标」展开，带财报链接；同比口径）。**自选分区去重**：同层同名幂等。**折叠组件**：统一 `components/Collapse.tsx`（grid `0fr↔1fr`，避开 Tailwind `.collapse` 撞名 + motion 失效坑——见 [docs/memory/frontend-gotchas.md](docs/memory/frontend-gotchas.md)），无折叠小三角。**M2「研 · 单股深度研究」**（`research/`，详见 [ADR-0009](docs/decisions/0009-research-pillar-single-stock.md)）：`gather(symbol)` 收集 Augur **已有确定性数据**（价格摘要 1y + 基本面快照 + 季度财报趋势 + 已清洗个股新闻 + SEC 申报）并给**编号引用源**（新闻+申报各带 `[n]`）→ `_format_data` 拼事实块 → **deep_research 角色（长上下文模型）SSE 流式** Markdown 报告 → 落库 `research_reports`（一股一份、重生成覆盖、`ON CONFLICT(symbol)`）。报告结构（提示词 `resources/prompts/research_stock.md`，由 4-agent 设计 workflow 三视角合成）：**一句话结论 → 多空核心看点 → 近期催化与动态（重心）→ 基本面与估值 → 财务趋势 → 多空逻辑 → 风险与不确定性 → 来源**；八条**防幻觉铁律**（只用所给数据、不编造数字、不假装有网络/分析师预期/估值模型/目标价、事实 vs 推断对冲、内联 `[n]` 引用）。`GET /research/stock`（404=暂无）+ `POST /research/stock/generate`（SSE，check_ready deep_research）。前端「研」Tab = `ResearchView`（选标的→生成→流式渲染**自写轻量 Markdown**：`##` 标题/`>` 引用块/`-` 列表/`|表格|`/`[n]` 上标**可点跳来源 url**/重新生成/空态引导，非投资建议）。**口径同 §11**：只综合本地已有数据、暂不引入实时网络（列为下一步增强）、暴露不确定性。真机验证 US:NVDA 端到端（含财务表 + 12 条带 url 引用 + 诚实点出数据盲区）。**M3「知」**（详见 [ADR-0005](docs/decisions/0005-news-classification-translation-opportunities.md)）：`news/` **并发** RSS 摄取（feedparser，**~90 个一手为主的顶级源**＝央行/监管/官方经济数据/公司新闻室·IR/官方研究博客 > 精英二手；`resources/sources/feeds.yaml`：AI/芯片/航天/机器人/科技/宏观/中/韩，近 30 天过滤、url 去重落 SQLite；个股级一手走 `edgar.py` 不在此清单）→ **主题分类**（规则 `classify.py`+`themes.yaml`，10 主题含 macro 宏观/政策，ASCII 词边界匹配）→ **标题翻译**（en/ko→zh，cheap 角色批量缓存 `title_zh`，隐私优先不用 DeepL）→ **趋势日报**（summarize，按主题分组喂 prompt，SSE 流式落库）+ **今日投资机会**（两阶段防幻觉：LLM 给「名+市场」→ `market.search` 接地真实 `MARKET:CODE` + 交叉自选高亮，落 `news_opportunities`）。**APScheduler 每日 07:30** 抓取+翻译+生成。前端**「知」Tab** = **三层 Miller 纵向导航**（主人反馈：新闻/推特本就是构建「每日结论」的组件，不该与之平级）：rail 一级＝**资讯 / 个股**（原「总览」与「资讯/今天/总结」重复，已合并掉，**资讯即落地页**，默认 今天/总结）；**个股**→二级标的列（叙事）；**资讯**→二级**日期**（今天置顶）+ 三级**总结 / 新闻 / 推特**（以后可加 reddit/雪球…）。`资讯·某天·总结` = 那天蒸馏的结论（趋势日报+要事 Top3+机会；看今天时顶部加「自上次以来」增量）；`资讯·某天·新闻/推特` = 那天的原始信源，**主题/账号分类做舞台内 chips 过滤** + 时间线/要点切换（不再占导航层）。列数 `.layout.know-2/3/4`（总览 2 / 个股 3 / 资讯 4）。后端 `items_for_day(day, theme, source_prefix, category)` 支持按天 + 主题/推特/分类过滤；`/news/feed?day=`、`/news/clusters?date=` 按天取。store＝`primary/stockSym/infoDate/infoSection`；`features/news/{NewsNav,consts,KnowView,store}.tsx`。**噪音过滤两层**：① `filter.py` 规则滤纯盘面/价格波动（摄取时，留基本面/宏观/风险信号）；② `relevance.py` **cheap 小模型批量判投资相关性（从严）**（丢娱乐/消费/生活/**标题党/清单体/泛泛展望/无驱动纯涨跌**，存 `relevance` 列 0未判/1留/2弃；feed/日报/机会只取 `relevance≠2`，refresh 时跑、失败不阻断）——从严实测 400 判/137 弃。**日报与机会改喂当天全部新闻**（`items_for_day` 按主人时区，不再只取最近 N 条；模型长上下文吃得下）；**今日要闻按天归类**（今天/昨天/日期）。个股「相关资讯」另有 LLM 清洗（见下）。**信源精简**、**信源精简**（韩源砍到 1=The Elec，聚焦美股+国内；库随 feeds.yaml 自愈）、**个股「相关资讯」**（看 K 线页一段，`/news/for` = **雅虎逐-ticker 新闻 API**（`ticker_news.py`，yfinance `.news` 覆盖四市场、按 ticker 直取该公司新闻）**∪** 聚合流按公司名匹配，url 去重、时间倒序，再经 **cheap LLM 清洗**（`stock_news_clean.md`：去标题党/无关、译非中文为中文、去重，缓存 1h）、失败降级）。**个股一手「一条龙」起步**（`edgar.py`：美股 SEC EDGAR ticker→CIK→submissions、高信号表单白名单 + 8-K 事项码**确定性中文标签**、6h 缓存/可配 UA/≤10 req/s；`GET /news/official`，`edgar.py`+端点后端保留备 `research/` 深读——**K 线页 UI 段按主人反馈移除**（一般不看）；详见 [ADR-0006](docs/decisions/0006-first-hand-sources-edgar-x.md)）。**设置 v2**（[ADR-0008](docs/decisions/0008-settings-v2-dynamic-llm-connections.md)）：**多页**（左栏导航 外观/模型/数据信源，`store.settingsPage`）+ **Anthropic 风格行**；**LLM 改为可动态增删的连接列表**（`{name,base_url,api_key,model}`，一律 OpenAI 兼容；角色→连接 指派；**测试连接**按钮；首次自动从 `.env` 迁移），`runtime_config`＋`/settings/llm/*`＋`/settings/secret`，落 gitignored `data/config.local.json`、即时生效、脱敏、guard；信源注册表 `news/source_registry.py` 带**支付方式徽标**（微信/支付宝优先，见 [docs/memory/payment-methods-sources.md](docs/memory/payment-methods-sources.md)）。**信源三类重组（财经/新闻/论坛）+ 候选源可行性**（5-agent 调研，ADR-0007 第 5 节）：注册表每条加 `group`+`cred`、删冗长 note、加 `market_data`/`feeds_rss` 聚合行（RSS 动态计数），前端按三类独立 Section 渲染。**财经**=行情栈(FDR·akshare·yfinance·pykrx 已接)+候选 Tushare/必盈/iTick(登记留槽，已被免费栈覆盖)；**新闻**=RSS聚合+Bloomberg+财联社+东财+**X(twtapi)**；**论坛**=雪球(留槽，标注「需登录·泄持仓」)。**Twitter 桥改选 twtapi**（`TWTAPI_KEY`；原 TwitterAPI.io 需国际卡主人办不了，twtapi 有免费试用+月付）。候选 5 源均「先登记留槽、不写适配器」由主人定夺（行情类被现有免费栈覆盖且增隐私面、雪球泄持仓违 §11）。**Bloomberg 科技/市场免费 RSS** + **财联社科创电报**（`cls.py`，sign=MD5(SHA1(qs))）+ **东财关键词资讯**（`eastmoney_news.py`，JSONP）三个免费源已接入（后两者为非 RSS 适配器，并发并入 `ingest_all`、`source` 名经 prune **豁免**）；核查主人朋友清单后**按其意见移除太贵源**（Reuters/LSEG、万得 Wind、同花顺 iFinD、东财 Choice），极廉的 X 待配 key（详见 [ADR-0007](docs/decisions/0007-api-config-and-source-feasibility.md)）。**看·K 线下方模块（财报/相关资讯/判断日记）可拖拽重排**（dnd-kit + 持久化 `kanOrder`，手柄在模块**标题左侧 gutter**、hover 浮现）；**分区名双击重命名**（见 §8，防分叉）；**设置页卡片网格**（填满舞台宽度、按钮内联；二选段控等宽对称）。真机验证、零控制台错、ruff+tsc+build 全过。
-- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /news /research /settings /health`）。LLM 需 `backend/.env`（见 `.env.example`，**密钥永不入库**）。
+- **「记」（第 4 支柱，新）：** `notes/`（schemas/service/router）+ `notes` 表（title/body/pinned/时间戳）。`GET/POST /notes`、`GET/PATCH/DELETE /notes/{id}`。前端「记」Tab＝左栏 `NotesNav`（列表：置顶在前 + 预览 + 相对时间 +「＋新建」）＋主舞台 `NotesView`（标题 + 正文 编辑/预览 切换 + 置顶/删除 + **防抖 700ms 自动保存**带「已保存/未保存/保存中」状态）。**与个股无关的自由长文**（市场随想/方法论/复盘思考）；区别于 journal/imported_reports（均绑定个股）。store＝`features/notes/store.ts`（selectedId，非持久）。**共享 Markdown 组件** `components/Markdown.tsx`（`##`/`#`/`>`/`-`/`|表格|`/`[n]` 可点引用）——研/导入研报/记 共用，取代各处手写解析（导入研报因此获得表格/链接支持）。
+- **夜间全面优化（10 领域审计→实现，见 [docs/roadmap.md](docs/roadmap.md)）：** 后端稳健性（SQLite WAL+busy_timeout、**token 用量落库** `/llm/usage`、EDGAR 缓存 TTL、财联社失败正确记健康度、**A股北交所 BSE 解析** `symbols.cn_exchange`、个股资讯词边界去误配、relevance 积压改 ASC、调度补「今日机会」、SSE 防代理缓冲头+错误帧收尾、CORS 任意本地端口、web_search 仅注入研/对话角色）；前端（**SSE 错误吞噬修复** `consumeSSE`、`HttpError.status` 判 404 空态、全局 `ErrorBoundary`、`MotionConfig reducedMotion`、细粒度 `useUI` selector 修拖栏重渲染、**K 线蜡烛半透明蜡笔纸感**、平盘态、报价新鲜度标注、基本面/财报「失败≠无数据」、研报常驻「非投资建议」免责、`--measure` 行宽、齿轮右对齐、`#fff`→`--accent-ink`）。
+- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /news /research /notes /settings /health`）。LLM 需 `backend/.env`（见 `.env.example`，**密钥永不入库**）。
 - **知·个股（融合主线，已落地）：** `news_items.lane`（`feed` RSS策展流 / `ticker` 自选股定向抓取）。**①定向抓取** `directed.py`：每只自选股按 ticker 直取雅虎新闻、落 `lane='ticker'` 并**确定性挂钩**（`matched_by='targeted'`），补齐新上市/冷门票名字盲区；全局流/日报/要点/翻译/相关性**只扫 `lane='feed'`**、prune 豁免定向源（28 股不淹宏观流）；`POST /news/directed/refresh`＋并入 scheduler。**②标的叙事** `stock_narratives`＋`generate_narrative`：近 45 天挂钩资讯喂 summarize → `{summary 主线, timeline[{date,title,importance,refs}]}`、事件提炼合并、refs 接真实条目、防幻觉；`GET/POST /news/narrative`、`GET /news/stock`；前端**「知」新增一级「个股」**（二级=自选股列表、主舞台=综述+左轴时间线+抓取/重生成+资讯流）。提示词 `stock_narrative.md`。**③机会卡直通研** `store.research(symbol)`＋机会卡关联 chip 拆分胶囊「名字→看 · 研→研」。**④晨读 Top3**：总览 hero「晨读 · 今日要事」复用 news@1d 要点前 3、scheduler 每日预生成。**⑤「自上次以来」** `useUI.lastSeenNewsAt`（持久化）+ `markNewsSeen`：总览列出打卡基准后的新条目（确定性零 LLM）。融合主线队列 ①–⑦ 全落地。
 - **下一步：** M3 续——**X(twtapi) 已接入**（`news/twtapi.py`，screen_name→rest_id→GraphQL 时间线，归一进 `ingest_all`，账号清单 `resources/sources/x_accounts.yaml`，英文推文经 translate 自动翻中；见 ADR-0007 §5）、雪球/Tushare 等候选源适配器待主人定夺、个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、日报/机会按**自选分区**聚合、信源健康度；M2「研」续——深度增强：接**实时网络搜索 / Deep Research**（多轮检索→综合）、按**自选分区**批量研究、报告版本历史、财报分析面板回归 AI 解读。
 - 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。

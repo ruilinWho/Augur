@@ -1065,6 +1065,72 @@ export function useReorderImported() {
   })
 }
 
+// ───────────────────────── 「记」· 自由长文笔记（第 4 支柱）─────────────────────────
+const noteMetaSchema = z.object({
+  id: z.number(),
+  title: z.string().default(''),
+  preview: z.string().default(''),
+  pinned: z.boolean().default(false),
+  created_at: z.string().nullable().default(null),
+  updated_at: z.string().nullable().default(null),
+})
+const noteSchema = z.object({
+  id: z.number(),
+  title: z.string().default(''),
+  body: z.string().default(''),
+  pinned: z.boolean().default(false),
+  created_at: z.string().nullable().default(null),
+  updated_at: z.string().nullable().default(null),
+})
+export type NoteMeta = z.infer<typeof noteMetaSchema>
+export type Note = z.infer<typeof noteSchema>
+
+export function useNotes() {
+  return useQuery({
+    queryKey: ['notes'],
+    queryFn: async () => z.array(noteMetaSchema).parse(await getJSON('/notes')),
+  })
+}
+
+export function useNote(id: number | null) {
+  return useQuery({
+    enabled: id != null,
+    queryKey: ['note', id],
+    queryFn: async () => noteSchema.parse(await getJSON(`/notes/${id}`)),
+  })
+}
+
+export function useCreateNote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { title?: string; body?: string }) =>
+      noteSchema.parse(await send('/notes', 'POST', { title: v.title ?? '', body: v.body ?? '' })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+  })
+}
+
+export function useUpdateNote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; title?: string; body?: string; pinned?: boolean }) =>
+      noteSchema.parse(
+        await send(`/notes/${v.id}`, 'PATCH', { title: v.title, body: v.body, pinned: v.pinned }),
+      ),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['notes'] })
+      qc.setQueryData(['note', data.id], data)
+    },
+  })
+}
+
+export function useDeleteNote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => send(`/notes/${id}`, 'DELETE'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+  })
+}
+
 // ── 数据信源「测试」（轻量真实探活）──
 export type SourceTestResult = {
   ok: boolean

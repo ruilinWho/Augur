@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type View = 'kan' | 'yan' | 'zhi' | 'set'
+export type View = 'kan' | 'yan' | 'zhi' | 'ji' | 'set'
 export type Market = 'ALL' | 'US' | 'HK' | 'CN' | 'KR'
 export type Theme = 'light' | 'dark'
 export type DisplayFont = 'serif' | 'sans'
