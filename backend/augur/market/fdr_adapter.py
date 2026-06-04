@@ -30,7 +30,11 @@ class FdrAdapter(MarketAdapter):
 
     def get_ohlcv(self, sym: Symbol, start: str, end: str | None) -> pd.DataFrame:
         native = self.to_native(sym)
-        df = fdr.DataReader(native, start, end)
+        try:
+            df = fdr.DataReader(native, start, end)
+        except NotImplementedError:
+            # FDR 暂不支持的交易所（如北交所 BSE）→ 优雅降级为空（前端显「暂无数据」而非 500）
+            return pd.DataFrame(columns=OHLCV_COLUMNS)
         if df is None or df.empty:
             return pd.DataFrame(columns=OHLCV_COLUMNS)
         df = df.rename(
