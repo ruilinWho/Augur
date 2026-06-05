@@ -110,11 +110,17 @@ SOURCES: list[dict] = [
         "payment": "免费·需登录",
         "note": "社区情绪·需登录",
         "secret_label": "完整 Cookie header",
-        "secret_placeholder": "xq_a_token=...; u=...; xq_r_token=...; device_id=...",
-        "secret_help": "从浏览器 Network 里的请求复制整段 Cookie header；不要只复制某一个值。",
+        "secret_placeholder": (
+            "xq_a_token=...; u=...; acw_sc__v2=...; "
+            "xq_r_token=...; device_id=..."
+        ),
+        "secret_help": (
+            "从浏览器 Network 里某个 xueqiu.com 请求复制整段 Cookie header；"
+            "不要从 Application/Cookies 逐项拼，若有 acw_sc__v2 必须保留。"
+        ),
         "setup": (
             "轻量测试会访问讨论搜索 JSON；请从浏览器请求复制完整 Cookie header 到 "
-            "XUEQIU_TOKEN，至少包含 xq_a_token 和 u。"
+            "XUEQIU_TOKEN，至少包含 xq_a_token 和 u；若请求里有 acw_sc__v2 也要保留。"
         ),
         "best_use": "关注大 V、按个股/关键词追踪讨论，适合 A/H/中概社区情绪和反证线索。",
         "boundary": "登录 Cookie 会失效且暴露账号足迹；当前只接入内容探活，未并入自动抓取。",

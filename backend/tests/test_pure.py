@@ -130,7 +130,19 @@ def test_source_test_diagnostics_are_user_facing():
     assert (
         source_test.diagnose_problem("xueqiu", RuntimeError("雪球返回了风控网页壳，不是 JSON。"))
         == "雪球：返回了风控网页，不是内容 JSON。请从浏览器请求复制完整 Cookie "
-        "header，至少包含 xq_a_token 和 u；只填 xq_a_token 的值通常不够。"
+        "header，至少包含 xq_a_token、u；若有 acw_sc__v2、xq_r_token、device_id 也一并保留。"
+    )
+    assert (
+        source_test.diagnose_problem(
+            "xueqiu",
+            RuntimeError(
+                "雪球返回了风控网页壳，不是 JSON。这段 Cookie 已有登录 token，"
+                "但缺少 acw_sc__v2 等风控 Cookie。"
+            ),
+        )
+        == "雪球：返回了风控网页，不是内容 JSON。这段 Cookie 已有登录 token，"
+        "但缺少 acw_sc__v2 等风控 Cookie；请在浏览器 Network 里复制某个 "
+        "xueqiu.com 请求的完整 Cookie header，不要从 Application/Cookies 逐项拼。"
     )
 
 
@@ -178,3 +190,4 @@ def test_xueqiu_cookie_normalization():
         "u",
         "device_id",
     ]
+    assert "缺少 acw_sc__v2" in xueqiu._waf_message({"xq_a_token", "u", "device_id"})

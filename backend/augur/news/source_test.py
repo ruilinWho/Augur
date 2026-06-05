@@ -99,10 +99,16 @@ def diagnose_problem(source_id: str, exc: Exception) -> str:
         return f"{name}：没有配置凭证或账号，请先填写后再测试。"
     if "待接入" in msg or "未接入" in msg or "适配器" in msg:
         return f"{name}：还没有接入抓取适配器。"
+    if source_id == "xueqiu" and ("acw_sc__v2" in msg or "风控 Cookie" in msg):
+        return (
+            "雪球：返回了风控网页，不是内容 JSON。这段 Cookie 已有登录 token，"
+            "但缺少 acw_sc__v2 等风控 Cookie；请在浏览器 Network 里复制某个 "
+            "xueqiu.com 请求的完整 Cookie header，不要从 Application/Cookies 逐项拼。"
+        )
     if "风控网页壳" in msg or "不是 JSON" in msg or "完整 Cookie" in msg:
         return (
             f"{name}：返回了风控网页，不是内容 JSON。请从浏览器请求复制完整 Cookie "
-            "header，至少包含 xq_a_token 和 u；只填 xq_a_token 的值通常不够。"
+            "header，至少包含 xq_a_token、u；若有 acw_sc__v2、xq_r_token、device_id 也一并保留。"
         )
     if "月度调用额度已用完" in msg or "monthly call limit" in lower:
         return f"{name}：月度额度已用完，需要等额度重置、升级套餐或更换 key。"

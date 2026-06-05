@@ -20,6 +20,7 @@ _QUOTE = "https://stock.xueqiu.com/v5/stock/quote.json"
 _TIMEOUT = 15.0
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9._~-]{16,}$")
 _WAF_MARKERS = ("_waf_", "renderData", "acw_sc__", "window.__NUXT__")
+_WAF_COOKIE = "acw_sc__v2"
 
 
 class XueqiuError(RuntimeError):
@@ -82,7 +83,23 @@ def _looks_like_waf(text: str) -> bool:
     return "<html" in low or "<textarea" in low or any(m.lower() in low for m in _WAF_MARKERS)
 
 
-def _json(resp: httpx.Response) -> dict:
+def _waf_message(names: set[str]) -> str:
+    if {"xq_a_token", "u"}.issubset(names) and _WAF_COOKIE not in names:
+        return (
+            "雪球返回了风控网页壳，不是 JSON。这段 Cookie 已有登录 token，但缺少 "
+            "acw_sc__v2 等风控 Cookie；请在浏览器打开雪球并确认页面正常显示后，"
+            "从 Network 里某个 xueqiu.com 请求复制完整 Cookie header，不要从 "
+            "Application/Cookies 逐项拼。"
+        )
+    return (
+        "雪球返回了风控网页壳，不是 JSON。通常是 Cookie 不完整；请复制浏览器请求里的"
+        "完整 Cookie header，至少包含 xq_a_token、u，若有 acw_sc__v2、"
+        "xq_r_token、device_id 也一并保留。"
+    )
+
+
+def _json(resp: httpx.Response, names: set[str] | None = None) -> dict:
+    names = names or set()
     if resp.status_code in (401, 403):
         raise XueqiuCookieError(f"雪球登录 Cookie 无效或已过期（HTTP {resp.status_code}）。")
     if resp.status_code == 429:
@@ -91,17 +108,12 @@ def _json(resp: httpx.Response) -> dict:
     text = resp.text or ""
     ctype = resp.headers.get("content-type", "")
     if "json" not in ctype.lower() and _looks_like_waf(text):
-        raise XueqiuWafError(
-            "雪球返回了风控网页壳，不是 JSON。通常是 Cookie 不完整；请复制浏览器请求里的"
-            "完整 Cookie header，至少包含 xq_a_token 和 u，若有 xq_r_token/device_id 也一并保留。"
-        )
+        raise XueqiuWafError(_waf_message(names))
     try:
         data = resp.json()
     except json.JSONDecodeError as e:
         if _looks_like_waf(text):
-            raise XueqiuWafError(
-                "雪球返回了风控网页壳，不是 JSON；请改填完整 Cookie header。"
-            ) from e
+            raise XueqiuWafError(_waf_message(names)) from e
         raise XueqiuError("雪球接口返回格式变了，需要更新适配器。") from e
     if not isinstance(data, dict):
         raise XueqiuError("雪球接口返回格式变了，需要更新适配器。")
@@ -149,7 +161,7 @@ def ping() -> tuple[int, str]:
         # 先访问首页，让雪球补辅助 cookie；不读取页面内容。
         client.get(_HOME)
         # 行情接口通常较宽松，只作为网络/基础 Cookie 热身，不代表论坛内容可用。
-        _json(client.get(_QUOTE, params={"symbol": "SH600519", "extend": "detail"}))
+        _json(client.get(_QUOTE, params={"symbol": "SH600519", "extend": "detail"}), names)
         data = _json(
             client.get(
                 _SEARCH,
@@ -162,6 +174,7 @@ def ping() -> tuple[int, str]:
                     "hl": 0,
                     "comment": 0,
                 },
-            )
+            ),
+            names,
         )
     return _search_count(data), note
