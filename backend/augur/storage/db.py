@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS news_clusters (
 );
 
 -- 每股专属信源画像（M3「知·个股」）：LLM（最好联网）调研出某股该看哪些源 → 你策展 mark。
--- 每只股一套、各不相同（官网/IR/官方X/大V/Reddit/雪球/财经站）。enabled 由作者拍板。
+-- 每只股一套、各不相同（官网/IR/官方X/大V/Reddit/财经站）。enabled 由作者拍板。
 CREATE TABLE IF NOT EXISTS stock_sources (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol      TEXT    NOT NULL,                  -- MARKET:CODE

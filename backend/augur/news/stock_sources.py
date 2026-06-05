@@ -1,7 +1,7 @@
 """每股专属信源画像（CLAUDE.md §1 三支柱融合 · 知·个股）。
 
 作者想法「组件化信源」：对某只股，先用 LLM（最好**联网**，如 Qwen/Deep Research）调研「该看哪些
-重要信源」（官网/IR/官方X/大V/Reddit/雪球/财经站），存为**待确认候选**，作者逐个
+重要信源」（官网/IR/官方X/大V/Reddit/财经站），存为**待确认候选**，作者逐个
 mark（启用/增删）。启用的源会喂给定向抓取 lane（X→twtapi、Reddit→public JSON、
 RSS/Atom→feedparser），汇入该股叙事与「看·相关资讯」。每只股一套、各不相同。
 

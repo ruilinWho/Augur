@@ -1,24 +1,24 @@
-# 雪球信源 Cookie 与风控
+# 雪球信源 —— 已退役（不要再尝试接入）
 
-日期：2026-06-05。
+日期：2026-06-06 退役（原 Cookie/风控记录：2026-06-05）。
 
-## 结论
+## 结论：雪球已从 Augur 整体移除
 
-- 雪球没有稳定公开内容 API；Augur 只能走网页登录 Cookie 的非官方只读路径。
-- 作者本机第一次填入的是一个 40 位纯 token 值，不是完整 Cookie header；它可让部分公开行情接口返回 JSON，但讨论/搜索内容接口会返回 WAF 网页壳。
-- 第二次填入的 Cookie 已包含 `xq_a_token`、`u`、`xq_r_token`、`device_id`，但仍缺少浏览器通过主站风控后常见的 `acw_sc__v2`。本地探活结果：`stock.xueqiu.com` quote JSON 可达，`xueqiu.com` 首页/讨论搜索返回 `_waf_...` HTML，`stock.xueqiu.com` 新闻/搜索端点 403。结论：行情能通不等于内容源能通。
-- `backend/augur/news/xueqiu.py` 已兼容纯 token：没有 `=` 时自动当作 `xq_a_token=<value>`。但这通常不足以通过雪球内容风控。
-- 设置页测试必须打内容搜索 JSON，而不是只打宽松的行情接口；行情接口可达不代表论坛内容可达。
+作者实测确认**雪球的网页登录 Cookie 抓取已不可用**：风控墙（`acw_sc__v2` 等 WAF Cookie + `_waf_` 网页壳）会拦掉讨论/搜索内容 JSON。即便填入包含 `xq_a_token`、`u`、`xq_r_token`、`device_id` 的完整 Cookie header，也只能打通宽松的行情接口，打不通内容接口。雪球没有稳定的一手公共内容 API，唯一的非官方 Cookie 路线又被风控封死，因此 **2026-06-06 将雪球整体退役**。
 
-## 正确填写
+移除范围（单一真相，未来排查比对用）：
 
-- 推荐从浏览器 Network 里复制请求的完整 `Cookie` header，填入 `XUEQIU_TOKEN`。
-- 至少应包含 `xq_a_token` 和 `u`；若同一请求里有 `acw_sc__v2`、`xq_r_token`、`device_id`、`s` 等辅助 cookie，也一并保留。
-- 设置页的雪球输入框应显示为“完整 Cookie header”，placeholder 直接给出 `xq_a_token=...; u=...; acw_sc__v2=...; xq_r_token=...; device_id=...`，避免误导作者只填某个 token 值。
-- 不要从浏览器 Application/Cookies 页逐项拼 Cookie；要从 Network 里某个真实 `xueqiu.com` 请求复制请求头里的整段 `Cookie`。如果页面刚被风控拦截，先在浏览器里正常打开雪球并通过挑战，再复制。
-- 不要在日志、提交或文档里打印 cookie 原文。
+- 删适配器 `backend/augur/news/xueqiu.py`。
+- `news/source_registry.py`：移除 `xueqiu` 信源条目、config getters、`XUEQIU_TOKEN` 配置槽（保留一行退役说明注释）。
+- `news/source_test.py`：移除探活分支与雪球专用 WAF 诊断。
+- 前端：`consts.ts`（`SourceLaneId`/`INFO_SECTIONS`/`SOURCE_LANES`）与 `store.ts`（`InfoSection`）移除「雪球」资讯 lane。
+- `backend/.env.example` 去 `XUEQIU_TOKEN`；`backend/tests/test_pure.py` 去雪球测试。
+- 每股专属信源（`stock_sources.py` / `storage/db.py` 注释 / `resources/prompts/stock_sources.md`）举例不再提雪球，避免 LLM 给某股推荐抓不到的雪球页。
 
-## 产品边界
+## 为什么不要再接
 
-- 轻量测试只验证讨论搜索 JSON 可达，不读取持仓、组合或个人隐私接口。
-- 在自动抓取关注用户/关键词前，需要再做限流、失败退避、账号隐私提示和源健康记录。
+- 行情接口可达 ≠ 内容源可达：`stock.xueqiu.com` 的 quote JSON 能通，但 `xueqiu.com` 首页/讨论搜索返回 `_waf_...` HTML、内容搜索端点 403。
+- Cookie 路线会绑定作者真实账号足迹、token 周级失效（违 §11 隐私/可追溯精神），赌风控不是稳定能力。
+- 若未来要重新接入，门槛是**雪球官方/合规的内容接口**，而不是再赌 Cookie 风控。除非作者明确要求，否则不要重建 Cookie 抓取。
+
+A/H/中概的社区情绪与反证线索，短期改用其他已接入 lane（Reddit、X）覆盖。

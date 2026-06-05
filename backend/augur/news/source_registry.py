@@ -5,8 +5,8 @@
 免费已接的内置栈（行情数据、RSS 聚合）以只读聚合行呈现；需 key/token 的源留配置槽。
 
 候选源可行性调研结论见 ADR-0007/0012。Tushare/必盈/iTick 曾作为候选行情源登记，
-但作者要求从设置页移除；Reddit 已用 public JSON 接入；雪球/小红书属登录型或不稳定
-抓取源，先登记配置槽与 UI lane，不伪装已接入。
+但作者要求从设置页移除；雪球登录 Cookie 抓取已失效、随之退役；Reddit 已用
+public JSON 接入；小红书属登录型/不稳定抓取源，先登记配置槽与 UI lane，不伪装已接入。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
@@ -99,37 +99,6 @@ SOURCES: list[dict] = [
     },
     # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
     {
-        "id": "xueqiu",
-        "name": "雪球",
-        "group": "forum",
-        "access": "free_api",
-        "key_env": "XUEQIU_TOKEN",
-        "cred": "token",
-        "key_url": "https://xueqiu.com/",
-        "docs_url": "https://pypi.org/project/pysnowball/",
-        "payment": "免费·需登录",
-        "note": "社区情绪·需登录",
-        "secret_label": "完整 Cookie header",
-        "secret_placeholder": (
-            "xq_a_token=...; u=...; acw_sc__v2=...; "
-            "xq_r_token=...; device_id=..."
-        ),
-        "secret_help": (
-            "从浏览器 Network 里某个 xueqiu.com 请求复制整段 Cookie header；"
-            "不要从 Application/Cookies 逐项拼，若有 acw_sc__v2 必须保留。"
-        ),
-        "setup": (
-            "轻量测试会访问讨论搜索 JSON；请从浏览器请求复制完整 Cookie header 到 "
-            "XUEQIU_TOKEN，至少包含 xq_a_token 和 u；若请求里有 acw_sc__v2 也要保留。"
-        ),
-        "best_use": "关注大 V、按个股/关键词追踪讨论，适合 A/H/中概社区情绪和反证线索。",
-        "boundary": "登录 Cookie 会失效且暴露账号足迹；当前只接入内容探活，未并入自动抓取。",
-        "config": [
-            {"field": "accounts", "type": "accounts", "label": "关注用户"},
-            {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
-        ],
-    },
-    {
         "id": "reddit",
         "name": "Reddit",
         "group": "forum",
@@ -169,8 +138,8 @@ SOURCES: list[dict] = [
     },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
-#   覆盖且增隐私外泄；作者已要求从设置页移除。雪球需周级失效的
-#   登录 token 且把持仓查询绑真实账号泄露（违 §11），故只登记配置槽、由作者定夺。
+#   覆盖且增隐私外泄；作者已要求从设置页移除。雪球的登录 Cookie 抓取已失效（风控墙
+#   拦内容 JSON），2026-06-05 退役、从设置页与探活注册中移除。
 #   **Twitter 桥选 twtapi**（而非 TwitterAPI.io）：作者无国际银行卡、付不了
 #   TwitterAPI.io，twtapi 有免费试用+月付套餐，故采 twtapi。已移除太贵源见 ADR-0007。
 
@@ -189,8 +158,6 @@ _CONFIG_VALUE = {
     ),
     ("eastmoney_news", "keywords"): eastmoney_news.keywords,
     ("reddit", "subreddits"): reddit.subreddits,
-    ("xueqiu", "accounts"): lambda: runtime_config.get_source_config("xueqiu", "accounts", []),
-    ("xueqiu", "keywords"): lambda: runtime_config.get_source_config("xueqiu", "keywords", []),
     ("xiaohongshu", "accounts"): lambda: runtime_config.get_source_config(
         "xiaohongshu", "accounts", []
     ),

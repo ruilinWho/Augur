@@ -21,7 +21,7 @@
 - `official_x` 公司**官方** X 账号
 - `influencer_x` 深耕这只股的**关键 X 大V**（分析师、行业记者、可信投资者）
 - `reddit` 相关子版（如 `r/NVDA_Stock`、`r/wallstreetbets` 的相关讨论）
-- `forum` 雪球个股页 / Stocktwits 等论坛
+- `forum` Stocktwits 等股票论坛
 - `fin_site` 重点财经/分析站（Seeking Alpha 作者页、专业站点）
 
 硬规则（违反即失败）：

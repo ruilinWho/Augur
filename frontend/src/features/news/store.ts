@@ -13,7 +13,6 @@ export type InfoSection =
   | 'news'
   | 'twitter'
   | 'reddit'
-  | 'xueqiu'
   | 'xiaohongshu'
 
 interface NewsState {

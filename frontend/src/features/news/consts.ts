@@ -7,7 +7,7 @@ export const PRIMARIES: { id: NewsPrimary; label: string }[] = [
   { id: 'stocks', label: '个股' },
 ]
 
-export type SourceLaneId = 'news' | 'twitter' | 'reddit' | 'xueqiu' | 'xiaohongshu'
+export type SourceLaneId = 'news' | 'twitter' | 'reddit' | 'xiaohongshu'
 
 // 资讯第三层：某天的「总结 / 决策」+ 构成它的原始信源。
 export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
@@ -16,7 +16,6 @@ export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
   { id: 'news', label: '新闻' },
   { id: 'twitter', label: '推特' },
   { id: 'reddit', label: 'Reddit' },
-  { id: 'xueqiu', label: '雪球' },
   { id: 'xiaohongshu', label: '小红书' },
 ]
 
@@ -63,6 +62,5 @@ export const SOURCE_LANES: Record<
   news: { label: '新闻', filters: THEMES, live: true },
   twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, live: true },
   reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, live: true },
-  xueqiu: { label: '雪球', sourcePrefix: '雪球·', filters: FORUM_CATS, live: false },
   xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, live: false },
 }

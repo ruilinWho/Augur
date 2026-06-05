@@ -13,7 +13,7 @@ import pytest
 from augur.market import search
 from augur.market.fundamentals import _growth, _period_label, _yahoo_symbols
 from augur.market.symbols import cn_exchange, parse_symbol
-from augur.news import edgar, source_test, stock_sources, xueqiu
+from augur.news import edgar, source_test, stock_sources
 from augur.news.grounding import simplify as _simplify
 from augur.news.service import _norm_url, _parse_json_lenient
 from augur.settings_router import _llm_key_url
@@ -127,23 +127,6 @@ def test_source_test_diagnostics_are_user_facing():
         )
         == "X：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
     )
-    assert (
-        source_test.diagnose_problem("xueqiu", RuntimeError("雪球返回了风控网页壳，不是 JSON。"))
-        == "雪球：返回了风控网页，不是内容 JSON。请从浏览器请求复制完整 Cookie "
-        "header，至少包含 xq_a_token、u；若有 acw_sc__v2、xq_r_token、device_id 也一并保留。"
-    )
-    assert (
-        source_test.diagnose_problem(
-            "xueqiu",
-            RuntimeError(
-                "雪球返回了风控网页壳，不是 JSON。这段 Cookie 已有登录 token，"
-                "但缺少 acw_sc__v2 等风控 Cookie。"
-            ),
-        )
-        == "雪球：返回了风控网页，不是内容 JSON。这段 Cookie 已有登录 token，"
-        "但缺少 acw_sc__v2 等风控 Cookie；请在浏览器 Network 里复制某个 "
-        "xueqiu.com 请求的完整 Cookie header，不要从 Application/Cookies 逐项拼。"
-    )
 
 
 def test_source_test_diagnostics_for_http_status():
@@ -180,14 +163,3 @@ def test_stock_source_ref_parsing():
     assert stock_sources._subreddit("https://www.reddit.com/r/NVDA_Stock/new/") == "NVDA_Stock"
     assert stock_sources._feed_url("https://example.com/feed.xml") == "https://example.com/feed.xml"
     assert stock_sources._feed_url("https://x.com/nvidia") == ""
-
-
-def test_xueqiu_cookie_normalization():
-    assert xueqiu.cookie_header("abcDEF1234567890xyz") == "xq_a_token=abcDEF1234567890xyz"
-    assert xueqiu.cookie_header("Cookie: xq_a_token=abc; u=123") == "xq_a_token=abc; u=123"
-    assert xueqiu.cookie_names("xq_a_token=abc; u=123; device_id=xyz") == [
-        "xq_a_token",
-        "u",
-        "device_id",
-    ]
-    assert "缺少 acw_sc__v2" in xueqiu._waf_message({"xq_a_token", "u", "device_id"})

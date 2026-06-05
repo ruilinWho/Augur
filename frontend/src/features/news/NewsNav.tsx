@@ -82,7 +82,7 @@ function DatesSub() {
   )
 }
 
-// ── 资讯三级：总结 / 新闻 / 推特（未来 + reddit/雪球…）──
+// ── 资讯三级：总结 / 决策 / 各信源 lane ──
 function SectionsSub() {
   const infoSection = useNews((s) => s.infoSection)
   const setInfoSection = useNews((s) => s.setInfoSection)

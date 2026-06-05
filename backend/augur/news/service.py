@@ -1002,8 +1002,8 @@ def _cluster_scope(
 ) -> str:
     """聚类范围 → 唯一 scope 串（存进 theme 列）。
 
-    旧实现把所有 `source_prefix` 都归为 `tw:*`，导致 Reddit/雪球/小红书要点可能读到
-    推特旧缓存。这里按真实 source lane 分 scope：news / src:Reddit / src:X / src:雪球 …
+    旧实现把所有 `source_prefix` 都归为 `tw:*`，导致 Reddit/小红书要点可能读到
+    推特旧缓存。这里按真实 source lane 分 scope：news / src:Reddit / src:X …
     """
     if source_prefix:
         base = f"src:{_scope_part(source_prefix)}:{_scope_part(category)}"
