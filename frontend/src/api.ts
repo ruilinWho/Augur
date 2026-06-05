@@ -982,6 +982,8 @@ export function useRefreshDirected() {
     onSuccess: (_d, symbol) => {
       // 指定股 → 只失效那只；全量刷新（一键里以 undefined 调）→ 失效整个 stock-news 前缀
       qc.invalidateQueries({ queryKey: symbol ? ['stock-news', symbol] : ['stock-news'] })
+      qc.invalidateQueries({ queryKey: symbol ? ['stock-news-brief', symbol] : ['stock-news-brief'] })
+      qc.invalidateQueries({ queryKey: symbol ? ['news-for', symbol] : ['news-for'] })
     },
   })
 }

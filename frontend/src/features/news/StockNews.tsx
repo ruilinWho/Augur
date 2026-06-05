@@ -1,20 +1,31 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import Collapse from '../../components/Collapse'
-import { useStockNewsBrief } from '../../api'
+import { useRefreshDirected, useStockNewsBrief, useStockSources } from '../../api'
 
 // 个股「相关资讯」：只呈现 AI 筛选后的摘要，不铺直接新闻列表。
 export default function StockNews({ symbol }: { symbol: string }) {
   const brief = useStockNewsBrief(symbol)
+  const refresh = useRefreshDirected()
+  const sources = useStockSources(symbol)
   const [open, setOpen] = useState(true)
   const data = brief.data
   const n = data?.source_count ?? 0
+  const enabledSources = (sources.data ?? []).filter((s) => s.enabled).length
   const hasBody = Boolean(data?.summary || data?.points.length || data?.risks.length)
+  const runRefresh = (e: MouseEvent) => {
+    e.stopPropagation()
+    refresh.mutate(symbol)
+  }
 
   return (
     <section className="stock-news">
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>相关资讯</h3>
         {n > 0 && <span className="feed-count">{n} 源</span>}
+        {enabledSources > 0 && <span className="feed-count stock-src-n">专属 {enabledSources}</span>}
+        <button className="btn btn-ghost jsm stock-news-refresh" onClick={runRefresh} disabled={refresh.isPending}>
+          {refresh.isPending ? '刷新中…' : '刷新'}
+        </button>
       </div>
       <Collapse open={open}>
         {brief.isLoading ? (

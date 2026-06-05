@@ -13,7 +13,7 @@ import pytest
 from augur.market import search
 from augur.market.fundamentals import _growth, _period_label, _yahoo_symbols
 from augur.market.symbols import cn_exchange, parse_symbol
-from augur.news import edgar, source_test
+from augur.news import edgar, source_test, stock_sources
 from augur.news.grounding import simplify as _simplify
 from augur.news.service import _norm_url, _parse_json_lenient
 from augur.settings_router import _llm_key_url
@@ -158,3 +158,12 @@ def test_llm_key_url_falls_back_to_base_origin():
         _llm_key_url({"name": "DeepSeek", "base_url": "https://api.deepseek.com"})
         == "https://platform.deepseek.com/api_keys"
     )
+
+
+def test_stock_source_ref_parsing():
+    assert stock_sources._x_handle("@nvidia") == "nvidia"
+    assert stock_sources._x_handle("https://x.com/nvidia/status/1") == "nvidia"
+    assert stock_sources._subreddit("r/NVDA_Stock") == "NVDA_Stock"
+    assert stock_sources._subreddit("https://www.reddit.com/r/NVDA_Stock/new/") == "NVDA_Stock"
+    assert stock_sources._feed_url("https://example.com/feed.xml") == "https://example.com/feed.xml"
+    assert stock_sources._feed_url("https://x.com/nvidia") == ""

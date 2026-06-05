@@ -169,12 +169,9 @@ def _walk_tweets(obj, out: list[dict], depth: int = 0) -> None:
     if depth > 40:
         return
     if isinstance(obj, dict):
-        if (
-            (obj.get("__typename") == "Tweet" and "rest_id" in obj)
-            or (
-                ("id" in obj or "tweet_id" in obj or "rest_id" in obj)
-                and ("text" in obj or "full_text" in obj)
-            )
+        if (obj.get("__typename") == "Tweet" and "rest_id" in obj) or (
+            ("id" in obj or "tweet_id" in obj or "rest_id" in obj)
+            and ("text" in obj or "full_text" in obj)
         ):
             out.append(obj)
         for v in obj.values():
@@ -284,6 +281,14 @@ def fetch_all(cutoff: datetime | None = None) -> list[dict]:
     if not _key():
         return []
     accs = accounts()
+    return fetch_accounts(accs, cutoff)
+
+
+def fetch_accounts(raw_accounts: list[dict], cutoff: datetime | None = None) -> list[dict]:
+    """拉给定 X 账号列表。供全局 X lane 与每股专属信源共用。"""
+    if not _key():
+        return []
+    accs = _norm_accounts(raw_accounts)
     if not accs:
         return []
     headers = {"X-API-Key": _key(), "User-Agent": _UA}

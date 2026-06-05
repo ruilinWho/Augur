@@ -3431,6 +3431,18 @@ input:focus:not(:focus-visible) {
   font-size: 0.72rem;
   color: var(--text-faint);
 }
+.stock-news .feed-count + .feed-count {
+  margin-left: 0;
+}
+.stock-src-n {
+  color: var(--accent);
+}
+.stock-news-refresh {
+  margin-left: 2px;
+  min-width: 58px;
+  justify-content: center;
+  white-space: nowrap;
+}
 .hl {
   display: flex;
   align-items: baseline;

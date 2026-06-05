@@ -288,8 +288,16 @@ def items_for_symbol(symbol: str, days: int = 0, limit: int = 60) -> list[dict]:
 
 
 def refresh_directed(symbols: list[str] | None = None) -> dict:
-    """触发自选股定向抓取（薄封装 directed lane）。"""
-    return directed.refresh_watchlist(symbols)
+    """触发个股定向抓取：雅虎逐 ticker + 已启用的每股专属信源。"""
+    from . import stock_sources
+
+    syms = symbols if symbols is not None else directed.watchlist_symbols()
+    base = directed.refresh_watchlist(syms)
+    custom = stock_sources.refresh_many(syms)
+    for sym in syms:
+        _stock_clean_cache.pop(sym, None)
+        _stock_brief_cache.pop(sym, None)
+    return {**base, "stock_sources": custom}
 
 
 def _stock_terms(symbol: str) -> list[str]:
@@ -415,8 +423,8 @@ def _clean_stock_news(symbol: str, items: list[dict]) -> list[dict]:
 
 
 def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
-    """个股相关新闻：雅虎逐-ticker API（更准、英文）∪ 聚合流按公司名匹配（中文翻译），
-    url 去重、时间倒序。API 走 ticker_news（失败/空则只剩聚合流，优雅降级）。
+    """个股相关新闻：雅虎逐-ticker API ∪ 持久化挂钩流 ∪ 聚合流按公司名匹配，
+    url 去重、时间倒序。持久化挂钩流包含每股专属信源、定向 lane 与 LLM/确定性挂钩条目。
     """
     out: list[dict] = []
     seen: set[str] = set()
@@ -442,6 +450,12 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
             }
         )
         nid -= 1
+    for it in items_for_symbol(symbol, days=45, limit=limit):
+        u = _norm_url(it["url"])
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(it)
     for it in _feed_matches(symbol, limit):
         u = _norm_url(it["url"])
         if u in seen:

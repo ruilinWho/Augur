@@ -104,8 +104,16 @@ def _fetch_subreddit(sub: str, cutoff: datetime | None) -> list[dict]:
 
 def fetch_reddit(cutoff: datetime | None = None) -> list[dict]:
     """Fetch configured subreddits. Per-subreddit failures are ignored."""
+    return fetch_subreddits(subreddits(), cutoff)
+
+
+def fetch_subreddits(raw_subreddits: list[str], cutoff: datetime | None = None) -> list[dict]:
+    """Fetch explicit subreddit list. Per-subreddit failures are ignored."""
     out: list[dict] = []
-    for sub in subreddits():
+    for raw in raw_subreddits:
+        sub = str(raw).strip().removeprefix("r/").strip("/")
+        if not _SUB_RE.match(sub):
+            continue
         try:
             out.extend(_fetch_subreddit(sub, cutoff))
         except Exception:
