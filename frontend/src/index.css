@@ -1822,7 +1822,11 @@ body.resizing * {
 /* 展开编辑：名称 + base_url + model + key 响应式网格 */
 .conn-fields {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr) minmax(150px, 1.2fr) minmax(180px, 1.5fr);
+  grid-template-columns:
+    minmax(140px, 1fr)
+    minmax(150px, 0.9fr)
+    minmax(150px, 1fr)
+    minmax(260px, 2.4fr);
   gap: 7px;
 }
 .conn-f-base {
@@ -1896,14 +1900,23 @@ body.resizing * {
   white-space: nowrap;
 }
 .src-keyrow {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px 70px;
   gap: 8px;
   align-items: center;
+  width: min(100%, 640px);
   margin-top: 10px;
-  max-width: 480px;
 }
 .src-keyrow .cfg-input {
-  flex: 1;
+  min-width: 0;
+}
+.src-action-btn {
+  width: 70px;
+  justify-content: center;
+}
+.src-action-spacer {
+  display: block;
+  width: 70px;
 }
 
 /* 信源可配置项（账户 / 关键词） */
@@ -2012,17 +2025,18 @@ body.resizing * {
   color: var(--down);
 }
 .cfg-acct-add {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 104px 70px;
   align-items: center;
-  gap: 6px;
-  max-width: 440px;
+  gap: 8px;
+  width: min(100%, 640px);
 }
 .cfg-acct-add .cfg-at {
   color: var(--text-faint);
   font-family: var(--font-mono);
 }
 .cfg-acct-add .cfg-input {
-  flex: 1;
+  min-width: 0;
 }
 .cfg-sel {
   border: 1px solid var(--border);
@@ -2122,7 +2136,7 @@ body.resizing * {
   background: var(--up);
 }
 .src2-page {
-  max-width: 560px;
+  max-width: 760px;
 }
 .src2-phead {
   display: flex;
@@ -4409,17 +4423,17 @@ a.opp-ev-item:hover {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  width: 100%;
 }
-/* 统计瓦片：标签 0.72 / 数字 1rem 全程统一（修「字体大小不一」），等宽对齐占满整行 */
+/* 统计瓦片与段标题同一左边界，整行填满，避免标题下方像缩进的小卡片组。 */
 .usage-total {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
-  flex-wrap: wrap;
+  width: 100%;
 }
 .usage-total span {
-  flex: 1 1 0;
-  min-width: 110px;
-  max-width: 220px; /* 全宽下不被拉成空旷大块，保持紧凑统计块、左对齐 */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;

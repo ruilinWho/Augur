@@ -610,14 +610,15 @@ function SourceDetail({ s }: { s: SourceStatus }) {
             />
             {s.configured && (
               <button
-                className="btn btn-ghost jsm"
+                className="btn btn-ghost jsm src-action-btn"
                 onClick={() => setSecret.mutate({ name: s.key_env!, value: null })}
               >
                 清除
               </button>
             )}
+            {!s.configured && <span className="src-action-spacer" aria-hidden="true" />}
             <button
-              className="btn jsm"
+              className="btn jsm src-action-btn"
               disabled={!key.trim() || setSecret.isPending}
               onClick={() => setSecret.mutate({ name: s.key_env!, value: key.trim() })}
             >
@@ -736,7 +737,7 @@ function AccountsEditor({ id, field, value }: { id: string; field: string; value
             </option>
           ))}
         </select>
-        <button className="btn jsm" onClick={add} disabled={!sn.trim()}>
+        <button className="btn jsm src-action-btn" onClick={add} disabled={!sn.trim()}>
           添加
         </button>
       </div>
