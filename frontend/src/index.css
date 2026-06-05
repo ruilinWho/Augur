@@ -1904,7 +1904,7 @@ body.resizing * {
   grid-template-columns: minmax(0, 1fr) 70px 70px;
   gap: 8px;
   align-items: center;
-  width: min(100%, 640px);
+  width: 100%;
   margin-top: 10px;
 }
 .src-keyrow .cfg-input {
@@ -2029,7 +2029,7 @@ body.resizing * {
   grid-template-columns: 18px minmax(0, 1fr) 104px 70px;
   align-items: center;
   gap: 8px;
-  width: min(100%, 640px);
+  width: 100%;
 }
 .cfg-acct-add .cfg-at {
   color: var(--text-faint);
@@ -3734,6 +3734,8 @@ input:focus:not(:focus-visible) {
 /* 数据信源 · 测试按钮 + 结果 */
 .src2-test {
   margin-left: auto;
+  width: 70px;
+  justify-content: center;
 }
 .src2-tres {
   display: inline-block;
