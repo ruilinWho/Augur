@@ -14,6 +14,7 @@
 - `POST /settings/test-all`：LLM 连接 + 信源 API + 最近健康度的合并体检。
 - `POST /settings/source/test-all`：只批量测试登记信源；缺 key/token 的源不打外网，直接标未配置。
 - `news/source_registry.py`：登记 `key_url`，当前含 Tushare、必盈、iTick、twtapi、雪球、小红书。
+- LLM 连接的凭证入口由 `settings_router._llm_key_url` 推断：常见厂商走控制台精确 URL；未知自定义中转退回 `base_url` 根域，避免空链接。
 - `source_health.last_error`：抓取失败时保存中文原因；`GET /news/source-health` 返回该字段。
 - 前端 `SettingsView.tsx::AllPage`：指标卡、待处理 API、健康度异常列表。
 

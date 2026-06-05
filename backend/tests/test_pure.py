@@ -16,6 +16,7 @@ from augur.market.symbols import cn_exchange, parse_symbol
 from augur.news import edgar, source_test
 from augur.news.grounding import simplify as _simplify
 from augur.news.service import _norm_url, _parse_json_lenient
+from augur.settings_router import _llm_key_url
 
 
 # ───────────────────────── symbols ─────────────────────────
@@ -145,4 +146,15 @@ def test_source_test_diagnostics_for_http_status():
     assert (
         source_test.diagnose_problem("feeds_rss", rss_exc)
         == "RSS：源站拒绝访问，可能是 feed 下线、反爬或需要更新 UA/适配器。"
+    )
+
+
+def test_llm_key_url_falls_back_to_base_origin():
+    assert (
+        _llm_key_url({"name": "Custom Relay", "base_url": "https://relay.example.com/v1"})
+        == "https://relay.example.com"
+    )
+    assert (
+        _llm_key_url({"name": "DeepSeek", "base_url": "https://api.deepseek.com"})
+        == "https://platform.deepseek.com/api_keys"
     )

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -31,6 +32,7 @@ def _allowed_names() -> set[str]:
 
 def _llm_key_url(conn: dict) -> str:
     """按连接名/base/model 猜测 API key 控制台；猜不到就留空，不误导。"""
+    base = str(conn.get("base_url", "") or "")
     hay = " ".join(str(conn.get(k, "")) for k in ("name", "base_url", "model")).lower()
     pairs = (
         ("deepseek", "https://platform.deepseek.com/api_keys"),
@@ -48,6 +50,12 @@ def _llm_key_url(conn: dict) -> str:
     for needle, url in pairs:
         if needle in hay:
             return url
+    try:
+        u = urlparse(base)
+        if u.scheme in {"http", "https"} and u.netloc:
+            return f"{u.scheme}://{u.netloc}"
+    except Exception:  # noqa: BLE001
+        return ""
     return ""
 
 
