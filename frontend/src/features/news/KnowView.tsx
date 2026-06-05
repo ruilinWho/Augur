@@ -122,21 +122,9 @@ function MorningBrief({
         <div className="opp-empty faint">生成中…</div>
       ) : top.length ? (
         <ol className="brief-list">
-          {top.map((c, i) => {
-            const imp = IMP[c.importance] ?? IMP.med
-            return (
-              <li className="brief-item" key={i}>
-                <span className="brief-n">{i + 1}</span>
-                <div className="brief-body">
-                  <div className="brief-line">
-                    <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
-                    <span className="brief-head">{stripRefs(c.headline)}</span>
-                  </div>
-                  {c.why && <div className="brief-why">{stripRefs(c.why)}</div>}
-                </div>
-              </li>
-            )
-          })}
+          {top.map((c, i) => (
+            <BriefCard key={`${c.headline}-${i}`} cluster={c} rank={i + 1} />
+          ))}
         </ol>
       ) : clusters.isLoading ? (
         <div className="report-card faint">加载…</div>
@@ -144,6 +132,58 @@ function MorningBrief({
         <div className="opp-empty faint">暂无要事</div>
       )}
     </section>
+  )
+}
+
+function BriefCard({ cluster, rank }: { cluster: NewsCluster; rank: number }) {
+  const [open, setOpen] = useState(false)
+  const imp = IMP[cluster.importance] ?? IMP.med
+  const sources = cluster.members.filter((m) => m.source || m.title || m.url)
+  return (
+    <li className={`brief-item ${open ? 'open' : ''}`}>
+      <button className="brief-card-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <span className="brief-n">{rank}</span>
+        <span className="brief-body">
+          <span className="brief-line">
+            <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
+            <span className="brief-head">{stripRefs(cluster.headline)}</span>
+            {sources.length > 0 && <span className="brief-src-n">{sources.length} 源</span>}
+          </span>
+          {cluster.why && <span className="brief-why">{stripRefs(cluster.why)}</span>}
+        </span>
+      </button>
+      <Collapse open={open}>
+        <div className="brief-members">
+          {sources.length ? (
+            sources.map((m, i) => {
+              const content = (
+                <>
+                  <span className="brief-msrc">{m.source || '来源'}</span>
+                  <span className="brief-mtitle">{stripRefs(m.title)}</span>
+                </>
+              )
+              return m.url ? (
+                <a
+                  key={`${m.url}-${i}`}
+                  className="brief-member"
+                  href={m.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {content}
+                </a>
+              ) : (
+                <div key={`${m.title}-${i}`} className="brief-member">
+                  {content}
+                </div>
+              )
+            })
+          ) : (
+            <div className="brief-empty-src">暂无来源明细</div>
+          )}
+        </div>
+      </Collapse>
+    </li>
   )
 }
 

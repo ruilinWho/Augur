@@ -3770,19 +3770,39 @@ input:focus:not(:focus-visible) {
   justify-content: center;
 }
 
-/* 资讯 · 晨读 Top3（平铺段，与日报/机会同宽对齐，不再包卡片）*/
+/* 资讯 · 晨读 / 今日要事（可展开来源卡片）*/
 .brief-list {
   list-style: none;
-  margin: 11px 0 0;
+  margin: 13px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 14px;
 }
 .brief-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.brief-item:hover,
+.brief-item.open {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: color-mix(in srgb, var(--surface-2) 36%, var(--surface));
+}
+.brief-card-head {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 13px 14px;
   display: flex;
-  gap: 11px;
+  gap: 12px;
   align-items: flex-start;
+  cursor: pointer;
 }
 .brief-n {
   flex: none;
@@ -3800,6 +3820,8 @@ input:focus:not(:focus-visible) {
   justify-content: center;
 }
 .brief-body {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
 }
@@ -3815,11 +3837,56 @@ input:focus:not(:focus-visible) {
   color: var(--text);
   line-height: 1.5;
 }
+.brief-src-n {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
 .brief-why {
   margin-top: 3px;
   font-size: 0.8rem;
   color: var(--text-muted);
   line-height: 1.55;
+}
+.brief-members {
+  margin: 0 14px 13px 48px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.brief-member {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 7px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.brief-member:hover {
+  background: var(--surface-2);
+}
+.brief-msrc {
+  flex: none;
+  min-width: 82px;
+  max-width: 140px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brief-mtitle {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.48;
+}
+.brief-empty-src {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  padding: 6px 7px;
 }
 
 /* 看 · 加入自选（未自选股的「＋ 自选」下拉选分区）*/
