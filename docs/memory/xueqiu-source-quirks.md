@@ -13,6 +13,7 @@
 
 - 推荐从浏览器 Network 里复制请求的完整 `Cookie` header，填入 `XUEQIU_TOKEN`。
 - 至少应包含 `xq_a_token` 和 `u`；若同一请求里有 `xq_r_token`、`device_id`、`s` 等辅助 cookie，也一并保留。
+- 设置页的雪球输入框应显示为“完整 Cookie header”，placeholder 直接给出 `xq_a_token=...; u=...; xq_r_token=...; device_id=...`，避免误导作者只填某个 token 值。
 - 不要在日志、提交或文档里打印 cookie 原文。
 
 ## 产品边界

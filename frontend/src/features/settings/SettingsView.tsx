@@ -807,6 +807,8 @@ function SourceDetail({ s }: { s: SourceStatus }) {
   useEffect(() => setKey(s.key_value ?? ''), [s.key_value])
   const isToken = s.cred === 'token'
   const hasNothing = !s.key_env && s.config.length === 0
+  const secretLabel = s.secret_label || (isToken ? '登录 token' : 'API key')
+  const secretPlaceholder = s.secret_placeholder || (isToken ? 'token' : 'API key')
   type GuideLink = { label: string; href: string }
   type GuideRow = [string, string | GuideLink[]]
   const guideLinks = [
@@ -866,7 +868,7 @@ function SourceDetail({ s }: { s: SourceStatus }) {
       {s.key_env && (
         <div className="src2-field">
           <div className="src2-flabel">
-            <span>{isToken ? '登录 token' : 'API key'}</span>
+            <span>{secretLabel}</span>
           </div>
           <div className="src-keyrow">
             <input
@@ -874,7 +876,7 @@ function SourceDetail({ s }: { s: SourceStatus }) {
               type="text"
               autoComplete="off"
               spellCheck={false}
-              placeholder={isToken ? 'token' : 'API key'}
+              placeholder={secretPlaceholder}
               value={key}
               onChange={(e) => setKey(e.target.value)}
             />
@@ -895,6 +897,7 @@ function SourceDetail({ s }: { s: SourceStatus }) {
               保存
             </button>
           </div>
+          {s.secret_help && <div className="src2-input-hint">{s.secret_help}</div>}
         </div>
       )}
 

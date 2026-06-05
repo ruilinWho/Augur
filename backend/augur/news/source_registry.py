@@ -109,6 +109,9 @@ SOURCES: list[dict] = [
         "docs_url": "https://pypi.org/project/pysnowball/",
         "payment": "免费·需登录",
         "note": "社区情绪·需登录",
+        "secret_label": "完整 Cookie header",
+        "secret_placeholder": "xq_a_token=...; u=...; xq_r_token=...; device_id=...",
+        "secret_help": "从浏览器 Network 里的请求复制整段 Cookie header；不要只复制某一个值。",
         "setup": (
             "轻量测试会访问讨论搜索 JSON；请从浏览器请求复制完整 Cookie header 到 "
             "XUEQIU_TOKEN，至少包含 xq_a_token 和 u。"
@@ -283,6 +286,9 @@ def status_list() -> list[dict]:
                 "key_url": s.get("key_url", ""),
                 "docs_url": s.get("docs_url", ""),
                 "official_url": s.get("official_url", ""),
+                "secret_label": s.get("secret_label", ""),
+                "secret_placeholder": s.get("secret_placeholder", ""),
+                "secret_help": s.get("secret_help", ""),
                 "setup": s.get("setup", ""),
                 "best_use": s.get("best_use", ""),
                 "boundary": s.get("boundary", ""),
