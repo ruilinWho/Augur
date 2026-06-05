@@ -172,11 +172,21 @@ export default function KLineView() {
   // 平盘（change===0：停牌/盘前无变动）单列出来——不再当作"涨"显绿色▲
   const dir = q ? (q.change > 0 ? 'up' : q.change < 0 ? 'down' : 'flat') : 'up'
   const [mkt, code] = symbol ? symbol.split(':') : ['', '']
-  const last = ohlcv.data?.candles.at(-1)
   const candleCount = ohlcv.data?.candles.length ?? 0
   // 新股：可选区间内只有极少 K 线（如刚 IPO 仅 1 个交易日）——平静标注，避免看似坏掉（§11）
   const thin = !!symbol && !!ohlcv.data && candleCount > 0 && candleCount <= 3
   const showSkeleton = !!symbol && ohlcv.isLoading && !ohlcv.data
+  const fundData = fund.data
+  const keyStats = [
+    wk52 && { label: '52周位置', value: `${Math.round(wk52.pct)}%`, progress: wk52.pct },
+    fundData?.market_cap != null && {
+      label: '市值',
+      value: fmtMoney(fundData.market_cap, fundData.currency),
+    },
+    fundData?.pe != null && { label: '市盈率', value: fundData.pe.toFixed(1) },
+    fundData?.net_margin != null && { label: '净利率', value: fmtPctPlain(fundData.net_margin) },
+    q?.time && { label: '更新', value: q.time, quiet: true },
+  ].filter(Boolean) as { label: string; value: string; progress?: number; quiet?: boolean }[]
 
   return (
     <>
@@ -193,33 +203,29 @@ export default function KLineView() {
               {q?.name || code} <span className="sub">{code} · {mkt}</span>
               <AddToWatchlist symbol={symbol} />
             </h2>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+            <div className="stock-price-row">
               <span className="px">{q ? fmt(q.price) : '—'}</span>
               {q && (
-                <span className={`pill ${dir}`} style={{ fontSize: '1rem' }}>
+                <span className={`pill ${dir}`}>
                   {dir === 'up' ? '▲' : dir === 'down' ? '▼' : '–'} {Math.abs(q.change).toFixed(2)} (
                   {Math.abs(q.change_pct).toFixed(2)}%)
                 </span>
               )}
-              {last && (
-                <span className="faint mono" style={{ fontSize: '.74rem', marginLeft: 4 }}>
-                  高 {fmt(last.high)} · 低 {fmt(last.low)}
-                </span>
-              )}
               {thin && <span className="ipo-note">新股 · 仅 {candleCount} 个交易日</span>}
-              {q?.time && (
-                <span className="faint" style={{ fontSize: '.7rem' }}>
-                  截至 {q.time} · {q.source}
-                </span>
-              )}
             </div>
-            {wk52 && (
-              <div className="faint mono wk52">
-                52周 {fmt(wk52.lo)} — {fmt(wk52.hi)} · 当前
-                <span className="wk52-bar" aria-hidden="true">
-                  <span className="wk52-fill" style={{ width: `${Math.round(wk52.pct)}%` }} />
-                </span>
-                {Math.round(wk52.pct)}% 分位
+            {keyStats.length > 0 && (
+              <div className="stock-keyline">
+                {keyStats.map((s) => (
+                  <span key={s.label} className={`key-stat ${s.quiet ? 'quiet' : ''}`}>
+                    <i>{s.label}</i>
+                    <b>{s.value}</b>
+                    {s.progress != null && (
+                      <span className="key-bar" aria-hidden="true">
+                        <span style={{ width: `${Math.round(s.progress)}%` }} />
+                      </span>
+                    )}
+                  </span>
+                ))}
               </div>
             )}
           </div>
@@ -238,24 +244,6 @@ export default function KLineView() {
         </motion.div>
       )}
 
-      {symbol &&
-        fund.data &&
-        (fund.data.market_cap != null || fund.data.pe != null || fund.data.net_margin != null) && (
-          <div className="snapshot">
-            <span>
-              <i>市值</i>
-              {fmtMoney(fund.data.market_cap, fund.data.currency)}
-            </span>
-            <span>
-              <i>市盈率</i>
-              {fund.data.pe != null ? fund.data.pe.toFixed(1) : '—'}
-            </span>
-            <span>
-              <i>净利率</i>
-              {fmtPctPlain(fund.data.net_margin)}
-            </span>
-          </div>
-        )}
       {symbol && fund.error && (
         <div className="faint" style={{ fontSize: '.74rem', marginTop: 6 }}>
           基本面暂不可用
