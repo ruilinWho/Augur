@@ -577,6 +577,8 @@ type IssueLite = {
   status: string
   detail?: string
   key_url?: string
+  docs_url?: string
+  official_url?: string
   meta?: string
 }
 
@@ -603,6 +605,8 @@ function auditIssue(i: ApiAuditItem): IssueLite {
     status: i.status,
     detail,
     key_url: i.key_url,
+    docs_url: i.docs_url,
+    official_url: i.official_url,
     meta: i.kind === 'llm' ? [i.model, i.base_url].filter(Boolean).join(' · ') : i.group,
   }
 }
@@ -629,6 +633,8 @@ function preflightIssues(conns: Connection[], sources: SourceStatus[]): IssueLit
       status: '未配置',
       detail: s.cred === 'token' ? '需要登录 token。' : '需要 API key。',
       key_url: s.key_url,
+      docs_url: s.docs_url,
+      official_url: s.official_url,
       meta: s.group,
     }))
   return [...llm, ...src]
@@ -722,10 +728,24 @@ function AllPage({ conns, sources }: { conns: Connection[]; sources: SourceStatu
                   {i.meta && <div className="api-issue-meta mono">{i.meta}</div>}
                   {i.detail && <div className="api-issue-detail">{i.detail}</div>}
                 </div>
-                {i.key_url && (
-                  <a className="btn btn-ghost jsm api-link" href={i.key_url} target="_blank" rel="noreferrer">
-                    获取凭证
-                  </a>
+                {(i.key_url || i.docs_url || i.official_url) && (
+                  <div className="api-issue-links">
+                    {i.key_url && (
+                      <a className="btn btn-ghost jsm api-link" href={i.key_url} target="_blank" rel="noreferrer">
+                        获取凭证
+                      </a>
+                    )}
+                    {i.docs_url && (
+                      <a className="btn btn-ghost jsm api-link" href={i.docs_url} target="_blank" rel="noreferrer">
+                        文档
+                      </a>
+                    )}
+                    {i.official_url && (
+                      <a className="btn btn-ghost jsm api-link" href={i.official_url} target="_blank" rel="noreferrer">
+                        官方入口
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
@@ -777,7 +797,7 @@ function AllPage({ conns, sources }: { conns: Connection[]; sources: SourceStatu
 }
 
 // ───────────────────────── 数据 / 信源 ─────────────────────────
-// 信源详情子页：只放名称 + 状态 + 可操作项（key / 账户 / 关键词）。不写任何说明性文案。
+// 信源详情子页：名称 + 状态 + 操作项 + 极短接入向导，避免把凭证入口藏在文档里。
 function SourceDetail({ s }: { s: SourceStatus }) {
   const setSecret = useSetSecret()
   const test = useTestSource()
@@ -787,6 +807,16 @@ function SourceDetail({ s }: { s: SourceStatus }) {
   useEffect(() => setKey(s.key_value ?? ''), [s.key_value])
   const isToken = s.cred === 'token'
   const hasNothing = !s.key_env && s.config.length === 0
+  const guideRows = [
+    ['接入', s.setup],
+    ['用途', s.best_use],
+    ['边界', s.boundary],
+  ].filter(([, v]) => v)
+  const guideLinks = [
+    s.key_url && { label: s.key_env ? '获取凭证' : '入口', href: s.key_url },
+    s.docs_url && { label: '文档', href: s.docs_url },
+    s.official_url && { label: '官方入口', href: s.official_url },
+  ].filter(Boolean) as { label: string; href: string }[]
   const runTest = async () => {
     setTres(null)
     setTres(await test.mutateAsync(s.id))
@@ -805,6 +835,32 @@ function SourceDetail({ s }: { s: SourceStatus }) {
           {tres.ok
             ? `✓ 可用 · ${tres.latency_ms}ms${tres.count != null ? ` · ${tres.count} 条` : ''}${tres.note ? ` · ${tres.note}` : ''}`
             : `✗ ${tres.error}`}
+        </div>
+      )}
+
+      {(guideRows.length > 0 || guideLinks.length > 0) && (
+        <div className="src-guide">
+          {guideLinks.length > 0 && (
+            <div className="src-guide-links">
+              {guideLinks.map((l) => (
+                <a
+                  key={`${l.label}-${l.href}`}
+                  className="btn btn-ghost jsm"
+                  href={l.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          )}
+          {guideRows.map(([label, value]) => (
+            <div className="src-guide-row" key={label}>
+              <span>{label}</span>
+              <p>{value}</p>
+            </div>
+          ))}
         </div>
       )}
 

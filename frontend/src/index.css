@@ -2001,6 +2001,14 @@ body.resizing * {
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
+.api-issue-links {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 188px;
+}
 .api-link {
   width: 84px;
   justify-content: center;
@@ -2290,7 +2298,7 @@ body.resizing * {
   background: var(--up);
 }
 .src2-page {
-  max-width: 760px;
+  width: 100%;
 }
 .src2-phead {
   display: flex;
@@ -2336,6 +2344,42 @@ body.resizing * {
 }
 .src2-flabel a:hover {
   text-decoration: underline;
+}
+.src-guide {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 13px 0 15px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.src-guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.src-guide-links .btn {
+  min-width: 84px;
+  justify-content: center;
+  white-space: nowrap;
+}
+.src-guide-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.src-guide-row span {
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  line-height: 1.55;
+}
+.src-guide-row p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.83rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 .src2-none {
   font-size: 0.85rem;

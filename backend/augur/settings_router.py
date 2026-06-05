@@ -176,6 +176,11 @@ def _audit_sources() -> list[dict]:
             "key_env": s.get("key_env") or "",
             "cred": s.get("cred") or "",
             "key_url": s.get("key_url") or "",
+            "docs_url": s.get("docs_url") or "",
+            "official_url": s.get("official_url") or "",
+            "setup": s.get("setup") or "",
+            "best_use": s.get("best_use") or "",
+            "boundary": s.get("boundary") or "",
             "result": result,
         }
 

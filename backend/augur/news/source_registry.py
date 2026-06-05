@@ -27,6 +27,9 @@ SOURCES: list[dict] = [
         "access": "builtin",
         "payment": "免费",
         "note": "FDR·akshare·yfinance·pykrx",
+        "setup": "内置可用，无需额外 API key。",
+        "best_use": "四市场 K 线、报价与基础财务兜底，优先喂「看」和「研」。",
+        "boundary": "免费源偶发限流或缺字段；高阶基本面仍需单独数据源接入。",
     },
     {
         "id": "tushare_pro",
@@ -36,8 +39,12 @@ SOURCES: list[dict] = [
         "key_env": "TUSHARE_TOKEN",
         "cred": "token",
         "key_url": "https://tushare.pro/document/1?doc_id=39",
+        "docs_url": "https://tushare.pro/document/2",
         "payment": "积分制·充值",
         "note": "A股·免费档薄·已被覆盖",
+        "setup": "注册 Tushare Pro 后在个人中心复制 token，填入 TUSHARE_TOKEN。",
+        "best_use": "后续若补 A 股财务、公告、行业数据，可作为内置免费栈之外的候选源。",
+        "boundary": "当前只做 key/权限探活；不替代已接入的 FDR/akshare/yfinance/pykrx。",
     },
     {
         "id": "biyingapi",
@@ -49,6 +56,9 @@ SOURCES: list[dict] = [
         "key_url": "https://www.biyingapi.com/licencelt",
         "payment": "未明示·疑微信",
         "note": "A/港行情·已被覆盖",
+        "setup": "在必盈官网获取 licence 后填入 BIYING_API_LICENCE。",
+        "best_use": "后续若需要补 A/H 行情冗余，可作为备用探活源。",
+        "boundary": "当前只做 key/权限探活；行情主栈已覆盖基础需求。",
     },
     {
         "id": "itick",
@@ -58,8 +68,12 @@ SOURCES: list[dict] = [
         "key_env": "ITICK_API_KEY",
         "cred": "key",
         "key_url": "https://docs.itick.net/en/getting-started",
+        "docs_url": "https://docs.itick.net/en",
         "payment": "USD·国际卡",
         "note": "全球行情·免费档严",
+        "setup": "按 iTick getting-started 创建 API key，填入 ITICK_API_KEY。",
+        "best_use": "后续若需要全球实时行情或 WebSocket，再评估接入数据模型。",
+        "boundary": "当前只做 key/权限探活；免费额度较紧且需要国际支付路径。",
     },
     # ──────────── 新闻 · RSS / 中文 newswire / 官方资讯 ────────────
     {
@@ -69,6 +83,9 @@ SOURCES: list[dict] = [
         "access": "free_rss",
         "payment": "免费",
         "note": "详见 feeds.yaml",
+        "setup": "版本化信源写在 resources/sources/feeds.yaml。",
+        "best_use": "一手机构、公司 IR、官方研究博客和精英二手源的主新闻流。",
+        "boundary": "RSS 源可能下线、反爬或改版；健康度会记录最近失败原因。",
     },
     {
         "id": "bloomberg",
@@ -77,6 +94,9 @@ SOURCES: list[dict] = [
         "access": "free_rss",
         "payment": "免费",
         "note": "官方 RSS",
+        "setup": "无需 key；频道在本页配置。",
+        "best_use": "市场/科技高密度新闻，适合作为全球新闻 lane 的二手确认源。",
+        "boundary": "RSS 只覆盖公开免费栏目，不等同 Bloomberg 终端或付费 API。",
         "config": [{"field": "channels", "type": "tags", "label": "频道"}],
     },
     {
@@ -87,6 +107,9 @@ SOURCES: list[dict] = [
         "active": True,
         "payment": "免费",
         "note": "科创电报",
+        "setup": "无需 key；内置签名适配器会轻量抓取。",
+        "best_use": "A 股科技、半导体、政策和产业链快讯。",
+        "boundary": "网页接口有反爬/签名变化风险；失败会进入信源健康度。",
     },
     {
         "id": "eastmoney_news",
@@ -96,6 +119,9 @@ SOURCES: list[dict] = [
         "active": True,
         "payment": "免费",
         "note": "关键词资讯",
+        "setup": "无需 key；关键词在本页配置。",
+        "best_use": "按主题或个股关键词补中文资讯，适合发现 A/H/中概相关线索。",
+        "boundary": "JSONP 网页接口可能变化；只作为弱补充，不作为唯一依据。",
         "config": [{"field": "keywords", "type": "tags", "label": "检索关键词"}],
     },
     {
@@ -106,8 +132,13 @@ SOURCES: list[dict] = [
         "key_env": "TWTAPI_KEY",
         "cred": "key",
         "key_url": "https://twtapi.io/",
+        "docs_url": "https://twtapi.io/docs/endpoints/user_tweets",
+        "official_url": "https://docs.x.com/x-api/getting-started/getting-access",
         "payment": "月付·有免费试用",
         "note": "官方号推文·twtapi 桥",
+        "setup": "Augur 当前填 TWTAPI_KEY；X 官方 key 在 console.x.com，但不是当前适配器凭证。",
+        "best_use": "追踪官方号、大 V、公司号和每股专属 X 账号；后续可扩展 search/mentions。",
+        "boundary": "twtapi 是非官方桥；额度、鉴权或端点变化会以中文诊断暴露。",
         "config": [{"field": "accounts", "type": "accounts", "label": "关注账户"}],
     },
     # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
@@ -119,8 +150,15 @@ SOURCES: list[dict] = [
         "key_env": "XUEQIU_TOKEN",
         "cred": "token",
         "key_url": "https://xueqiu.com/",
+        "docs_url": "https://pypi.org/project/pysnowball/",
         "payment": "免费·需登录",
         "note": "社区情绪·需登录",
+        "setup": (
+            "未确认一手公共内容 API；若启用，需网页登录后复制 "
+            "xq_a_token/u 等 Cookie 到 XUEQIU_TOKEN。"
+        ),
+        "best_use": "关注大 V、按个股/关键词追踪讨论，适合 A/H/中概社区情绪和反证线索。",
+        "boundary": "登录 Cookie 会失效且暴露账号足迹；适配器未接入前保持未接入。",
         "config": [
             {"field": "accounts", "type": "accounts", "label": "关注用户"},
             {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
@@ -134,6 +172,11 @@ SOURCES: list[dict] = [
         "active": True,
         "payment": "免费",
         "note": "Subreddit 讨论",
+        "docs_url": "https://developers.reddit.com/docs/capabilities/server/reddit-api",
+        "official_url": "https://developers.reddit.com/new",
+        "setup": "当前 public JSON 无需 key；重度抓取、写入或私有能力再走官方 Devvit/OAuth。",
+        "best_use": "追踪 subreddit 新帖、个股子版、WSB/ValueInvesting 等弱信号。",
+        "boundary": "轻量只读可用；放大抓取规模前要走官方路径并尊重限流。",
         "config": [{"field": "subreddits", "type": "tags", "label": "Subreddits"}],
     },
     {
@@ -144,8 +187,16 @@ SOURCES: list[dict] = [
         "key_env": "XHS_COOKIE",
         "cred": "token",
         "key_url": "https://www.xiaohongshu.com/",
+        "docs_url": "https://school.xiaohongshu.com/en/open/quick-start/how-to-get-app-key.html",
+        "official_url": "https://school.xiaohongshu.com/en/open/index.html",
         "payment": "免费·需登录",
         "note": "消费/情绪信号·待接入",
+        "setup": (
+            "当前配置槽是登录 Cookie；官方 Ark App Key 主要面向商家开放平台，"
+            "不等于公开笔记搜索。"
+        ),
+        "best_use": "只在拿到稳定合规接口后追踪消费、品牌、散户情绪、关注用户和关键词。",
+        "boundary": "匿名抓取和浏览器 Cookie 不稳定且风险高；目前不接真实抓取。",
         "config": [
             {"field": "accounts", "type": "accounts", "label": "关注用户"},
             {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
@@ -274,6 +325,11 @@ def status_list() -> list[dict]:
                 "key_env": key_env,
                 "cred": cred if key_env else "",
                 "key_url": s.get("key_url", ""),
+                "docs_url": s.get("docs_url", ""),
+                "official_url": s.get("official_url", ""),
+                "setup": s.get("setup", ""),
+                "best_use": s.get("best_use", ""),
+                "boundary": s.get("boundary", ""),
                 "note": note,
                 "payment": s.get("payment", ""),  # 支付方式（中国用户视角，见 ADR-0007）
                 "configured": configured,

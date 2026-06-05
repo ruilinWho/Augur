@@ -187,10 +187,16 @@ def test_source(source_id: str) -> dict:
             return _ok(t0, len(got), "Reddit public JSON 可达")
 
         if source_id == "xiaohongshu":
-            return _err("小红书：还没有接入抓取适配器，需要登录 Cookie 或稳定 API 后才能测试。")
+            return _err(
+                "小红书：还没有接入抓取适配器。官方 Ark App Key 主要面向商家"
+                "开放平台，不等于公开笔记搜索；需要稳定合规接口后才能测试。"
+            )
 
         if source_id == "xueqiu":
-            return _err("雪球：还没有接入抓取适配器，需要登录 Cookie 或稳定 API 后才能测试。")
+            return _err(
+                "雪球：还没有接入抓取适配器。当前可行路线是网页登录 Cookie/token，"
+                "但会失效且绑定真实账号；接入前保持未接入。"
+            )
 
         if source_id in ("tushare_pro", "biyingapi", "itick"):
             from . import finance_apis
