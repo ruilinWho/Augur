@@ -3740,8 +3740,15 @@ input:focus:not(:focus-visible) {
   white-space: nowrap;
 }
 .src2-tres {
-  display: inline-block;
+  display: block;
+  width: 100%;
+  max-width: none;
   margin: 0 0 12px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
 }
 
 /* 研 · 导入研报（多份 · 拖排序 · markdown · 评论）*/

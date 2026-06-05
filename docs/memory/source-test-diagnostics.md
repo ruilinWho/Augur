@@ -18,4 +18,5 @@
 
 - `backend/augur/news/source_test.py::diagnose_problem` 是统一兜底翻译层。
 - 各适配器仍可抛更精确的中文问题，但不能依赖前端清洗。
+- 前端信源详情页的 `.src2-tres` 必须覆盖 `.conn-test` 的紧凑徽标样式：全宽、可换行、不省略。模型连接卡可以保留 150px 省略，信源测试结果不行。
 - `backend/tests/test_pure.py` 有离线测试锁住典型文案，后续改信源测试时要一起更新。
