@@ -1901,7 +1901,7 @@ body.resizing * {
 }
 .src-keyrow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 70px 70px;
+  grid-template-columns: minmax(0, 1fr) var(--src-action-w, 84px) var(--src-action-w, 84px);
   gap: 8px;
   align-items: center;
   width: 100%;
@@ -1911,12 +1911,13 @@ body.resizing * {
   min-width: 0;
 }
 .src-action-btn {
-  width: 70px;
+  width: var(--src-action-w, 84px);
   justify-content: center;
+  white-space: nowrap;
 }
 .src-action-spacer {
   display: block;
-  width: 70px;
+  width: var(--src-action-w, 84px);
 }
 
 /* 信源可配置项（账户 / 关键词） */
@@ -2026,7 +2027,7 @@ body.resizing * {
 }
 .cfg-acct-add {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 104px 70px;
+  grid-template-columns: 18px minmax(0, 1fr) 104px var(--src-action-w, 84px);
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -3734,8 +3735,9 @@ input:focus:not(:focus-visible) {
 /* 数据信源 · 测试按钮 + 结果 */
 .src2-test {
   margin-left: auto;
-  width: 70px;
+  width: var(--src-action-w, 84px);
   justify-content: center;
+  white-space: nowrap;
 }
 .src2-tres {
   display: inline-block;

@@ -1,8 +1,8 @@
 """信源可用性测试（设置·数据信源 的「测试」按钮）。
 
 对每个信源做一次**轻量真实探活**：能测的真打一下（行情栈 / 财联社 / 东财 / X / RSS /
-Bloomberg），返回 {ok, latency_ms, count?, note?} 或 {ok:false, error}；候选源（雪球 /
-Tushare / 必盈 / iTick——仅登记留槽、未写适配器）明确返回「未接入」。失败不抛、回错文。
+Bloomberg / Tushare / 必盈 / iTick），返回 {ok, latency_ms, count?, note?} 或 {ok:false, error}。
+失败不抛、回错文。
 """
 
 from __future__ import annotations
@@ -92,13 +92,20 @@ def test_source(source_id: str) -> dict:
             n = len(runtime_config.get_source_config("xiaohongshu", "accounts", []))
             return _err(f"关注用户 {n} 个；抓取适配器待接入（需登录 Cookie / 稳定方案）")
 
-        # 候选源：仅登记留槽、未写适配器（ADR-0007）
         if source_id == "xueqiu":
             n = len(runtime_config.get_source_config("xueqiu", "accounts", []))
             return _err(f"关注用户 {n} 个；抓取适配器待接入（需登录 Cookie / 稳定方案）")
 
         if source_id in ("tushare_pro", "biyingapi", "itick"):
-            return _err("暂未接入适配器（仅登记留槽，待定夺）")
+            from . import finance_apis
+
+            testers = {
+                "tushare_pro": finance_apis.test_tushare,
+                "biyingapi": finance_apis.test_biying,
+                "itick": finance_apis.test_itick,
+            }
+            count, note = testers[source_id]()
+            return _ok(t0, count, note)
 
         return _err(f"未知信源 {source_id!r}")
     except Exception as e:  # noqa: BLE001 — 任何失败都回给前端展示

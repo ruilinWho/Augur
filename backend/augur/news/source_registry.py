@@ -4,8 +4,9 @@
 **新闻**（RSS/中文 newswire/官方资讯，喂 知）、**论坛**（社媒/社区情绪信号）。
 免费已接的内置栈（行情数据、RSS 聚合）以只读聚合行呈现；需 key/token 的源留配置槽。
 
-候选源可行性调研（twtapi/必盈/iTick/Tushare/雪球）结论见 ADR-0007。Reddit 已用 public
-JSON 接入；雪球/小红书属登录型或不稳定抓取源，先登记配置槽与 UI lane，不伪装已接入。
+候选源可行性调研（twtapi/必盈/iTick/Tushare/雪球）结论见 ADR-0007。Tushare/必盈/iTick
+目前只做设置页轻量探活，不替代内置行情栈；Reddit 已用 public JSON 接入；雪球/小红书属
+登录型或不稳定抓取源，先登记配置槽与 UI lane，不伪装已接入。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
@@ -146,8 +147,9 @@ SOURCES: list[dict] = [
     },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
-#   覆盖且增隐私外泄；雪球需周级失效的登录 token 且把持仓查询绑真实账号泄露（违 §11）。故均登记
-#   留槽、由作者定夺。**Twitter 桥选 twtapi**（而非 TwitterAPI.io）：作者无国际银行卡、付不了
+#   覆盖且增隐私外泄；当前只在设置页做轻量真实探活，不默认喂行情/研究。雪球需周级失效的
+#   登录 token 且把持仓查询绑真实账号泄露（违 §11），故只登记配置槽、由作者定夺。
+#   **Twitter 桥选 twtapi**（而非 TwitterAPI.io）：作者无国际银行卡、付不了
 #   TwitterAPI.io，twtapi 有免费试用+月付套餐，故采 twtapi。已移除太贵源见 ADR-0007。
 
 # 三类显示顺序与中文标签（前端分组用）
