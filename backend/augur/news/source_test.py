@@ -10,9 +10,25 @@ from __future__ import annotations
 import time
 from datetime import UTC, datetime, timedelta
 
+import httpx
+
 from .. import runtime_config
 
 _CUTOFF_DAYS = 30
+_SOURCE_NAMES = {
+    "market_data": "内置行情栈",
+    "cls": "财联社",
+    "eastmoney_news": "东方财富",
+    "twtapi": "X",
+    "bloomberg": "Bloomberg",
+    "feeds_rss": "RSS",
+    "reddit": "Reddit",
+    "xiaohongshu": "小红书",
+    "xueqiu": "雪球",
+    "tushare_pro": "Tushare Pro",
+    "biyingapi": "必盈",
+    "itick": "iTick",
+}
 
 
 def _cutoff() -> datetime:
@@ -32,6 +48,86 @@ def _err(msg: str) -> dict:
     return {"ok": False, "error": msg[:200]}
 
 
+def _label(source_id: str) -> str:
+    return _SOURCE_NAMES.get(source_id, source_id)
+
+
+def _http_problem(source_id: str, status: int) -> str:
+    name = _label(source_id)
+    if status in (401, 403):
+        return f"{name}：凭证无效，或当前套餐没有这个接口权限。"
+    if status == 402:
+        return f"{name}：余额不足，或当前套餐没有开通这个接口。"
+    if status == 404:
+        return f"{name}：接口地址不可用，适配器需要更新。"
+    if status == 429:
+        return f"{name}：额度或频率限制已触发，稍后再试或升级套餐。"
+    if status >= 500:
+        return f"{name}：对方服务临时不可用。"
+    return f"{name}：接口返回状态码 {status}，暂时无法完成测试。"
+
+
+def diagnose_problem(source_id: str, exc: Exception) -> str:
+    """把第三方库/HTTP 的异常翻成作者能直接决策的中文问题。"""
+
+    name = _label(source_id)
+    if isinstance(exc, httpx.HTTPStatusError):
+        return _http_problem(source_id, exc.response.status_code)
+    if isinstance(exc, httpx.TimeoutException):
+        return f"{name}：网络连接超时。"
+    if isinstance(exc, httpx.TransportError):
+        return f"{name}：网络连接失败，可能是网络、代理或对方服务不可达。"
+
+    msg = str(exc).strip()
+    # 兜底清洗：即使某处仍传入 "RuntimeError: xxx"，也不要把异常类型展示给作者。
+    for prefix in (
+        "RuntimeError: ",
+        "TwtapiFatal: ",
+        "TwtapiError: ",
+        "HTTPStatusError: ",
+        "ConnectError: ",
+        "ReadTimeout: ",
+        "TimeoutException: ",
+    ):
+        if msg.startswith(prefix):
+            msg = msg[len(prefix) :].strip()
+
+    if not msg:
+        return f"{name}：测试失败，暂时无法判断具体原因。"
+
+    lower = msg.lower()
+    if "未配置" in msg or "没有配置" in msg:
+        return f"{name}：没有配置凭证或账号，请先填写后再测试。"
+    if "待接入" in msg or "未接入" in msg or "适配器" in msg:
+        return f"{name}：还没有接入抓取适配器。"
+    if "月度调用额度已用完" in msg or "monthly call limit" in lower:
+        return f"{name}：月度额度已用完，需要等额度重置、升级套餐或更换 key。"
+    if "429" in msg or "频率" in msg or "限流" in msg or "rate limit" in lower:
+        return f"{name}：额度或频率限制已触发，稍后再试或升级套餐。"
+    if (
+        "余额" in msg
+        or "积分" in msg
+        or "没有接口" in msg
+        or "访问权限" in msg
+        or "没有权限" in msg
+        or "无权限" in msg
+        or "permission" in lower
+    ):
+        return f"{name}：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
+    if "401" in msg or "403" in msg or "无效" in msg or "unauthorized" in lower:
+        return f"{name}：凭证无效，或当前套餐没有这个接口权限。"
+    if "账号" in msg or "user_id" in msg:
+        return f"{name}：配置的账号无法解析，请检查账号名是否存在。"
+    if "返回为空" in msg or "拉取为空" in msg:
+        return f"{name}：接口可达，但这次没有返回可用数据。"
+    if "errno" in lower or "签名失效" in msg or "反爬" in msg:
+        return f"{name}：接口签名或反爬参数失效，需要更新适配器。"
+    if "json" in lower or "非列表数据" in msg:
+        return f"{name}：接口返回格式变了，需要更新适配器。"
+
+    return f"{name}：测试失败，{msg}"
+
+
 def _test_feeds(only_bloomberg: bool) -> dict:
     """从 feeds.yaml 取一个代表性 feed 试拉（RSS 聚合 / Bloomberg）。"""
     from . import ingest, sources
@@ -40,7 +136,7 @@ def _test_feeds(only_bloomberg: bool) -> dict:
     if only_bloomberg:
         feeds = [f for f in feeds if "bloomberg" in (f.get("name", "").lower())]
     if not feeds:
-        return _err("没有可测的 feed")
+        return _err("RSS：没有可测试的 feed 配置。")
     t0 = time.monotonic()
     got = ingest.fetch_feed(feeds[0], _cutoff())
     return _ok(t0, len(got), f"试拉「{feeds[0].get('name', '')}」")
@@ -55,7 +151,7 @@ def test_source(source_id: str) -> dict:
 
             df = yf.Ticker("AAPL").history(period="5d")
             if df is None or df.empty:
-                return _err("行情拉取为空（雅虎可能限流）")
+                return _err("内置行情栈：接口可达，但这次没有返回可用行情；可能是雅虎临时限流。")
             return _ok(t0, len(df), "yfinance 行情栈可用")
 
         if source_id == "cls":
@@ -70,7 +166,7 @@ def test_source(source_id: str) -> dict:
 
         if source_id == "twtapi":
             if not runtime_config.has_secret("TWTAPI_KEY"):
-                return _err("未配置 TWTAPI_KEY")
+                return _err("X：没有配置 API key，请先填写后再测试。")
             from . import twtapi
 
             twtapi.ping()  # 轻量：只解析一个账号 user_id，不拉全量时间线
@@ -89,12 +185,10 @@ def test_source(source_id: str) -> dict:
             return _ok(t0, len(got), "Reddit public JSON 可达")
 
         if source_id == "xiaohongshu":
-            n = len(runtime_config.get_source_config("xiaohongshu", "accounts", []))
-            return _err(f"关注用户 {n} 个；抓取适配器待接入（需登录 Cookie / 稳定方案）")
+            return _err("小红书：还没有接入抓取适配器，需要登录 Cookie 或稳定 API 后才能测试。")
 
         if source_id == "xueqiu":
-            n = len(runtime_config.get_source_config("xueqiu", "accounts", []))
-            return _err(f"关注用户 {n} 个；抓取适配器待接入（需登录 Cookie / 稳定方案）")
+            return _err("雪球：还没有接入抓取适配器，需要登录 Cookie 或稳定 API 后才能测试。")
 
         if source_id in ("tushare_pro", "biyingapi", "itick"):
             from . import finance_apis
@@ -107,6 +201,6 @@ def test_source(source_id: str) -> dict:
             count, note = testers[source_id]()
             return _ok(t0, count, note)
 
-        return _err(f"未知信源 {source_id!r}")
+        return _err(f"{source_id}：没有接入这个信源。")
     except Exception as e:  # noqa: BLE001 — 任何失败都回给前端展示
-        return _err(f"{type(e).__name__}: {e}")
+        return _err(diagnose_problem(source_id, e))
