@@ -1406,20 +1406,6 @@ body.resizing * {
   color: var(--text-faint);
   font-family: var(--font-sans);
 }
-.key-bar {
-  grid-column: 1 / -1;
-  display: block;
-  width: 76px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.key-bar span {
-  display: block;
-  height: 100%;
-  background: color-mix(in srgb, var(--accent) 58%, transparent);
-}
 .tf {
   display: flex;
   gap: 6px;

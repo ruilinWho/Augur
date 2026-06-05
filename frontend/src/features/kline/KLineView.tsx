@@ -178,7 +178,7 @@ export default function KLineView() {
   const showSkeleton = !!symbol && ohlcv.isLoading && !ohlcv.data
   const fundData = fund.data
   const keyStats = [
-    wk52 && { label: '52周位置', value: `${Math.round(wk52.pct)}%`, progress: wk52.pct },
+    wk52 && { label: '52周位置', value: `${Math.round(wk52.pct)}%` },
     fundData?.market_cap != null && {
       label: '市值',
       value: fmtMoney(fundData.market_cap, fundData.currency),
@@ -186,7 +186,7 @@ export default function KLineView() {
     fundData?.pe != null && { label: '市盈率', value: fundData.pe.toFixed(1) },
     fundData?.net_margin != null && { label: '净利率', value: fmtPctPlain(fundData.net_margin) },
     q?.time && { label: '更新', value: q.time, quiet: true },
-  ].filter(Boolean) as { label: string; value: string; progress?: number; quiet?: boolean }[]
+  ].filter(Boolean) as { label: string; value: string; quiet?: boolean }[]
 
   return (
     <>
@@ -219,11 +219,6 @@ export default function KLineView() {
                   <span key={s.label} className={`key-stat ${s.quiet ? 'quiet' : ''}`}>
                     <i>{s.label}</i>
                     <b>{s.value}</b>
-                    {s.progress != null && (
-                      <span className="key-bar" aria-hidden="true">
-                        <span style={{ width: `${Math.round(s.progress)}%` }} />
-                      </span>
-                    )}
                   </span>
                 ))}
               </div>
