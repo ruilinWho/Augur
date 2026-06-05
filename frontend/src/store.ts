@@ -6,7 +6,7 @@ export type Market = 'ALL' | 'US' | 'HK' | 'CN' | 'KR'
 export type Theme = 'light' | 'dark'
 export type DisplayFont = 'serif' | 'sans'
 export type Convention = 'us' | 'cn' // us: 绿涨红跌；cn: 红涨绿跌
-export type SettingsPage = 'appearance' | 'models' | 'sources' | 'schedule'
+export type SettingsPage = 'all' | 'appearance' | 'models' | 'sources' | 'schedule'
 
 export const PANEL_MIN = 208
 export const PANEL_MAX = 520
@@ -81,7 +81,7 @@ export const useUI = create<UIState>()(
       kanColW: [...DEFAULT_KAN_COL_W],
       kanColClosed: [...DEFAULT_KAN_COL_CLOSED],
       kanOrder: [...KAN_MODULES],
-      settingsPage: 'appearance',
+      settingsPage: 'all',
       lastSeenNewsAt: null,
 
       setView: (view) => set({ view }),

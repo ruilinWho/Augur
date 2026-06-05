@@ -45,7 +45,7 @@ def _ok(t0: float, count: int | None = None, note: str = "") -> dict:
 
 
 def _err(msg: str) -> dict:
-    return {"ok": False, "error": msg[:200]}
+    return {"ok": False, "error": msg}
 
 
 def _label(source_id: str) -> str:
@@ -55,6 +55,8 @@ def _label(source_id: str) -> str:
 def _http_problem(source_id: str, status: int) -> str:
     name = _label(source_id)
     if status in (401, 403):
+        if source_id == "feeds_rss":
+            return f"{name}：源站拒绝访问，可能是 feed 下线、反爬或需要更新 UA/适配器。"
         return f"{name}：凭证无效，或当前套餐没有这个接口权限。"
     if status == 402:
         return f"{name}：余额不足，或当前套餐没有开通这个接口。"

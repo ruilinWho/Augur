@@ -304,6 +304,7 @@ const sourceStatusSchema = z.object({
   access: z.string(),
   key_env: z.string().nullable().default(null),
   cred: z.string().default(''),
+  key_url: z.string().default(''),
   note: z.string().default(''),
   payment: z.string().default(''),
   configured: z.boolean(),
@@ -1279,5 +1280,76 @@ export function useTestSource() {
   return useMutation({
     mutationFn: async (id: string) =>
       (await send(`/settings/source/test?id=${encodeURIComponent(id)}`, 'POST')) as SourceTestResult,
+  })
+}
+
+const auditResultSchema = z
+  .object({
+    ok: z.boolean(),
+    latency_ms: z.number().optional(),
+    count: z.number().optional(),
+    note: z.string().optional(),
+    reply: z.string().optional(),
+    error: z.string().optional(),
+  })
+  .passthrough()
+const auditItemSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  name: z.string(),
+  group: z.string().default(''),
+  configured: z.boolean(),
+  status: z.string(),
+  state: z.string(),
+  key_env: z.string().default(''),
+  cred: z.string().default(''),
+  key_url: z.string().default(''),
+  base_url: z.string().default(''),
+  model: z.string().default(''),
+  result: auditResultSchema.nullable().default(null),
+})
+const sourceHealthSchema = z.object({
+  source: z.string(),
+  ok_count: z.number().default(0),
+  fail_count: z.number().default(0),
+  last_count: z.number().default(0),
+  last_ok_at: z.string().nullable().default(null),
+  last_fail_at: z.string().nullable().default(null),
+  last_error: z.string().default(''),
+  updated_at: z.string().default(''),
+})
+const settingsAuditSchema = z.object({
+  llm: z.array(auditItemSchema).default([]),
+  sources: z.array(auditItemSchema).default([]),
+  health: z.array(sourceHealthSchema).default([]),
+  summary: z
+    .object({
+      total: z.number().default(0),
+      ok: z.number().default(0),
+      missing_key: z.number().default(0),
+      quota: z.number().default(0),
+      permission: z.number().default(0),
+      not_integrated: z.number().default(0),
+      failed: z.number().default(0),
+      health_sources: z.number().default(0),
+      health_failed: z.number().default(0),
+    })
+    .default({}),
+})
+export type ApiAuditItem = z.infer<typeof auditItemSchema>
+export type SourceHealthRow = z.infer<typeof sourceHealthSchema>
+export type SettingsAudit = z.infer<typeof settingsAuditSchema>
+
+export function useRunSettingsAudit() {
+  return useMutation({
+    mutationFn: async () => settingsAuditSchema.parse(await send('/settings/test-all', 'POST')),
+  })
+}
+
+export function useSourceHealth() {
+  return useQuery({
+    queryKey: ['source-health'],
+    queryFn: async () => z.array(sourceHealthSchema).parse(await getJSON('/news/source-health')),
+    staleTime: 30_000,
   })
 }

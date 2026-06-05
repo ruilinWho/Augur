@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS source_health (
     last_count   INTEGER NOT NULL DEFAULT 0,      -- 最近一次抓到条数
     last_ok_at   TEXT,
     last_fail_at TEXT,
+    last_error   TEXT    NOT NULL DEFAULT '',     -- 最近一次失败的可读原因
     updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
@@ -231,6 +232,7 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "linked", "INTEGER NOT NULL DEFAULT 0"),
     ("news_items", "lane", "TEXT NOT NULL DEFAULT 'feed'"),
     ("news_items", "tagged", "INTEGER NOT NULL DEFAULT 0"),
+    ("source_health", "last_error", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 

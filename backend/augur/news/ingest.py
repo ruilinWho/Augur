@@ -34,6 +34,12 @@ _MAX_WORKERS = 12  # 并发抓取的线程数（≈源数，但有上限以尊�
 _RECENCY_DAYS = 30  # 只收近 N 天的条目（无日期的保留）；挡归档源倒灌历史
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
+_HEALTH_SOURCE_IDS = {
+    "财联社": "cls",
+    "东方财富": "eastmoney_news",
+    "X(Twitter)": "twtapi",
+    "Reddit": "reddit",
+}
 
 
 def _published_dt(entry: dict) -> datetime | None:
@@ -128,28 +134,37 @@ def _prune_removed_sources(feed_names: set[str]) -> int:
         conn.close()
 
 
-def _record_health(rows: list[tuple[str, bool, int]]) -> None:
+def _health_error(source: str, exc: Exception) -> str:
+    """把摄取失败存成可读原因；feed 级失败归到 RSS 诊断。"""
+    from .source_test import diagnose_problem
+
+    return diagnose_problem(_HEALTH_SOURCE_IDS.get(source, "feeds_rss"), exc)
+
+
+def _record_health(rows: list[tuple[str, bool, int, str]]) -> None:
     """累计每源成功/失败次数 + 最近条数/成功时间（纯统计，无 LLM）。失败不抛。"""
     conn = get_conn()
     try:
-        for source, ok, n in rows:
+        for source, ok, n, err in rows:
             if ok:
                 conn.execute(
                     "INSERT INTO source_health "
-                    "(source, ok_count, last_count, last_ok_at, updated_at) "
-                    "VALUES (?, 1, ?, datetime('now'), datetime('now')) "
+                    "(source, ok_count, last_count, last_ok_at, last_error, updated_at) "
+                    "VALUES (?, 1, ?, datetime('now'), '', datetime('now')) "
                     "ON CONFLICT(source) DO UPDATE SET ok_count=ok_count+1, "
                     "last_count=excluded.last_count, last_ok_at=datetime('now'), "
-                    "updated_at=datetime('now')",
+                    "last_error='', updated_at=datetime('now')",
                     (source, n),
                 )
             else:
                 conn.execute(
-                    "INSERT INTO source_health (source, fail_count, last_fail_at, updated_at) "
-                    "VALUES (?, 1, datetime('now'), datetime('now')) "
+                    "INSERT INTO source_health "
+                    "(source, fail_count, last_fail_at, last_error, updated_at) "
+                    "VALUES (?, 1, datetime('now'), ?, datetime('now')) "
                     "ON CONFLICT(source) DO UPDATE SET fail_count=fail_count+1, "
-                    "last_fail_at=datetime('now'), updated_at=datetime('now')",
-                    (source,),
+                    "last_fail_at=datetime('now'), last_error=excluded.last_error, "
+                    "updated_at=datetime('now')",
+                    (source, err[:600]),
                 )
         conn.commit()
     except Exception:  # noqa: BLE001 — 健康度记录失败不应影响摄取
@@ -163,9 +178,13 @@ def source_health() -> list[dict]:
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT * FROM source_health ORDER BY last_ok_at IS NULL, last_ok_at DESC"
+            "SELECT * FROM source_health ORDER BY updated_at DESC, last_ok_at DESC"
         ).fetchall()
-        return [dict(r) for r in rows]
+        out = [dict(r) for r in rows]
+        for r in out:
+            if r.get("last_error") == "RSS：凭证无效，或当前套餐没有这个接口权限。":
+                r["last_error"] = "RSS：源站拒绝访问，可能是 feed 下线、反爬或需要更新 UA/适配器。"
+        return out
     finally:
         conn.close()
 
@@ -181,7 +200,7 @@ def ingest_all() -> dict:
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []
     failures: list[str] = []
-    health: list[tuple[str, bool, int]] = []  # (source, ok, 抓到条数) → 健康度
+    health: list[tuple[str, bool, int, str]] = []  # (source, ok, 抓到条数, 失败原因)
     with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as ex:
         futures: dict = {ex.submit(fetch_feed, f, cutoff): f["name"] for f in feeds}
         for name, fn in _ADAPTERS.items():  # 中文科技适配器并发同抓
@@ -191,10 +210,10 @@ def ingest_all() -> dict:
             try:
                 got = fut.result()
                 all_items.extend(got)
-                health.append((name, True, len(got)))
-            except Exception:  # noqa: BLE001 — 单源失败不应中断整体
+                health.append((name, True, len(got), ""))
+            except Exception as e:  # noqa: BLE001 — 单源失败不应中断整体
                 failures.append(name)
-                health.append((name, False, 0))
+                health.append((name, False, 0, _health_error(name, e)))
     _record_health(health)
     inserted = _store(all_items)
     classify.backfill_rules()  # 给历史未分类条目补规则分类（幂等、只扫未分类行）

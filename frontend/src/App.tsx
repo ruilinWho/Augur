@@ -49,6 +49,16 @@ const TABS: { v: View; label: string }[] = [
 
 const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
   {
+    id: 'all',
+    label: '全部',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M5 5h10M5 10h10M5 15h10" strokeLinecap="round" />
+        <path d="m4.2 5 .8.8 1.4-1.6M4.2 10l.8.8 1.4-1.6M4.2 15l.8.8 1.4-1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     id: 'appearance',
     label: '外观',
     icon: (

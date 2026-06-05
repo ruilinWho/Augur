@@ -1862,6 +1862,159 @@ body.resizing * {
   background: var(--surface);
 }
 
+/* 设置 · 全部：API 体检 + 信源健康度 */
+.api-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 4px 2px 2px;
+  margin-top: 4px;
+}
+.api-hero-k {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.api-hero h2 {
+  margin: 3px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.api-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+.api-metric {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.api-metric span {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.api-metric b {
+  font-size: 1.08rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.api-metric i {
+  font-style: normal;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.api-issue-list,
+.health-list {
+  display: flex;
+  flex-direction: column;
+}
+.api-issue,
+.health-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 2px;
+  border-top: 1px solid var(--border);
+}
+.api-issue:first-child,
+.health-row:first-child {
+  border-top: 0;
+}
+.api-issue-main,
+.health-main {
+  flex: 1;
+  min-width: 0;
+}
+.api-issue-title,
+.health-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.api-issue-title > span,
+.health-title > span {
+  min-width: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.api-state {
+  flex: none;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--text-faint);
+  background: var(--surface);
+}
+.api-state.ok {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 38%, var(--border));
+}
+.api-state.failed,
+.api-state.permission,
+.api-state.quota {
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 34%, var(--border));
+}
+.api-state.missing_key,
+.api-state.not_integrated,
+.api-state.unknown {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+}
+.api-issue-meta,
+.health-meta {
+  margin-top: 4px;
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.api-issue-detail,
+.health-error {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.api-link {
+  width: 84px;
+  justify-content: center;
+  white-space: nowrap;
+}
+.api-empty {
+  padding: 10px 2px;
+  color: var(--text-faint);
+  font-size: 0.84rem;
+}
+.api-empty.err {
+  color: var(--down);
+}
+
 /* 数据信源块 */
 .src-block {
   padding: 15px 2px;
@@ -2165,10 +2318,24 @@ body.resizing * {
   margin-bottom: 18px;
 }
 .src2-flabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 0.82rem;
   color: var(--text);
   font-weight: 600;
   margin-bottom: 8px;
+}
+.src2-flabel a {
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.src2-flabel a:hover {
+  text-decoration: underline;
 }
 .src2-none {
   font-size: 0.85rem;

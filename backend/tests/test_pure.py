@@ -113,16 +113,23 @@ def test_simplify():
 
 
 def test_source_test_diagnostics_are_user_facing():
-    assert source_test.diagnose_problem(
-        "twtapi", RuntimeError("TwtapiFatal: twtapi 月度调用额度已用完，请升级套餐或更换 key")
-    ) == "X：月度额度已用完，需要等额度重置、升级套餐或更换 key。"
-    assert source_test.diagnose_problem(
-        "tushare_pro",
-        RuntimeError("RuntimeError: 抱歉，您没有接口(stock_basic)访问权限"),
-    ) == "Tushare Pro：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
-    assert source_test.diagnose_problem(
-        "xueqiu", RuntimeError("关注用户 0 个；抓取适配器待接入")
-    ) == "雪球：还没有接入抓取适配器。"
+    assert (
+        source_test.diagnose_problem(
+            "twtapi", RuntimeError("TwtapiFatal: twtapi 月度调用额度已用完，请升级套餐或更换 key")
+        )
+        == "X：月度额度已用完，需要等额度重置、升级套餐或更换 key。"
+    )
+    assert (
+        source_test.diagnose_problem(
+            "tushare_pro",
+            RuntimeError("RuntimeError: 抱歉，您没有接口(stock_basic)访问权限"),
+        )
+        == "Tushare Pro：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
+    )
+    assert (
+        source_test.diagnose_problem("xueqiu", RuntimeError("关注用户 0 个；抓取适配器待接入"))
+        == "雪球：还没有接入抓取适配器。"
+    )
 
 
 def test_source_test_diagnostics_for_http_status():
@@ -132,4 +139,10 @@ def test_source_test_diagnostics_for_http_status():
     assert (
         source_test.diagnose_problem("itick", exc)
         == "iTick：凭证无效，或当前套餐没有这个接口权限。"
+    )
+    rss_resp = httpx.Response(403, request=req)
+    rss_exc = httpx.HTTPStatusError("forbidden", request=req, response=rss_resp)
+    assert (
+        source_test.diagnose_problem("feeds_rss", rss_exc)
+        == "RSS：源站拒绝访问，可能是 feed 下线、反爬或需要更新 UA/适配器。"
     )

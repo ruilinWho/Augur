@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -28,19 +29,23 @@ import {
   useDeleteConnection,
   useLlmUsage,
   useReorderConnections,
+  useRunSettingsAudit,
   useSchedule,
   useSetRoleTarget,
   useSetSchedule,
   useSetSecret,
   useSetSourceConfig,
   useSettingsConfig,
+  useSourceHealth,
   useTestAllConnections,
   useTestConnection,
   useTestSource,
   useUpsertConnection,
+  type ApiAuditItem,
   type Connection,
   type RoleTarget,
   type Schedule,
+  type SourceHealthRow,
   type SourceGroup,
   type SourceStatus,
   type TestResult,
@@ -563,6 +568,214 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
   )
 }
 
+// ───────────────────────── 全部：API 体检 + 信源健康度 ─────────────────────────
+type IssueLite = {
+  key: string
+  kind: string
+  name: string
+  state: string
+  status: string
+  detail?: string
+  key_url?: string
+  meta?: string
+}
+
+const STATE_LABEL: Record<string, string> = {
+  ok: '正常',
+  missing_key: '未配置',
+  quota: '额度',
+  permission: '权限',
+  not_integrated: '未接入',
+  failed: '异常',
+}
+
+function StatePill({ state, label }: { state: string; label?: string }) {
+  return <span className={`api-state ${state}`}>{label ?? STATE_LABEL[state] ?? state}</span>
+}
+
+function auditIssue(i: ApiAuditItem): IssueLite {
+  const detail = i.result?.error || i.result?.note || ''
+  return {
+    key: `${i.kind}-${i.id}`,
+    kind: i.kind === 'llm' ? '模型' : '信源',
+    name: i.name,
+    state: i.state,
+    status: i.status,
+    detail,
+    key_url: i.key_url,
+    meta: i.kind === 'llm' ? [i.model, i.base_url].filter(Boolean).join(' · ') : i.group,
+  }
+}
+
+function preflightIssues(conns: Connection[], sources: SourceStatus[]): IssueLite[] {
+  const llm = conns
+    .filter((c) => !c.base_url || !c.model || !c.key_configured)
+    .map((c) => ({
+      key: `llm-${c.id}`,
+      kind: '模型',
+      name: c.name || c.model || '未命名模型连接',
+      state: 'missing_key',
+      status: '未配置',
+      detail: 'base_url / API key / model 还没填完整。',
+      meta: [c.model, c.base_url].filter(Boolean).join(' · '),
+    }))
+  const src = sources
+    .filter((s) => s.key_env && !s.configured)
+    .map((s) => ({
+      key: `source-${s.id}`,
+      kind: '信源',
+      name: s.name,
+      state: 'missing_key',
+      status: '未配置',
+      detail: s.cred === 'token' ? '需要登录 token。' : '需要 API key。',
+      key_url: s.key_url,
+      meta: s.group,
+    }))
+  return [...llm, ...src]
+}
+
+function healthState(r: SourceHealthRow): 'ok' | 'failed' | 'unknown' {
+  if (r.last_fail_at && (!r.last_ok_at || r.last_fail_at > r.last_ok_at)) return 'failed'
+  if (r.last_ok_at) return 'ok'
+  return 'unknown'
+}
+
+function fmtStamp(s?: string | null): string {
+  if (!s) return '—'
+  return s.replace('T', ' ').slice(0, 16)
+}
+
+function Metric({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div className="api-metric">
+      <span>{label}</span>
+      <b>{value}</b>
+      {sub && <i>{sub}</i>}
+    </div>
+  )
+}
+
+function AllPage({ conns, sources }: { conns: Connection[]; sources: SourceStatus[] }) {
+  const audit = useRunSettingsAudit()
+  const healthQ = useSourceHealth()
+  const [showAllHealth, setShowAllHealth] = useState(false)
+  const data = audit.data
+  const healthRows = useMemo(() => {
+    const rows = data?.health ?? healthQ.data ?? []
+    return [...rows].sort((a, b) => {
+      const as = healthState(a)
+      const bs = healthState(b)
+      if (as !== bs) return as === 'failed' ? -1 : bs === 'failed' ? 1 : as === 'unknown' ? 1 : -1
+      return (b.updated_at || '').localeCompare(a.updated_at || '')
+    })
+  }, [data?.health, healthQ.data])
+  const issues = useMemo(() => {
+    if (data) {
+      return [...data.llm, ...data.sources]
+        .filter((i) => i.state !== 'ok')
+        .map(auditIssue)
+    }
+    return preflightIssues(conns, sources)
+  }, [conns, data, sources])
+  const healthyN = healthRows.filter((r) => healthState(r) === 'ok').length
+  const brokenRows = healthRows.filter((r) => healthState(r) === 'failed')
+  const visibleHealthRows = showAllHealth
+    ? healthRows
+    : brokenRows.length
+      ? brokenRows
+      : healthRows.slice(0, 12)
+  const brokenN = brokenRows.length
+  const missingN = issues.filter((i) => i.state === 'missing_key').length
+  const okN = data?.summary.ok ?? null
+
+  return (
+    <>
+      <div className="api-hero">
+        <div>
+          <div className="api-hero-k">API 体检</div>
+          <h2>全部</h2>
+        </div>
+        <button className="btn btn-primary" onClick={() => audit.mutate()} disabled={audit.isPending}>
+          {audit.isPending ? '体检中…' : '全部体检'}
+        </button>
+      </div>
+
+      <div className="api-metrics">
+        <Metric label="接通" value={okN ?? '—'} sub={data ? `${data.summary.total} 项已测` : '未运行体检'} />
+        <Metric label="待配置" value={missingN} />
+        <Metric label="信源正常" value={healthyN} sub={`${healthRows.length} 个有记录`} />
+        <Metric label="信源异常" value={brokenN} />
+      </div>
+
+      <Section title="待处理 API">
+        {audit.isError ? (
+          <div className="api-empty err">体检失败：{(audit.error as Error).message}</div>
+        ) : issues.length ? (
+          <div className="api-issue-list">
+            {issues.map((i) => (
+              <div className="api-issue" key={i.key}>
+                <div className="api-issue-main">
+                  <div className="api-issue-title">
+                    <span>{i.name}</span>
+                    <StatePill state={i.state} label={i.status} />
+                  </div>
+                  {i.meta && <div className="api-issue-meta mono">{i.meta}</div>}
+                  {i.detail && <div className="api-issue-detail">{i.detail}</div>}
+                </div>
+                {i.key_url && (
+                  <a className="btn btn-ghost jsm api-link" href={i.key_url} target="_blank" rel="noreferrer">
+                    获取凭证
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="api-empty">当前没有待处理项</div>
+        )}
+      </Section>
+
+      <Section
+        title="信源健康度"
+        action={
+          healthRows.length > visibleHealthRows.length || showAllHealth ? (
+            <button className="btn btn-ghost jsm" onClick={() => setShowAllHealth((v) => !v)}>
+              {showAllHealth ? '收起' : '显示全部'}
+            </button>
+          ) : null
+        }
+      >
+        {healthQ.isError && !data ? (
+          <div className="api-empty err">健康度加载失败：{(healthQ.error as Error).message}</div>
+        ) : visibleHealthRows.length ? (
+          <div className="health-list">
+            {visibleHealthRows.map((r) => {
+              const st = healthState(r)
+              const latest = st === 'failed' ? r.last_fail_at : r.last_ok_at
+              return (
+                <div className="health-row" key={r.source}>
+                  <div className="health-main">
+                    <div className="health-title">
+                      <span>{r.source}</span>
+                      <StatePill state={st} label={st === 'ok' ? '正常' : st === 'failed' ? '异常' : '无记录'} />
+                    </div>
+                    <div className="health-meta">
+                      {fmtStamp(latest)} · {r.last_count} 条 · 成功 {r.ok_count} / 失败 {r.fail_count}
+                    </div>
+                    {st === 'failed' && r.last_error && <div className="health-error">{r.last_error}</div>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="api-empty">暂无健康记录</div>
+        )}
+      </Section>
+    </>
+  )
+}
+
 // ───────────────────────── 数据 / 信源 ─────────────────────────
 // 信源详情子页：只放名称 + 状态 + 可操作项（key / 账户 / 关键词）。不写任何说明性文案。
 function SourceDetail({ s }: { s: SourceStatus }) {
@@ -597,7 +810,14 @@ function SourceDetail({ s }: { s: SourceStatus }) {
 
       {s.key_env && (
         <div className="src2-field">
-          <div className="src2-flabel">{isToken ? '登录 token' : 'API key'}</div>
+          <div className="src2-flabel">
+            <span>{isToken ? '登录 token' : 'API key'}</span>
+            {s.key_url && (
+              <a href={s.key_url} target="_blank" rel="noreferrer">
+                获取凭证
+              </a>
+            )}
+          </div>
           <div className="src-keyrow">
             <input
               className="cfg-input mono"
@@ -807,8 +1027,8 @@ function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: Sou
 export default function SettingsView() {
   const page = useUI((s) => s.settingsPage)
   const cfg = useSettingsConfig()
-  // 外观/自动页不依赖 /settings/config（各自本地或独立查询）；模型/信源页需 config，缺数据时给明确反馈
-  const needsCfg = page === 'models' || page === 'sources'
+  // 外观/自动页不依赖 /settings/config（各自本地或独立查询）；全部/模型/信源页需 config，缺数据时给明确反馈
+  const needsCfg = page === 'all' || page === 'models' || page === 'sources'
   return (
     <div className="set2-body">
       {page === 'appearance' && <AppearancePage />}
@@ -824,6 +1044,9 @@ export default function SettingsView() {
         </div>
       ) : (
         <>
+          {page === 'all' && (
+            <AllPage conns={cfg.data?.llm.connections ?? []} sources={cfg.data?.sources ?? []} />
+          )}
           {page === 'models' && (
             <ModelsPage
               conns={cfg.data?.llm.connections ?? []}

@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from . import runtime_config
 from .llm import gateway
-from .news import source_registry, source_test, sources
+from .news import ingest, source_registry, source_test, sources
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -27,6 +27,185 @@ _NAME_OK = re.compile(r"^[A-Z][A-Z0-9_]*(_API_KEY|_BASE_URL|_KEY|_TOKEN|_SECRET|
 
 def _allowed_names() -> set[str]:
     return {s["key_env"] for s in source_registry.SOURCES if s.get("key_env")}
+
+
+def _llm_key_url(conn: dict) -> str:
+    """按连接名/base/model 猜测 API key 控制台；猜不到就留空，不误导。"""
+    hay = " ".join(str(conn.get(k, "")) for k in ("name", "base_url", "model")).lower()
+    pairs = (
+        ("deepseek", "https://platform.deepseek.com/api_keys"),
+        ("openrouter", "https://openrouter.ai/keys"),
+        ("siliconflow", "https://cloud.siliconflow.cn/account/ak"),
+        ("dashscope", "https://bailian.console.aliyun.com/"),
+        ("aliyun", "https://bailian.console.aliyun.com/"),
+        ("qwen", "https://bailian.console.aliyun.com/"),
+        ("bigmodel", "https://bigmodel.cn/usercenter/apikeys"),
+        ("zhipu", "https://bigmodel.cn/usercenter/apikeys"),
+        ("moonshot", "https://platform.moonshot.cn/console/api-keys"),
+        ("kimi", "https://platform.moonshot.cn/console/api-keys"),
+        ("openai", "https://platform.openai.com/api-keys"),
+    )
+    for needle, url in pairs:
+        if needle in hay:
+            return url
+    return ""
+
+
+def _diagnose_llm_error(err: str) -> str:
+    msg = str(err or "").strip()
+    for prefix in (
+        "APIConnectionError: ",
+        "AuthenticationError: ",
+        "RateLimitError: ",
+        "BadRequestError: ",
+        "Timeout: ",
+        "HTTPStatusError: ",
+    ):
+        if msg.startswith(prefix):
+            msg = msg[len(prefix) :].strip()
+    low = msg.lower()
+    if "不能为空" in msg:
+        return "模型连接：base_url / API key / model 还没填完整。"
+    if any(x in low for x in ("401", "403", "unauthorized", "invalid api key", "forbidden")):
+        return "模型连接：API key 无效，或当前 key 没有调用这个模型的权限。"
+    if any(x in low for x in ("402", "insufficient balance", "insufficient quota", "quota")):
+        return "模型连接：余额或额度不足，需要充值、升级额度或更换 key。"
+    if any(x in low for x in ("429", "rate limit", "too many requests")):
+        return "模型连接：频率限制已触发，稍后再试或升级限额。"
+    if any(x in low for x in ("timeout", "timed out")):
+        return "模型连接：网络连接超时。"
+    if any(x in low for x in ("connection", "connect", "dns", "ssl")):
+        return "模型连接：base_url 网络不可达，可能是地址、代理或证书问题。"
+    if any(x in low for x in ("model", "not found", "does not exist")):
+        return "模型连接：模型 id 不存在，或这个 key 没有该模型权限。"
+    return f"模型连接：测试失败，{msg}" if msg else "模型连接：测试失败，暂时无法判断具体原因。"
+
+
+def _state_from_result(result: dict, configured: bool) -> str:
+    if result.get("ok"):
+        return "ok"
+    if not configured:
+        return "missing_key"
+    msg = str(result.get("error") or "")
+    if "还没有接入" in msg or "没有接入" in msg:
+        return "not_integrated"
+    if "月度额度" in msg or "频率限制" in msg or "限额" in msg:
+        return "quota"
+    if "余额" in msg or "权限" in msg or "积分" in msg or "套餐" in msg:
+        return "permission"
+    return "failed"
+
+
+def _status_for_state(state: str) -> str:
+    return {
+        "ok": "已接通",
+        "missing_key": "未配置",
+        "not_integrated": "未接入",
+        "quota": "额度受限",
+        "permission": "权限 / 余额",
+        "failed": "异常",
+    }.get(state, "异常")
+
+
+def _audit_llm_connections() -> list[dict]:
+    conns = runtime_config.list_connections()  # 含明文 key，仅用于本地测试；返回值不带 key
+    out: list[dict] = []
+
+    def _one(conn: dict) -> dict:
+        configured = bool(conn.get("base_url") and conn.get("model") and conn.get("api_key"))
+        result = gateway.test_connection(
+            conn.get("base_url", ""), conn.get("api_key", ""), conn.get("model", "")
+        )
+        if not result.get("ok"):
+            result["error"] = _diagnose_llm_error(str(result.get("error") or ""))
+        state = _state_from_result(result, configured)
+        return {
+            "id": conn.get("id", ""),
+            "kind": "llm",
+            "name": conn.get("name") or conn.get("model") or "未命名模型连接",
+            "group": "model",
+            "configured": configured,
+            "status": _status_for_state(state),
+            "state": state,
+            "base_url": conn.get("base_url", ""),
+            "model": conn.get("model", ""),
+            "key_url": _llm_key_url(conn),
+            "result": result,
+        }
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futs = [ex.submit(_one, c) for c in conns]
+        for fut in as_completed(futs):
+            out.append(fut.result())
+    out.sort(key=lambda x: (x["state"] == "ok", x["name"]))
+    return out
+
+
+def _source_missing_result(s: dict) -> dict:
+    label = "登录 token" if s.get("cred") == "token" else "API key"
+    return {"ok": False, "error": f"{s['name']}：没有配置{label}。"}
+
+
+def _audit_sources() -> list[dict]:
+    rows = source_registry.status_list()
+    out: list[dict] = []
+
+    def _one(s: dict) -> dict:
+        configured = bool(s.get("configured"))
+        if s.get("key_env") and not configured:
+            result = _source_missing_result(s)
+        else:
+            result = source_test.test_source(s["id"])
+        state = _state_from_result(result, configured)
+        return {
+            "id": s["id"],
+            "kind": "source",
+            "name": s["name"],
+            "group": s.get("group", ""),
+            "configured": configured,
+            "status": _status_for_state(state),
+            "state": state,
+            "key_env": s.get("key_env") or "",
+            "cred": s.get("cred") or "",
+            "key_url": s.get("key_url") or "",
+            "result": result,
+        }
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futs = [ex.submit(_one, s) for s in rows]
+        for fut in as_completed(futs):
+            out.append(fut.result())
+    out.sort(key=lambda x: (x["state"] == "ok", x["group"], x["name"]))
+    return out
+
+
+def _summary(llm: list[dict], src: list[dict], health: list[dict]) -> dict:
+    items = [*llm, *src]
+    states = [x.get("state", "") for x in items]
+    bad_health = [
+        h
+        for h in health
+        if h.get("last_fail_at")
+        and (not h.get("last_ok_at") or h["last_fail_at"] > h["last_ok_at"])
+    ]
+    return {
+        "total": len(items),
+        "ok": states.count("ok"),
+        "missing_key": states.count("missing_key"),
+        "quota": states.count("quota"),
+        "permission": states.count("permission"),
+        "not_integrated": states.count("not_integrated"),
+        "failed": states.count("failed"),
+        "health_sources": len(health),
+        "health_failed": len(bad_health),
+    }
+
+
+def _audit_all() -> dict:
+    llm = _audit_llm_connections()
+    src = _audit_sources()
+    health = ingest.source_health()
+    return {"llm": llm, "sources": src, "health": health, "summary": _summary(llm, src, health)}
 
 
 # ───────────────────────── 快照 ─────────────────────────
@@ -131,6 +310,12 @@ async def test_all_connections() -> dict[str, dict]:
     return await run_in_threadpool(_run)
 
 
+@router.post("/test-all")
+async def test_everything() -> dict:
+    """设置 · 全部：模型连接 + 数据信源 + 最近摄取健康度的一次性体检。"""
+    return await run_in_threadpool(_audit_all)
+
+
 # ───────────────────────── 数据信源 key ─────────────────────────
 class SecretIn(BaseModel):
     name: str
@@ -160,6 +345,12 @@ async def set_source_config(body: SourceConfigIn) -> dict:
 async def test_source(id: str) -> dict:
     """测试某数据信源是否可用（轻量真实探活）。→ {ok, latency_ms, count?, note?} | {ok:false}。"""
     return await run_in_threadpool(source_test.test_source, id)
+
+
+@router.post("/source/test-all")
+async def test_all_sources() -> list[dict]:
+    """批量测试所有登记信源；缺 key 的源不打外网，直接标未配置。"""
+    return await run_in_threadpool(_audit_sources)
 
 
 # ───────────────────────── 自动刷新调度（白天每小时「全部生成」）─────────────────────────
