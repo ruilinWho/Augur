@@ -8,6 +8,7 @@ import {
   useUpdateJournal,
   type JournalEntry,
 } from '../../api'
+import { useUI } from '../../store'
 import { EASE } from '../../theme/motion'
 
 const todayISO = () => {
@@ -121,7 +122,8 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
   const del = useDeleteJournal(symbol)
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const [open, setOpen] = useState(true)
+  const open = useUI((s) => s.kanModuleOpen.journal)
+  const setModuleOpen = useUI((s) => s.setKanModuleOpen)
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
 
   const toggle = (id: number) =>
@@ -134,14 +136,14 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
 
   return (
     <section className="journal">
-      <div className="journal-head" onClick={() => setOpen((o) => !o)} role="button">
+      <div className="journal-head" onClick={() => setModuleOpen('journal', !open)} role="button">
         <h3>判断日记</h3>
         {!adding && (
           <button
             className="btn btn-primary jsm"
             onClick={(e) => {
               e.stopPropagation()
-              setOpen(true)
+              setModuleOpen('journal', true)
               setAdding(true)
             }}
           >

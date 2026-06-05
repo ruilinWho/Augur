@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Collapse from '../../components/Collapse'
 import { useFinancials, useFundamentals, type FinPeriod } from '../../api'
 import { fmtMoney, fmtNum, fmtPct, fmtPctPlain } from '../../format'
+import { useUI } from '../../store'
 
 type RowDef = {
   key: Exclude<keyof FinPeriod, 'period'> // 仅数值列
@@ -31,7 +32,8 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
   const [period, setPeriod] = useState<'quarter' | 'annual'>('quarter')
   const fin = useFinancials(symbol, period)
   const fund = useFundamentals(symbol)
-  const [open, setOpen] = useState(true)
+  const open = useUI((s) => s.kanModuleOpen.financials)
+  const setModuleOpen = useUI((s) => s.setKanModuleOpen)
   const [showExtra, setShowExtra] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -49,7 +51,7 @@ export default function FinancialsPanel({ symbol }: { symbol: string }) {
 
   return (
     <section className="financials">
-      <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
+      <div className="sec-head" onClick={() => setModuleOpen('financials', !open)} role="button">
         <h3>财报分析</h3>
         <div className="fin-toggle" onClick={(e) => e.stopPropagation()}>
           <button className={period === 'quarter' ? 'on' : ''} onClick={() => setPeriod('quarter')}>
