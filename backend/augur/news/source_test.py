@@ -1,7 +1,7 @@
 """信源可用性测试（设置·数据信源 的「测试」按钮）。
 
-对每个信源做一次**轻量真实探活**：能测的真打一下（行情栈 / 财联社 / 东财 / X / RSS /
-Bloomberg / Tushare / 必盈 / iTick），返回 {ok, latency_ms, count?, note?} 或 {ok:false, error}。
+对每个信源做一次**轻量真实探活**：能测的真打一下（行情栈 / 财联社 / 东财 / X /
+RSS / Bloomberg / Reddit），返回 {ok, latency_ms, count?, note?} 或 {ok:false, error}。
 失败不抛、回错文。
 """
 
@@ -25,9 +25,6 @@ _SOURCE_NAMES = {
     "reddit": "Reddit",
     "xiaohongshu": "小红书",
     "xueqiu": "雪球",
-    "tushare_pro": "Tushare Pro",
-    "biyingapi": "必盈",
-    "itick": "iTick",
 }
 
 
@@ -197,17 +194,6 @@ def test_source(source_id: str) -> dict:
                 "雪球：还没有接入抓取适配器。当前可行路线是网页登录 Cookie/token，"
                 "但会失效且绑定真实账号；接入前保持未接入。"
             )
-
-        if source_id in ("tushare_pro", "biyingapi", "itick"):
-            from . import finance_apis
-
-            testers = {
-                "tushare_pro": finance_apis.test_tushare,
-                "biyingapi": finance_apis.test_biying,
-                "itick": finance_apis.test_itick,
-            }
-            count, note = testers[source_id]()
-            return _ok(t0, count, note)
 
         return _err(f"{source_id}：没有接入这个信源。")
     except Exception as e:  # noqa: BLE001 — 任何失败都回给前端展示

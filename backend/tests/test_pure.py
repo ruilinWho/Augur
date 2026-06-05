@@ -122,10 +122,10 @@ def test_source_test_diagnostics_are_user_facing():
     )
     assert (
         source_test.diagnose_problem(
-            "tushare_pro",
+            "twtapi",
             RuntimeError("RuntimeError: 抱歉，您没有接口(stock_basic)访问权限"),
         )
-        == "Tushare Pro：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
+        == "X：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
     )
     assert (
         source_test.diagnose_problem("xueqiu", RuntimeError("关注用户 0 个；抓取适配器待接入"))
@@ -138,8 +138,8 @@ def test_source_test_diagnostics_for_http_status():
     resp = httpx.Response(401, request=req)
     exc = httpx.HTTPStatusError("unauthorized", request=req, response=resp)
     assert (
-        source_test.diagnose_problem("itick", exc)
-        == "iTick：凭证无效，或当前套餐没有这个接口权限。"
+        source_test.diagnose_problem("twtapi", exc)
+        == "X：凭证无效，或当前套餐没有这个接口权限。"
     )
     rss_resp = httpx.Response(403, request=req)
     rss_exc = httpx.HTTPStatusError("forbidden", request=req, response=rss_resp)

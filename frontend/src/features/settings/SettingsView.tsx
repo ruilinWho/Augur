@@ -729,19 +729,19 @@ function AllPage({ conns, sources }: { conns: Connection[]; sources: SourceStatu
                   {i.detail && <div className="api-issue-detail">{i.detail}</div>}
                 </div>
                 {(i.key_url || i.docs_url || i.official_url) && (
-                  <div className="api-issue-links">
+                  <div className="api-issue-refs">
                     {i.key_url && (
-                      <a className="btn btn-ghost jsm api-link" href={i.key_url} target="_blank" rel="noreferrer">
+                      <a href={i.key_url} target="_blank" rel="noreferrer">
                         获取凭证
                       </a>
                     )}
                     {i.docs_url && (
-                      <a className="btn btn-ghost jsm api-link" href={i.docs_url} target="_blank" rel="noreferrer">
+                      <a href={i.docs_url} target="_blank" rel="noreferrer">
                         文档
                       </a>
                     )}
                     {i.official_url && (
-                      <a className="btn btn-ghost jsm api-link" href={i.official_url} target="_blank" rel="noreferrer">
+                      <a href={i.official_url} target="_blank" rel="noreferrer">
                         官方入口
                       </a>
                     )}
@@ -807,16 +807,20 @@ function SourceDetail({ s }: { s: SourceStatus }) {
   useEffect(() => setKey(s.key_value ?? ''), [s.key_value])
   const isToken = s.cred === 'token'
   const hasNothing = !s.key_env && s.config.length === 0
-  const guideRows = [
-    ['接入', s.setup],
-    ['用途', s.best_use],
-    ['边界', s.boundary],
-  ].filter(([, v]) => v)
+  type GuideLink = { label: string; href: string }
+  type GuideRow = [string, string | GuideLink[]]
   const guideLinks = [
     s.key_url && { label: s.key_env ? '获取凭证' : '入口', href: s.key_url },
     s.docs_url && { label: '文档', href: s.docs_url },
     s.official_url && { label: '官方入口', href: s.official_url },
-  ].filter(Boolean) as { label: string; href: string }[]
+  ].filter(Boolean) as GuideLink[]
+  const rawGuideRows: GuideRow[] = [
+    ['链接', guideLinks],
+    ['接入', s.setup],
+    ['用途', s.best_use],
+    ['边界', s.boundary],
+  ]
+  const guideRows = rawGuideRows.filter(([, v]) => (Array.isArray(v) ? v.length > 0 : v))
   const runTest = async () => {
     setTres(null)
     setTres(await test.mutateAsync(s.id))
@@ -838,27 +842,22 @@ function SourceDetail({ s }: { s: SourceStatus }) {
         </div>
       )}
 
-      {(guideRows.length > 0 || guideLinks.length > 0) && (
+      {guideRows.length > 0 && (
         <div className="src-guide">
-          {guideLinks.length > 0 && (
-            <div className="src-guide-links">
-              {guideLinks.map((l) => (
-                <a
-                  key={`${l.label}-${l.href}`}
-                  className="btn btn-ghost jsm"
-                  href={l.href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {l.label}
-                </a>
-              ))}
-            </div>
-          )}
           {guideRows.map(([label, value]) => (
             <div className="src-guide-row" key={label}>
               <span>{label}</span>
-              <p>{value}</p>
+              {Array.isArray(value) ? (
+                <p className="src-guide-refs">
+                  {value.map((l) => (
+                    <a key={`${l.label}-${l.href}`} href={l.href} target="_blank" rel="noreferrer">
+                      {l.label}
+                    </a>
+                  ))}
+                </p>
+              ) : (
+                <p>{value}</p>
+              )}
             </div>
           ))}
         </div>
@@ -868,11 +867,6 @@ function SourceDetail({ s }: { s: SourceStatus }) {
         <div className="src2-field">
           <div className="src2-flabel">
             <span>{isToken ? '登录 token' : 'API key'}</span>
-            {s.key_url && (
-              <a href={s.key_url} target="_blank" rel="noreferrer">
-                获取凭证
-              </a>
-            )}
           </div>
           <div className="src-keyrow">
             <input

@@ -4,9 +4,9 @@
 **新闻**（RSS/中文 newswire/官方资讯，喂 知）、**论坛**（社媒/社区情绪信号）。
 免费已接的内置栈（行情数据、RSS 聚合）以只读聚合行呈现；需 key/token 的源留配置槽。
 
-候选源可行性调研（twtapi/必盈/iTick/Tushare/雪球）结论见 ADR-0007。Tushare/必盈/iTick
-目前只做设置页轻量探活，不替代内置行情栈；Reddit 已用 public JSON 接入；雪球/小红书属
-登录型或不稳定抓取源，先登记配置槽与 UI lane，不伪装已接入。
+候选源可行性调研结论见 ADR-0007/0012。Tushare/必盈/iTick 曾作为候选行情源登记，
+但作者要求从设置页移除；Reddit 已用 public JSON 接入；雪球/小红书属登录型或不稳定
+抓取源，先登记配置槽与 UI lane，不伪装已接入。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
@@ -30,50 +30,6 @@ SOURCES: list[dict] = [
         "setup": "内置可用，无需额外 API key。",
         "best_use": "四市场 K 线、报价与基础财务兜底，优先喂「看」和「研」。",
         "boundary": "免费源偶发限流或缺字段；高阶基本面仍需单独数据源接入。",
-    },
-    {
-        "id": "tushare_pro",
-        "name": "Tushare Pro",
-        "group": "finance",
-        "access": "paid_api",
-        "key_env": "TUSHARE_TOKEN",
-        "cred": "token",
-        "key_url": "https://tushare.pro/document/1?doc_id=39",
-        "docs_url": "https://tushare.pro/document/2",
-        "payment": "积分制·充值",
-        "note": "A股·免费档薄·已被覆盖",
-        "setup": "注册 Tushare Pro 后在个人中心复制 token，填入 TUSHARE_TOKEN。",
-        "best_use": "后续若补 A 股财务、公告、行业数据，可作为内置免费栈之外的候选源。",
-        "boundary": "当前只做 key/权限探活；不替代已接入的 FDR/akshare/yfinance/pykrx。",
-    },
-    {
-        "id": "biyingapi",
-        "name": "必盈 BiYing",
-        "group": "finance",
-        "access": "paid_api",
-        "key_env": "BIYING_API_LICENCE",
-        "cred": "key",
-        "key_url": "https://www.biyingapi.com/licencelt",
-        "payment": "未明示·疑微信",
-        "note": "A/港行情·已被覆盖",
-        "setup": "在必盈官网获取 licence 后填入 BIYING_API_LICENCE。",
-        "best_use": "后续若需要补 A/H 行情冗余，可作为备用探活源。",
-        "boundary": "当前只做 key/权限探活；行情主栈已覆盖基础需求。",
-    },
-    {
-        "id": "itick",
-        "name": "iTick",
-        "group": "finance",
-        "access": "paid_api",
-        "key_env": "ITICK_API_KEY",
-        "cred": "key",
-        "key_url": "https://docs.itick.net/en/getting-started",
-        "docs_url": "https://docs.itick.net/en",
-        "payment": "USD·国际卡",
-        "note": "全球行情·免费档严",
-        "setup": "按 iTick getting-started 创建 API key，填入 ITICK_API_KEY。",
-        "best_use": "后续若需要全球实时行情或 WebSocket，再评估接入数据模型。",
-        "boundary": "当前只做 key/权限探活；免费额度较紧且需要国际支付路径。",
     },
     # ──────────── 新闻 · RSS / 中文 newswire / 官方资讯 ────────────
     {
@@ -204,7 +160,7 @@ SOURCES: list[dict] = [
     },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
-#   覆盖且增隐私外泄；当前只在设置页做轻量真实探活，不默认喂行情/研究。雪球需周级失效的
+#   覆盖且增隐私外泄；作者已要求从设置页移除。雪球需周级失效的
 #   登录 token 且把持仓查询绑真实账号泄露（违 §11），故只登记配置槽、由作者定夺。
 #   **Twitter 桥选 twtapi**（而非 TwitterAPI.io）：作者无国际银行卡、付不了
 #   TwitterAPI.io，twtapi 有免费试用+月付套餐，故采 twtapi。已移除太贵源见 ADR-0007。

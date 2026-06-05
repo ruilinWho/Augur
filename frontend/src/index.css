@@ -2049,18 +2049,23 @@ body.resizing * {
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.api-issue-links {
-  display: flex;
+.api-issue-refs {
   flex: none;
-  flex-wrap: wrap;
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 6px;
-  max-width: 188px;
-}
-.api-link {
-  width: 84px;
-  justify-content: center;
+  gap: 10px;
+  padding-top: 1px;
   white-space: nowrap;
+}
+.api-issue-refs a {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.api-issue-refs a:hover {
+  text-decoration: underline;
 }
 .api-empty {
   padding: 10px 2px;
@@ -2383,16 +2388,6 @@ body.resizing * {
   font-weight: 600;
   margin-bottom: 8px;
 }
-.src2-flabel a {
-  color: var(--accent);
-  font-size: 0.74rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.src2-flabel a:hover {
-  text-decoration: underline;
-}
 .src-guide {
   display: grid;
   gap: 10px;
@@ -2400,16 +2395,6 @@ body.resizing * {
   padding: 13px 0 15px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-}
-.src-guide-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.src-guide-links .btn {
-  min-width: 84px;
-  justify-content: center;
-  white-space: nowrap;
 }
 .src-guide-row {
   display: grid;
@@ -2428,6 +2413,21 @@ body.resizing * {
   font-size: 0.83rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
+}
+.src-guide-refs {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.src-guide-refs a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.src-guide-refs a:hover {
+  text-decoration: underline;
 }
 .src2-none {
   font-size: 0.85rem;
