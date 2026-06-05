@@ -110,11 +110,11 @@ SOURCES: list[dict] = [
         "payment": "免费·需登录",
         "note": "社区情绪·需登录",
         "setup": (
-            "未确认一手公共内容 API；若启用，需网页登录后复制 "
-            "xq_a_token/u 等 Cookie 到 XUEQIU_TOKEN。"
+            "轻量测试会访问讨论搜索 JSON；请从浏览器请求复制完整 Cookie header 到 "
+            "XUEQIU_TOKEN，至少包含 xq_a_token 和 u。"
         ),
         "best_use": "关注大 V、按个股/关键词追踪讨论，适合 A/H/中概社区情绪和反证线索。",
-        "boundary": "登录 Cookie 会失效且暴露账号足迹；适配器未接入前保持未接入。",
+        "boundary": "登录 Cookie 会失效且暴露账号足迹；当前只接入内容探活，未并入自动抓取。",
         "config": [
             {"field": "accounts", "type": "accounts", "label": "关注用户"},
             {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},

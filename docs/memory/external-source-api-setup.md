@@ -6,7 +6,7 @@
 
 - **X / Twitter**：Augur 当前不直连 X 官方 API，而是走 `twtapi` 桥，设置里填 `TWTAPI_KEY`。取 key 入口是 <https://twtapi.io/>，文档入口是 <https://twtapi.io/docs>。X 官方入口是 <https://console.x.com/>，官方 getting access 文档是 <https://docs.x.com/x-api/getting-started/getting-access>；官方 key 可用于未来原生 X API 适配器，但不是当前 `news/twtapi.py` 的凭证。
 - **Reddit**：当前 `reddit.py` 使用 public subreddit JSON，不需要 key。官方 Devvit 路线不需要传统 `reddit.com/prefs/apps` API key，入口是 <https://developers.reddit.com/docs/> / <https://developers.reddit.com/new>；外部脚本/OAuth 是另一套流程。当前适合轻量拉 `r/<sub>/new.json?raw_json=1`，重度或写入型能力再走官方审批/Devvit。
-- **雪球**：未找到可确认的一手公共内容 API。可行但非官方的路线是网页登录后复制 Cookie/token（常见形态 `xq_a_token=...;u=...`），参考第三方 `pysnowball`：<https://pypi.org/project/pysnowball/>。这会绑定作者真实账号足迹，token 也会失效；未实现适配器前必须显示“未接入”。
+- **雪球**：未找到可确认的一手公共内容 API。可行但非官方的路线是网页登录后复制 Cookie/token（常见形态 `xq_a_token=...;u=...`），参考第三方 `pysnowball`：<https://pypi.org/project/pysnowball/>。这会绑定作者真实账号足迹，token 也会失效。当前 `xueqiu.py` 只做设置页轻量内容探活，不读持仓、不并入自动抓取；完整 Cookie 不足时会被 WAF 网页壳拦截。
 - **小红书**：官方开放平台/Ark App Key 获取文档在 <https://school.xiaohongshu.com/en/open/quick-start/how-to-get-app-key.html>，首页/集成说明在 <https://school.xiaohongshu.com/en/open/index.html>。该平台偏商家/订单/商品等开放能力，不等于公开笔记搜索 API。没有稳定合规接口前，不做匿名爬虫或浏览器 Cookie 冒充已接入。
 
 ## 最佳用法
@@ -20,4 +20,4 @@
 
 - 设置页必须在填 key 的同一屏展示：取凭证入口、文档/官方入口、接入方式、最佳用途、边界。
 - `source_registry.py` 是这些元数据的单一真相；前端和“全部体检”只消费字段，不在组件里写死解释。
-- 雪球/小红书没有真实适配器前，测试结果仍应是“未接入”，即使作者已经填了 token/cookie。
+- 雪球测试结果应真实反映内容 JSON 是否可达；只填 `xq_a_token` 值时通常会提示 Cookie 不完整/WAF。小红书没有真实适配器前，测试结果仍应是“未接入”，即使作者已经填了 token/cookie。

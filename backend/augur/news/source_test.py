@@ -1,7 +1,7 @@
 """信源可用性测试（设置·数据信源 的「测试」按钮）。
 
 对每个信源做一次**轻量真实探活**：能测的真打一下（行情栈 / 财联社 / 东财 / X /
-RSS / Bloomberg / Reddit），返回 {ok, latency_ms, count?, note?} 或 {ok:false, error}。
+RSS / Bloomberg / Reddit / 雪球），返回 {ok, latency_ms, count?, note?} 或 {ok:false, error}。
 失败不抛、回错文。
 """
 
@@ -99,6 +99,11 @@ def diagnose_problem(source_id: str, exc: Exception) -> str:
         return f"{name}：没有配置凭证或账号，请先填写后再测试。"
     if "待接入" in msg or "未接入" in msg or "适配器" in msg:
         return f"{name}：还没有接入抓取适配器。"
+    if "风控网页壳" in msg or "不是 JSON" in msg or "完整 Cookie" in msg:
+        return (
+            f"{name}：返回了风控网页，不是内容 JSON。请从浏览器请求复制完整 Cookie "
+            "header，至少包含 xq_a_token 和 u；只填 xq_a_token 的值通常不够。"
+        )
     if "月度调用额度已用完" in msg or "monthly call limit" in lower:
         return f"{name}：月度额度已用完，需要等额度重置、升级套餐或更换 key。"
     if "429" in msg or "频率" in msg or "限流" in msg or "rate limit" in lower:
@@ -190,10 +195,12 @@ def test_source(source_id: str) -> dict:
             )
 
         if source_id == "xueqiu":
-            return _err(
-                "雪球：还没有接入抓取适配器。当前可行路线是网页登录 Cookie/token，"
-                "但会失效且绑定真实账号；接入前保持未接入。"
-            )
+            if not runtime_config.has_secret("XUEQIU_TOKEN"):
+                return _err("雪球：没有配置登录 token，请先填写后再测试。")
+            from . import xueqiu
+
+            count, note = xueqiu.ping()
+            return _ok(t0, count, f"雪球内容接口可达 · {note}")
 
         return _err(f"{source_id}：没有接入这个信源。")
     except Exception as e:  # noqa: BLE001 — 任何失败都回给前端展示
