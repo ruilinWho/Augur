@@ -528,13 +528,19 @@ def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
 
 
 def _platform_counts(items: list[dict]) -> dict[str, int]:
-    counts = {"Twitter 第二源": 0, "小红书": 0}
+    counts = {"Twitter 第二源": 0, "小红书": 0, "Threads": 0, "Reddit": 0, "微信": 0}
     for it in items:
         src = it.get("source") or ""
         if src.startswith("X2·"):
             counts["Twitter 第二源"] += 1
         elif src.startswith("小红书·"):
             counts["小红书"] += 1
+        elif src.startswith("Threads·"):
+            counts["Threads"] += 1
+        elif src.startswith("Reddit·"):
+            counts["Reddit"] += 1
+        elif src.startswith("微信·"):
+            counts["微信"] += 1
     return {k: v for k, v in counts.items() if v > 0}
 
 
@@ -556,7 +562,7 @@ def _social_heat_empty(symbol: str, configured: bool, status: str) -> dict:
 
 
 def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
-    """个股社媒热度：TikHub 的 Twitter 第二源 + 小红书搜索 → AI 摘要。
+    """个股社媒热度：TikHub 多源搜索 → AI 摘要。
 
     这是投资判据里的弱信号层：只暴露观点分布、热度和反证方向，不把原始帖子洪流铺给作者。
     """
@@ -593,7 +599,7 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         lines.append(f"[{i}] ({day}) [{src}] {title}" + (f" - {summary}" if summary else ""))
     name = search.display_name(symbol)
     heading = (
-        "你是 Augur 的投资社媒弱信号分析器。只基于下列 TikHub 搜索结果，"
+        "你是 Augur 的投资社媒/论坛弱信号分析器。只基于下列 TikHub 搜索结果，"
         f"判断 {name} / {symbol} 的大众观点与热度。"
     )
     prompt = f"""{heading}

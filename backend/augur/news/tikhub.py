@@ -19,6 +19,7 @@ import os
 import re
 import time
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -68,14 +69,30 @@ def _bases() -> tuple[str, ...]:
 def _api_message(data: Any) -> str:
     if not isinstance(data, dict):
         return str(data)[:300]
+    detail = data.get("detail")
+    if isinstance(detail, dict):
+        return _api_message(detail)
+    if isinstance(detail, list):
+        parts: list[str] = []
+        for item in detail[:3]:
+            if isinstance(item, dict):
+                parts.append(str(item.get("msg") or item.get("message") or item))
+            else:
+                parts.append(str(item))
+        if parts:
+            return "；".join(parts)[:300]
     return str(
         data.get("message_zh")
         or data.get("message")
         or data.get("msg")
         or data.get("error")
-        or data.get("detail")
+        or detail
         or data
     )[:300]
+
+
+def _params(params: dict[str, Any] | None) -> dict[str, Any]:
+    return {k: v for k, v in (params or {}).items() if v is not None}
 
 
 def _request(path: str, params: dict[str, Any] | None = None, *, retries: int = 1) -> dict:
@@ -87,7 +104,7 @@ def _request(path: str, params: dict[str, Any] | None = None, *, retries: int = 
         for attempt in range(retries + 1):
             try:
                 with httpx.Client(timeout=_TIMEOUT, headers=_headers(), follow_redirects=True) as c:
-                    resp = c.get(f"{base}{path}", params=params or {})
+                    resp = c.get(f"{base}{path}", params=_params(params))
                 if resp.status_code in (401, 403):
                     raise TikhubFatal(f"TIKHUB_KEY 无效或无权限（HTTP {resp.status_code}）")
                 if resp.status_code == 402:
@@ -96,6 +113,18 @@ def _request(path: str, params: dict[str, Any] | None = None, *, retries: int = 
                     raise TikhubFatal("TikHub 接口地址不可用，适配器需要更新")
                 if resp.status_code == 429:
                     raise TikhubFatal("TikHub 额度或频率限制已触发")
+                if resp.status_code in (400, 422):
+                    try:
+                        msg = _api_message(resp.json())
+                    except ValueError:
+                        msg = resp.text[:300]
+                    if resp.status_code == 422:
+                        raise TikhubError(f"TikHub 请求参数不符合文档，适配器需要更新：{msg}")
+                    last_exc = TikhubError(f"TikHub 端点当前失败（服务端返回 400，未扣费）：{msg}")
+                    if attempt < retries:
+                        time.sleep(0.5 * (2**attempt))
+                        continue
+                    break
                 if resp.status_code >= 500:
                     last_exc = TikhubError("TikHub 服务临时不可用")
                     if attempt < retries:
@@ -431,6 +460,11 @@ def _items_from_response(
     limit: int = _PER_QUERY,
 ) -> list[dict]:
     """Extract best-effort content items from TikHub's nested, platform-specific payloads."""
+    if platform == "reddit":
+        return _reddit_items_from_response(
+            data, source=source, lang=lang, category=category, cutoff=cutoff, limit=limit
+        )
+
     items: list[dict] = []
     seen: set[str] = set()
     candidates = [d for d in _iter_dicts(data.get("data", data)) if _candidate_score(d) >= 4]
@@ -457,6 +491,88 @@ def _items_from_response(
                 "source": source,
                 "title": title[:500],
                 "url": url or f"https://www.tikhub.io/search?q={quote_plus(title[:80])}",
+                "summary": summary[:700],
+                "lang": lang,
+                "category": category,
+                "published_at": dt.isoformat() if dt else None,
+                "theme": theme,
+                "topics": json.dumps(topics, ensure_ascii=False),
+                "classified_by": "rule",
+            }
+        )
+        if len(items) >= limit:
+            break
+    return items
+
+
+def _as_dict(obj: Any) -> dict:
+    return obj if isinstance(obj, dict) else {}
+
+
+def _reddit_children(data: dict) -> Iterable[dict]:
+    root = _as_dict(data.get("data"))
+    search = _as_dict(root.get("search"))
+    dynamic = _as_dict(search.get("dynamic"))
+    components = _as_dict(dynamic.get("components"))
+    main = _as_dict(components.get("main"))
+    for edge in main.get("edges") or []:
+        node = _as_dict(_as_dict(edge).get("node"))
+        for child in node.get("children") or []:
+            d = _as_dict(child)
+            if d.get("__typename") == "SearchPost" and isinstance(d.get("post"), dict):
+                yield d
+
+
+def _reddit_items_from_response(
+    data: dict,
+    *,
+    source: str,
+    lang: str,
+    category: str,
+    cutoff: datetime | None,
+    limit: int,
+) -> list[dict]:
+    """Parse TikHub Reddit's app search shape and ignore UI chrome/filter labels."""
+    items: list[dict] = []
+    seen: set[str] = set()
+    for child in _reddit_children(data):
+        post = _as_dict(child.get("post"))
+        title = _clean(post.get("postTitle") or post.get("title"))
+        if not title or len(title) < 3 or is_noise(title):
+            continue
+        dt = _parse_dt(post.get("createdAt") or post.get("created_at"))
+        if cutoff is not None and dt is not None and dt < cutoff:
+            continue
+        item_id = _clean(post.get("id"), max_len=80)
+        url = str(post.get("url") or "").strip()
+        if url.startswith("/"):
+            url = f"https://www.reddit.com{url}"
+        if not url.startswith("http"):
+            url = _best_url(post, "reddit", item_id)
+        content = _as_dict(post.get("content"))
+        summary = _clean(
+            content.get("markdown")
+            or content.get("text")
+            or content.get("html")
+            or content.get("preview"),
+            max_len=700,
+        )
+        behaviors = _as_dict(child.get("behaviors"))
+        community = _clean(_as_dict(behaviors.get("community")).get("name"), max_len=80)
+        author = _clean(_as_dict(behaviors.get("profile")).get("name"), max_len=80)
+        meta = " · ".join(x for x in (community, author) if x)
+        if meta:
+            summary = f"{meta} · {summary}" if summary else meta
+        key = item_id or url or f"{source}:{title[:120]}"
+        if key in seen:
+            continue
+        seen.add(key)
+        theme, topics = classify.classify_rule(title, summary, category)
+        items.append(
+            {
+                "source": source,
+                "title": title[:500],
+                "url": url or f"https://www.reddit.com/search/?q={quote_plus(title[:80])}",
                 "summary": summary[:700],
                 "lang": lang,
                 "category": category,
@@ -516,6 +632,40 @@ def _fetch_queries(
         )
         out.extend(got)
     return out
+
+
+def _fetch_queries_limited(
+    queries: list[str],
+    *,
+    limit: int,
+    path: str,
+    base_params: dict[str, Any],
+    param_name: str,
+    source_prefix: str,
+    platform: str,
+    lang: str,
+    category: str,
+    cutoff: datetime | None,
+    retries: int = 1,
+) -> list[dict]:
+    """Fetch enough results for one source, then stop to keep stock-page probes cheap."""
+    out: list[dict] = []
+    for q in queries:
+        params = {**base_params, param_name: q}
+        got = _fetch_search(
+            path,
+            params=params,
+            source=f"{source_prefix}{q}",
+            platform=platform,
+            lang=lang,
+            category=category,
+            cutoff=cutoff,
+            retries=retries,
+        )
+        out.extend(got)
+        if len(out) >= limit:
+            break
+    return out[:limit]
 
 
 def fetch_twitter(cutoff: datetime | None = None) -> list[dict]:
@@ -586,8 +736,16 @@ def fetch_reddit(cutoff: datetime | None = None) -> list[dict]:
     return _fetch_queries(
         reddit_keywords(),
         path="/api/v1/reddit/app/fetch_dynamic_search",
-        base_params={},
-        param_name="keyword",
+        base_params={
+            "search_type": "post",
+            "sort": "NEW",
+            "time_range": "week",
+            "safe_search": "unset",
+            "allow_nsfw": "0",
+            "after": "",
+            "need_format": "false",
+        },
+        param_name="query",
         source_prefix="Reddit·TikHub·",
         platform="reddit",
         lang="en",
@@ -662,7 +820,16 @@ def ping_source(source_id: str) -> int:
         return len(
             _fetch_search(
                 "/api/v1/reddit/app/fetch_dynamic_search",
-                params={"keyword": _PROBE_QUERY},
+                params={
+                    "query": _PROBE_QUERY,
+                    "search_type": "post",
+                    "sort": "NEW",
+                    "time_range": "week",
+                    "safe_search": "unset",
+                    "allow_nsfw": "0",
+                    "after": "",
+                    "need_format": "false",
+                },
                 source="Reddit·TikHub·测试",
                 platform="reddit",
                 lang="en",
@@ -705,24 +872,20 @@ def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) ->
         return []
     cutoff = cutoff or datetime.now(UTC) - timedelta(days=7)
     out: list[dict] = []
-    out.extend(
-        _fetch_queries(
-            queries,
-            path="/api/v1/twitter/web/fetch_search_timeline",
-            base_params={"search_type": "Latest", "cursor": "undefined"},
-            param_name="keyword",
-            source_prefix="X2·搜索·",
-            platform="twitter",
-            lang="en",
-            category="markets",
-            cutoff=cutoff,
-        )
-    )
-    out.extend(
-        _fetch_queries(
-            queries,
-            path="/api/v1/xiaohongshu/app_v2/search_notes",
-            base_params={
+    jobs = [
+        {
+            "path": "/api/v1/twitter/web/fetch_search_timeline",
+            "base_params": {"search_type": "Latest", "cursor": "undefined"},
+            "param_name": "keyword",
+            "source_prefix": "X2·搜索·",
+            "platform": "twitter",
+            "lang": "en",
+            "category": "markets",
+            "retries": 0,
+        },
+        {
+            "path": "/api/v1/xiaohongshu/app_v2/search_notes",
+            "base_params": {
                 "page": 1,
                 "sort_type": "time_descending",
                 "note_type": "不限",
@@ -730,14 +893,72 @@ def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) ->
                 "source": "explore_feed",
                 "ai_mode": 0,
             },
-            param_name="keyword",
-            source_prefix="小红书·",
-            platform="xhs",
-            lang="zh",
-            category="forum",
-            cutoff=cutoff,
-        )
-    )
+            "param_name": "keyword",
+            "source_prefix": "小红书·",
+            "platform": "xhs",
+            "lang": "zh",
+            "category": "forum",
+            "retries": 0,
+        },
+        {
+            "path": "/api/v1/threads/web/search_top",
+            "base_params": {"end_cursor": "undefined"},
+            "param_name": "query",
+            "source_prefix": "Threads·",
+            "platform": "threads",
+            "lang": "en",
+            "category": "forum",
+            "retries": 0,
+        },
+        {
+            "path": "/api/v1/reddit/app/fetch_dynamic_search",
+            "base_params": {
+                "search_type": "post",
+                "sort": "NEW",
+                "time_range": "week",
+                "safe_search": "unset",
+                "allow_nsfw": "0",
+                "after": "",
+                "need_format": "false",
+            },
+            "param_name": "query",
+            "source_prefix": "Reddit·TikHub·",
+            "platform": "reddit",
+            "lang": "en",
+            "category": "forum",
+            "retries": 0,
+        },
+        {
+            "path": "/api/v1/wechat_mp/web/fetch_search_article",
+            "base_params": {"offset": 0, "sort_type": "_2"},
+            "param_name": "keyword",
+            "source_prefix": "微信·公众号·",
+            "platform": "wechat",
+            "lang": "zh",
+            "category": "tech",
+            "retries": 0,
+        },
+    ]
+    results: dict[int, list[dict]] = {}
+    fatal: TikhubFatal | None = None
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures = {
+            pool.submit(_fetch_queries_limited, queries, cutoff=cutoff, limit=10, **job): idx
+            for idx, job in enumerate(jobs)
+        }
+        for fut in as_completed(futures):
+            try:
+                results[futures[fut]] = fut.result()
+            except TikhubFatal as e:
+                fatal = e
+            except TikhubError:
+                # Stock-page heat is cross-source; one bad endpoint should not hide other sources.
+                # Per-source settings tests still expose the exact failure.
+                continue
+    if fatal is not None and not any(results.values()):
+        raise fatal
+    for idx in range(len(jobs)):
+        out.extend(results.get(idx, []))
     seen_urls: set[str] = set()
     deduped: list[dict] = []
     for it in out:

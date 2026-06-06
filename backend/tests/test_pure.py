@@ -175,12 +175,124 @@ def test_tikhub_items_from_nested_payload():
     assert "analyst" in items[0]["summary"]
 
 
+def test_tikhub_reddit_items_from_app_search_payload():
+    data = {
+        "code": 200,
+        "data": {
+            "search": {
+                "dynamic": {
+                    "components": {
+                        "main": {
+                            "edges": [
+                                {
+                                    "node": {
+                                        "children": [
+                                            {"__typename": "Filter", "title": "排序方式"},
+                                            {
+                                                "__typename": "SearchPost",
+                                                "post": {
+                                                    "id": "t3_abc",
+                                                    "createdAt": "2026-06-06T03:20:47.650000+0000",
+                                                    "postTitle": (
+                                                        "NVDA Blackwell supply looks tight"
+                                                    ),
+                                                    "url": "https://www.reddit.com/r/stocks/comments/abc/",
+                                                    "content": {
+                                                        "markdown": (
+                                                            "Investors are debating margins."
+                                                        )
+                                                    },
+                                                },
+                                                "behaviors": {
+                                                    "community": {"name": "r/stocks"},
+                                                    "profile": {"name": "poster"},
+                                                },
+                                            },
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+    }
+    items = tikhub._items_from_response(
+        data,
+        source="Reddit·TikHub·NVDA",
+        platform="reddit",
+        lang="en",
+        category="forum",
+        cutoff=None,
+        limit=5,
+    )
+    assert len(items) == 1
+    assert items[0]["title"] == "NVDA Blackwell supply looks tight"
+    assert items[0]["url"] == "https://www.reddit.com/r/stocks/comments/abc/"
+    assert "r/stocks" in items[0]["summary"]
+    assert "排序方式" not in items[0]["title"]
+
+
+def test_tikhub_reddit_uses_documented_search_params(monkeypatch):
+    captured: dict = {}
+
+    def fake_tags(source_id, field, fallback=None):
+        assert source_id == "tikhub_reddit"
+        assert field == "keywords"
+        return ["NVDA"]
+
+    def fake_fetch(path, **kwargs):
+        captured["path"] = path
+        captured["params"] = kwargs["params"]
+        return []
+
+    monkeypatch.setattr(tikhub, "_tags", fake_tags)
+    monkeypatch.setattr(tikhub, "_fetch_search", fake_fetch)
+    tikhub.fetch_reddit(None)
+    assert captured["path"] == "/api/v1/reddit/app/fetch_dynamic_search"
+    assert captured["params"]["query"] == "NVDA"
+    assert captured["params"]["search_type"] == "post"
+    assert captured["params"]["sort"] == "NEW"
+    assert captured["params"]["time_range"] == "week"
+    assert "keyword" not in captured["params"]
+
+
+def test_tikhub_stock_social_search_keeps_working_when_one_source_fails(monkeypatch):
+    def fake_fetch(queries, *, source_prefix, **kwargs):
+        if source_prefix == "X2·搜索·":
+            raise tikhub.TikhubError("TikHub 端点当前失败")
+        return [
+            {
+                "source": f"{source_prefix}{queries[0]}",
+                "title": f"{source_prefix} signal",
+                "url": f"https://example.test/{source_prefix}",
+                "summary": "",
+            }
+        ]
+
+    monkeypatch.setattr(tikhub, "_fetch_queries_limited", fake_fetch)
+    items = tikhub.social_search_for_stock(["NVDA"])
+    sources = {it["source"].split("·", 1)[0] for it in items}
+    assert "小红书" in sources
+    assert "Threads" in sources
+    assert "Reddit" in sources
+    assert "微信" in sources
+
+
 def test_source_test_diagnostics_for_tikhub_key():
     assert (
         source_test.diagnose_problem(
             "tikhub_twitter", RuntimeError("TikhubFatal: TIKHUB_KEY 无效或无权限（HTTP 401）")
         )
         == "Twitter 第二源：凭证无效，或当前套餐没有这个接口权限。"
+    )
+    assert (
+        source_test.diagnose_problem(
+            "tikhub_twitter",
+            RuntimeError("TikhubError: TikHub 端点当前失败（服务端返回 400，未扣费）：请求失败"),
+        )
+        == "Twitter 第二源：TikHub 端点当前失败（服务端返回 400，未扣费）：请求失败"
     )
 
 

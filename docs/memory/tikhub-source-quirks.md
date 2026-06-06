@@ -27,8 +27,20 @@
 
 ## 当前测试结果
 
-- 用作者提供的 TikHub key 做轻量探活时，五个源均被诊断为“当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分”。Reddit 早期猜测端点返回过 404，已改为文档线索里的 dynamic search。
-- 不要把这类结果解释成 Augur 解析失败。UI 应显示“凭证无效/无权限”或“余额、套餐、接口权限未开通”，取决于 TikHub 返回。
+- 2026-06-06 复测作者充值后的 key：`get_user_info` 可读到账户余额，`get_endpoint_info`
+  对 Twitter 搜索、小红书、Threads、Reddit、微信五个 endpoint 均返回可计费价格，因此
+  不是 key 无效或余额不足。
+- 小红书 `search_notes`、Threads `search_top`、Reddit `fetch_dynamic_search` 已真实通过探活。
+- Reddit 动态搜索参数必须按文档使用 `query`、`search_type=post`、`sort=NEW`、
+  `time_range=week`。旧的 `keyword` 会 422。返回结构是
+  `data.search.dynamic.components.main.edges[].node.children[]`，必须只解析
+  `__typename=SearchPost`，不要用通用递归抓字段，否则会抓到“排序方式”等 UI 文案。
+- Twitter 搜索 `fetch_search_timeline` 与微信公众文章 `fetch_search_article` 在 `api.tikhub.io`
+  和 `api.tikhub.dev` 都返回 TikHub 400：“请求失败，请重试……本次请求不会被扣费。”
+  文档默认示例也同样失败；这应显示为 **TikHub 端点当前失败**，不要误判为
+  key/余额/权限问题。可带响应 JSON 向 TikHub 支持确认。
+- 「看·社媒热度」是即时体验：按平台并发探测、每平台最多 10 条、某个 endpoint 失败不阻断
+  其他源。当前真实抓取 NVDA 可得到小红书/Threads/Reddit 各 10 条；Twitter/微信临时失败会被跳过。
 - 本文件不记录 key 明文。key 只应存在于 gitignored `backend/.env` 或 `data/config.local.json`。
 
 ## 产品规则

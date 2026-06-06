@@ -102,6 +102,10 @@ def diagnose_problem(source_id: str, exc: Exception) -> str:
     lower = msg.lower()
     if "未配置" in msg or "没有配置" in msg:
         return f"{name}：没有配置凭证或账号，请先填写后再测试。"
+    if "TikHub 端点当前失败" in msg:
+        return f"{name}：{msg}"
+    if "请求参数不符合文档" in msg:
+        return f"{name}：请求参数不符合文档，适配器需要更新。"
     if "待接入" in msg or "未接入" in msg or "适配器" in msg:
         return f"{name}：还没有接入抓取适配器。"
     if "月度调用额度已用完" in msg or "monthly call limit" in lower:
