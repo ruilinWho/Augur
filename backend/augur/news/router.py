@@ -20,6 +20,7 @@ from .schemas import (
     RefreshResult,
     ReportMeta,
     StockNewsBrief,
+    StockSocialHeat,
 )
 
 router = APIRouter(prefix="/news", tags=["news"])
@@ -74,6 +75,12 @@ async def news_for_brief(symbol: str, limit: int = 16) -> dict:
         return await run_in_threadpool(service.stock_news_brief, symbol, limit)
     except gateway.LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
+
+
+@router.get("/social-heat", response_model=StockSocialHeat)
+async def social_heat(symbol: str) -> dict:
+    """TikHub 社媒弱信号摘要：Twitter 第二源 + 小红书；只返回 AI 结论，不返回原始帖子。"""
+    return await run_in_threadpool(service.stock_social_heat, symbol)
 
 
 @router.get("/official", response_model=list[Filing])

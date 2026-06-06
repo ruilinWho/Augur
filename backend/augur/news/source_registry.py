@@ -6,14 +6,15 @@
 
 候选源可行性调研结论见 ADR-0007/0012。Tushare/必盈/iTick 曾作为候选行情源登记，
 但作者要求从设置页移除；雪球登录 Cookie 抓取已失效、随之退役；Reddit 已用
-public JSON 接入；小红书属登录型/不稳定抓取源，先登记配置槽与 UI lane，不伪装已接入。
+public JSON 接入；TikHub 作为共享 paid API provider 接 Twitter 第二源、小红书、Threads、
+Reddit 搜索和微信公众文章搜索。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
 from __future__ import annotations
 
 from .. import runtime_config
-from . import eastmoney_news, reddit, sources, twtapi
+from . import eastmoney_news, reddit, sources, tikhub, twtapi
 
 # access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
 # group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
@@ -97,6 +98,29 @@ SOURCES: list[dict] = [
         "boundary": "twtapi 是非官方桥；额度、鉴权或端点变化会以中文诊断暴露。",
         "config": [{"field": "accounts", "type": "accounts", "label": "关注账户"}],
     },
+    {
+        "id": "tikhub_twitter",
+        "name": "Twitter 第二源",
+        "group": "news",
+        "access": "paid_api",
+        "key_env": "TIKHUB_KEY",
+        "cred": "key",
+        "key_url": "https://docs.tikhub.io/",
+        "docs_url": "https://docs.tikhub.io/215701673e0",
+        "official_url": "https://docs.tikhub.io/",
+        "payment": "预付余额",
+        "note": "TikHub 搜索/账号",
+        "setup": (
+            "在 TikHub 后台充值并复制 Bearer Token，填入 TIKHUB_KEY；"
+            "与小红书/Threads/微信共享。"
+        ),
+        "best_use": "作为现有 X(twtapi) 的独立第二通道，追踪账号、关键词、个股大众观点和热度。",
+        "boundary": "TikHub 是第三方桥；只能作为弱信号，必须经 Augur 摘要、去噪与反证合成。",
+        "config": [
+            {"field": "accounts", "type": "accounts", "label": "关注账户"},
+            {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
+        ],
+    },
     # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
     {
         "id": "reddit",
@@ -114,32 +138,77 @@ SOURCES: list[dict] = [
         "config": [{"field": "subreddits", "type": "tags", "label": "Subreddits"}],
     },
     {
+        "id": "tikhub_reddit",
+        "name": "Reddit · TikHub",
+        "group": "forum",
+        "access": "paid_api",
+        "key_env": "TIKHUB_KEY",
+        "cred": "key",
+        "key_url": "https://docs.tikhub.io/",
+        "docs_url": "https://docs.tikhub.io/369454687e0",
+        "official_url": "https://docs.tikhub.io/",
+        "payment": "预付余额",
+        "note": "关键词搜索",
+        "setup": "填同一份 TIKHUB_KEY；公共 subreddit 仍由 Reddit 源独立承担。",
+        "best_use": "补足 public subreddit JSON 看不到的全站关键词搜索和个股讨论热度。",
+        "boundary": "搜索结果比 subreddit 流更噪，需要继续走 LLM 去重、相关性过滤和股票接地。",
+        "config": [{"field": "keywords", "type": "tags", "label": "个股 / 关键词"}],
+    },
+    {
         "id": "xiaohongshu",
         "name": "小红书",
         "group": "forum",
-        "access": "free_api",
-        "key_env": "XHS_COOKIE",
-        "cred": "token",
-        "key_url": "https://www.xiaohongshu.com/",
-        "docs_url": "https://school.xiaohongshu.com/en/open/quick-start/how-to-get-app-key.html",
-        "official_url": "https://school.xiaohongshu.com/en/open/index.html",
-        "payment": "免费·需登录",
-        "note": "消费/情绪信号·待接入",
-        "setup": (
-            "当前配置槽是登录 Cookie；官方 Ark App Key 主要面向商家开放平台，"
-            "不等于公开笔记搜索。"
-        ),
-        "best_use": "只在拿到稳定合规接口后追踪消费、品牌、散户情绪、关注用户和关键词。",
-        "boundary": "匿名抓取和浏览器 Cookie 不稳定且风险高；目前不接真实抓取。",
-        "config": [
-            {"field": "accounts", "type": "accounts", "label": "关注用户"},
-            {"field": "keywords", "type": "tags", "label": "个股 / 关键词"},
-        ],
+        "access": "paid_api",
+        "key_env": "TIKHUB_KEY",
+        "cred": "key",
+        "key_url": "https://docs.tikhub.io/",
+        "docs_url": "https://docs.tikhub.io/420136398e0",
+        "official_url": "https://docs.tikhub.io/",
+        "payment": "预付余额",
+        "note": "笔记搜索",
+        "setup": "填同一份 TIKHUB_KEY；Augur 使用 TikHub 小红书 App V2 搜索笔记接口。",
+        "best_use": "搜索消费、品牌、散户情绪和产品口碑，尤其适合中概/消费/AI 端侧热门叙事。",
+        "boundary": "小红书信号偏消费口碑和情绪，不等于财务事实；只展示 AI 摘要后的判断。",
+        "config": [{"field": "keywords", "type": "tags", "label": "个股 / 关键词"}],
+    },
+    {
+        "id": "tikhub_threads",
+        "name": "Threads",
+        "group": "forum",
+        "access": "paid_api",
+        "key_env": "TIKHUB_KEY",
+        "cred": "key",
+        "key_url": "https://docs.tikhub.io/",
+        "docs_url": "https://docs.tikhub.io/381269441e0",
+        "official_url": "https://docs.tikhub.io/",
+        "payment": "预付余额",
+        "note": "热门内容搜索",
+        "setup": "填同一份 TIKHUB_KEY；按关键词拉 Threads 热门内容。",
+        "best_use": "观察海外散户/科技圈对主题和产品的温和社媒反馈。",
+        "boundary": "Threads 覆盖面和金融密度有限，适合作旁证，不单独形成投资动作。",
+        "config": [{"field": "keywords", "type": "tags", "label": "个股 / 关键词"}],
+    },
+    {
+        "id": "tikhub_wechat",
+        "name": "微信公众文章",
+        "group": "news",
+        "access": "paid_api",
+        "key_env": "TIKHUB_KEY",
+        "cred": "key",
+        "key_url": "https://docs.tikhub.io/",
+        "docs_url": "https://docs.tikhub.io/452620369e0",
+        "official_url": "https://docs.tikhub.io/",
+        "payment": "预付余额",
+        "note": "公众号文章搜索",
+        "setup": "填同一份 TIKHUB_KEY；按关键词拉最新微信公众号文章，接口会做 3 次轻量重试。",
+        "best_use": "补中文产业链长文、券商/自媒体深度文章和国内主题热度。",
+        "boundary": "公众号文章质量分化大，必须经过 Augur 去噪、聚类和来源追踪。",
+        "config": [{"field": "keywords", "type": "tags", "label": "个股 / 关键词"}],
     },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
 #   覆盖且增隐私外泄；作者已要求从设置页移除。雪球的登录 Cookie 抓取已失效（风控墙
-#   拦内容 JSON），2026-06-05 退役、从设置页与探活注册中移除。
+#   拦内容 JSON），2026-06-05 退役、从设置页与探活注册中移除。TikHub 接入见 ADR-0013。
 #   **Twitter 桥选 twtapi**（而非 TwitterAPI.io）：作者无国际银行卡、付不了
 #   TwitterAPI.io，twtapi 有免费试用+月付套餐，故采 twtapi。已移除太贵源见 ADR-0007。
 
@@ -153,17 +222,17 @@ GROUPS: list[dict] = [
 # 信源可配置项「生效值」解析器（(source_id, field) → 返回当前生效列表的函数）
 _CONFIG_VALUE = {
     ("twtapi", "accounts"): twtapi.accounts,
+    ("tikhub_twitter", "accounts"): tikhub.twitter_accounts,
+    ("tikhub_twitter", "keywords"): tikhub.twitter_keywords,
     ("bloomberg", "channels"): lambda: runtime_config.get_source_config(
         "bloomberg", "channels", ["科技", "Markets"]
     ),
     ("eastmoney_news", "keywords"): eastmoney_news.keywords,
     ("reddit", "subreddits"): reddit.subreddits,
-    ("xiaohongshu", "accounts"): lambda: runtime_config.get_source_config(
-        "xiaohongshu", "accounts", []
-    ),
-    ("xiaohongshu", "keywords"): lambda: runtime_config.get_source_config(
-        "xiaohongshu", "keywords", []
-    ),
+    ("tikhub_reddit", "keywords"): tikhub.reddit_keywords,
+    ("xiaohongshu", "keywords"): tikhub.xiaohongshu_keywords,
+    ("tikhub_threads", "keywords"): tikhub.threads_keywords,
+    ("tikhub_wechat", "keywords"): tikhub.wechat_keywords,
 }
 _ACCOUNT_CATS = {
     "ai",
@@ -216,7 +285,7 @@ def sanitize_config(ftype: str, value) -> list:
     if ftype == "tags":
         out, seen = [], set()
         for k in value or []:
-            k = str(k).strip()[:20]
+            k = str(k).strip()[:40]
             if k and k.lower() not in seen:
                 seen.add(k.lower())
                 out.append(k)

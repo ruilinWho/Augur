@@ -31,6 +31,7 @@ from . import (
     relevance,
     stock_tag,
     ticker_news,
+    tikhub,
     translate,
 )
 
@@ -297,6 +298,7 @@ def refresh_directed(symbols: list[str] | None = None) -> dict:
     for sym in syms:
         _stock_clean_cache.pop(sym, None)
         _stock_brief_cache.pop(sym, None)
+        _stock_social_cache.pop(sym, None)
     return {**base, "stock_sources": custom}
 
 
@@ -364,6 +366,8 @@ def _norm_url(u: str) -> str:
 _stock_clean_cache: dict[str, tuple[float, list[dict]]] = {}
 _STOCK_CLEAN_TTL = 3600.0  # 个股相关新闻 LLM 清洗结果缓存 1h
 _stock_brief_cache: dict[str, tuple[float, dict]] = {}
+_stock_social_cache: dict[str, tuple[float, dict]] = {}
+_STOCK_SOCIAL_TTL = 1800.0
 
 
 def _clean_stock_news_llm(items: list[dict]) -> list[dict]:
@@ -520,6 +524,143 @@ def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
     }
     _stock_brief_cache[symbol] = (now, out)
+    return out
+
+
+def _platform_counts(items: list[dict]) -> dict[str, int]:
+    counts = {"Twitter 第二源": 0, "小红书": 0}
+    for it in items:
+        src = it.get("source") or ""
+        if src.startswith("X2·"):
+            counts["Twitter 第二源"] += 1
+        elif src.startswith("小红书·"):
+            counts["小红书"] += 1
+    return {k: v for k, v in counts.items() if v > 0}
+
+
+def _social_heat_empty(symbol: str, configured: bool, status: str) -> dict:
+    return {
+        "symbol": symbol,
+        "configured": configured,
+        "status": status,
+        "summary": "",
+        "sentiment": "不明",
+        "heat": "低",
+        "bull_points": [],
+        "bear_points": [],
+        "watch": [],
+        "source_count": 0,
+        "platforms": {},
+        "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
+    }
+
+
+def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
+    """个股社媒热度：TikHub 的 Twitter 第二源 + 小红书搜索 → AI 摘要。
+
+    这是投资判据里的弱信号层：只暴露观点分布、热度和反证方向，不把原始帖子洪流铺给作者。
+    """
+    now = time.time()
+    hit = _stock_social_cache.get(symbol)
+    if hit and now - hit[0] < _STOCK_SOCIAL_TTL:
+        return hit[1]
+    if not runtime_config.has_secret("TIKHUB_KEY"):
+        out = _social_heat_empty(symbol, False, "待配置 TIKHUB_KEY")
+        _stock_social_cache[symbol] = (now, out)
+        return out
+
+    try:
+        items = tikhub.social_search_for_stock(_stock_terms(symbol))
+    except Exception as e:  # noqa: BLE001 — 前端需要中文诊断，而不是 500
+        from .source_test import diagnose_problem
+
+        out = _social_heat_empty(symbol, True, diagnose_problem("tikhub_twitter", e))
+        _stock_social_cache[symbol] = (now, out)
+        return out
+
+    counts = _platform_counts(items)
+    if not items:
+        out = _social_heat_empty(symbol, True, "近 7 天没有抓到可用社媒信号")
+        _stock_social_cache[symbol] = (now, out)
+        return out
+
+    lines: list[str] = []
+    for i, it in enumerate(items[:24], start=1):
+        day = (it.get("published_at") or "")[:10] or "日期不详"
+        src = it.get("source") or ""
+        title = _strip_inline_refs(it.get("title_zh") or it["title"])
+        summary = _strip_inline_refs(it.get("summary") or "")
+        lines.append(f"[{i}] ({day}) [{src}] {title}" + (f" - {summary}" if summary else ""))
+    name = search.display_name(symbol)
+    heading = (
+        "你是 Augur 的投资社媒弱信号分析器。只基于下列 TikHub 搜索结果，"
+        f"判断 {name} / {symbol} 的大众观点与热度。"
+    )
+    prompt = f"""{heading}
+
+要求：
+- 只输出 JSON 对象，不要 Markdown。
+- 不要引用原始帖子编号，不要编造价格、目标价、成交量或未给出的事实。
+- 把社媒当作弱信号：结论必须包含反证/需要观察的方向。
+- heat 只能是 低 / 中 / 高；sentiment 只能是 偏多 / 中性 / 偏空 / 分歧 / 不明。
+
+返回字段：
+{{
+  "summary": "一句话说明大众观点和热度如何影响投资判断，80 字内",
+  "heat": "低|中|高",
+  "sentiment": "偏多|中性|偏空|分歧|不明",
+  "bull_points": ["最多 3 条偏多社媒信号"],
+  "bear_points": ["最多 3 条偏空/反证社媒信号"],
+  "watch": ["最多 3 条下一步需要观察的触发条件"]
+}}
+
+搜索结果：
+{chr(10).join(lines)}
+"""
+    try:
+        data = _complete_json(prompt, role, "summary")
+    except gateway.LLMNotConfigured:
+        data = {}
+    points = data.get("bull_points") if isinstance(data, dict) else []
+    risks = data.get("bear_points") if isinstance(data, dict) else []
+    watch = data.get("watch") if isinstance(data, dict) else []
+    heat = str(data.get("heat") or "中") if isinstance(data, dict) else "中"
+    if heat not in {"低", "中", "高"}:
+        heat = "中"
+    sentiment = str(data.get("sentiment") or "分歧") if isinstance(data, dict) else "分歧"
+    if sentiment not in {"偏多", "中性", "偏空", "分歧", "不明"}:
+        sentiment = "分歧"
+    out = {
+        "symbol": symbol,
+        "configured": True,
+        "status": "已生成",
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:120]
+        if isinstance(data, dict)
+        else "",
+        "sentiment": sentiment,
+        "heat": heat,
+        "bull_points": [
+            _strip_inline_refs(str(x))[:120]
+            for x in (points if isinstance(points, list) else [])
+            if str(x).strip()
+        ][:3],
+        "bear_points": [
+            _strip_inline_refs(str(x))[:120]
+            for x in (risks if isinstance(risks, list) else [])
+            if str(x).strip()
+        ][:3],
+        "watch": [
+            _strip_inline_refs(str(x))[:120]
+            for x in (watch if isinstance(watch, list) else [])
+            if str(x).strip()
+        ][:3],
+        "source_count": len(items),
+        "platforms": counts,
+        "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
+    }
+    if not out["summary"]:
+        out["summary"] = f"抓到 {len(items)} 条 TikHub 社媒信号，模型未配置或未能生成摘要。"
+    _stock_social_cache[symbol] = (now, out)
     return out
 
 

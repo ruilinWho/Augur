@@ -18,6 +18,7 @@
 ## 实现位置
 
 - `backend/augur/news/source_test.py::diagnose_problem` 是统一兜底翻译层。
+- TikHub (`TIKHUB_KEY`) 五个源共用一份 key；401/403 优先翻成“凭证无效，或当前套餐没有这个接口权限”，402/余额/套餐翻成“没有接口权限/需要充值或开通”，429 翻成“额度或频率限制”。
 - `POST /settings/source/test-all` 与 `POST /settings/test-all` 复用同一套诊断结果；体检结果只返回状态/问题/key 获取链接，不回传 API key。
 - `backend/augur/news/ingest.py::source_health` 会把旧健康记录里的公共 RSS 403 读时归一成“源站拒绝访问”，并在新抓取失败时存 `last_error`。
 - 各适配器仍可抛更精确的中文问题，但不能依赖前端清洗。

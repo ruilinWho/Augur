@@ -34,6 +34,21 @@ class StockNewsBrief(BaseModel):
     generated_at: str | None = None
 
 
+class StockSocialHeat(BaseModel):
+    symbol: str
+    configured: bool = False
+    status: str = ""
+    summary: str = ""
+    sentiment: str = "不明"
+    heat: str = "低"
+    bull_points: list[str] = []
+    bear_points: list[str] = []
+    watch: list[str] = []
+    source_count: int = 0
+    platforms: dict[str, int] = {}
+    generated_at: str | None = None
+
+
 class Filing(BaseModel):
     """个股官方一手文件（SEC EDGAR 申报）。标题/事项已给中文标签。"""
 

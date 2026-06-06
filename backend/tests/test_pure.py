@@ -13,7 +13,7 @@ import pytest
 from augur.market import search
 from augur.market.fundamentals import _growth, _period_label, _yahoo_symbols
 from augur.market.symbols import cn_exchange, parse_symbol
-from augur.news import edgar, source_test, stock_sources
+from augur.news import edgar, source_test, stock_sources, tikhub
 from augur.news.grounding import simplify as _simplify
 from augur.news.service import _norm_url, _parse_json_lenient
 from augur.settings_router import _llm_key_url
@@ -142,6 +142,45 @@ def test_source_test_diagnostics_for_http_status():
     assert (
         source_test.diagnose_problem("feeds_rss", rss_exc)
         == "RSS：源站拒绝访问，可能是 feed 下线、反爬或需要更新 UA/适配器。"
+    )
+
+
+def test_tikhub_items_from_nested_payload():
+    now = int(datetime(2026, 6, 1).timestamp())
+    data = {
+        "code": 200,
+        "data": {
+            "timeline": [
+                {
+                    "tweet_id": "1",
+                    "full_text": "NVIDIA Blackwell demand looks strong",
+                    "created_at": now,
+                    "user": {"screen_name": "analyst"},
+                    "url": "https://x.com/analyst/status/1",
+                }
+            ]
+        },
+    }
+    items = tikhub._items_from_response(
+        data,
+        source="X2·搜索·NVDA",
+        platform="twitter",
+        lang="en",
+        category="markets",
+        cutoff=None,
+        limit=5,
+    )
+    assert items and items[0]["source"] == "X2·搜索·NVDA"
+    assert items[0]["url"] == "https://x.com/analyst/status/1"
+    assert "analyst" in items[0]["summary"]
+
+
+def test_source_test_diagnostics_for_tikhub_key():
+    assert (
+        source_test.diagnose_problem(
+            "tikhub_twitter", RuntimeError("TikhubFatal: TIKHUB_KEY 无效或无权限（HTTP 401）")
+        )
+        == "Twitter 第二源：凭证无效，或当前套餐没有这个接口权限。"
     )
 
 

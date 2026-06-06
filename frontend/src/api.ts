@@ -742,6 +742,22 @@ const stockNewsBriefSchema = z.object({
 })
 export type StockNewsBrief = z.infer<typeof stockNewsBriefSchema>
 
+const stockSocialHeatSchema = z.object({
+  symbol: z.string(),
+  configured: z.boolean().default(false),
+  status: z.string().default(''),
+  summary: z.string().default(''),
+  sentiment: z.string().default('不明'),
+  heat: z.string().default('低'),
+  bull_points: z.array(z.string()).default([]),
+  bear_points: z.array(z.string()).default([]),
+  watch: z.array(z.string()).default([]),
+  source_count: z.number().default(0),
+  platforms: z.record(z.string(), z.number()).default({}),
+  generated_at: z.string().nullable().default(null),
+})
+export type StockSocialHeat = z.infer<typeof stockSocialHeatSchema>
+
 export function useStockNewsBrief(symbol: string | null) {
   return useQuery({
     enabled: !!symbol,
@@ -749,6 +765,19 @@ export function useStockNewsBrief(symbol: string | null) {
     queryFn: async () =>
       stockNewsBriefSchema.parse(
         await getJSON(`/news/for/brief?symbol=${encodeURIComponent(symbol!)}&limit=16`),
+      ),
+    staleTime: 30 * 60_000,
+    retry: 1,
+  })
+}
+
+export function useStockSocialHeat(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['stock-social-heat', symbol],
+    queryFn: async () =>
+      stockSocialHeatSchema.parse(
+        await getJSON(`/news/social-heat?symbol=${encodeURIComponent(symbol!)}`),
       ),
     staleTime: 30 * 60_000,
     retry: 1,
@@ -991,6 +1020,7 @@ export function useRefreshDirected() {
       // 指定股 → 只失效那只；全量刷新（一键里以 undefined 调）→ 失效整个 stock-news 前缀
       qc.invalidateQueries({ queryKey: symbol ? ['stock-news', symbol] : ['stock-news'] })
       qc.invalidateQueries({ queryKey: symbol ? ['stock-news-brief', symbol] : ['stock-news-brief'] })
+      qc.invalidateQueries({ queryKey: symbol ? ['stock-social-heat', symbol] : ['stock-social-heat'] })
       qc.invalidateQueries({ queryKey: symbol ? ['news-for', symbol] : ['news-for'] })
     },
   })
