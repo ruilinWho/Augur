@@ -4,7 +4,7 @@
 
 ## 1. 系统形态
 
-Augur 是一个**本地双进程应用**：Python/FastAPI 后端负责数据、LLM、调度和本地存储；React/Vite 前端负责交互、图表和流式呈现。开发期通过 localhost 上的 HTTP + SSE 通信；Phase 2 再用 Tauri 2 把前端和 Python sidecar 包成 macOS `.app`。
+Augur 是一个**本地双进程应用**：Python/FastAPI 后端负责数据、LLM、调度和本地存储；React/Vite 前端负责交互、图表和流式呈现。开发期通过 localhost 上的 HTTP + SSE 通信；桌面打包方向是用 Tauri 2 把前端和 Python sidecar 包成 macOS `.app`。
 
 ```
 浏览器 / Tauri webview
@@ -149,6 +149,6 @@ APScheduler 在后端 lifespan 启动：
 
 所有后台任务失败只记日志，不阻断 app 启动；重任务内部有互斥/`max_instances=1`，避免堆叠打源。
 
-## 8. Phase 2 打包
+## 8. 桌面打包方向
 
-当前仍是本地开发形态。M4 计划用 Tauri 2 + PyInstaller sidecar 打包，数据迁移到 `~/Library/Application Support/Augur/`，密钥迁移到 macOS Keychain。
+当前仍是本地开发形态。桌面版本计划用 Tauri 2 + PyInstaller sidecar 打包，数据迁移到 `~/Library/Application Support/Augur/`，密钥迁移到 macOS Keychain。

@@ -1,4 +1,4 @@
-# 开发环境 / 启动（M1）
+# 开发环境 / 启动
 
 一句话：先起后端再起前端；前端用 npm（非 pnpm）；HMR 偶发卡死要重启 vite。
 
@@ -25,6 +25,6 @@
 - 设置（字号/行距/字体/主题/涨跌色）持久化在 localStorage `augur-ui`；**`selectedSymbol` 不持久化**（首开是空态，符合预期）。
 - 截图自检用 Claude Preview MCP：`.claude/launch.json` 配 `frontend`（`npm --prefix frontend run dev`）；`.claude/` 已 gitignore。
 
-## 验证清单（M1 / M1.5 已过）
-- 四市场真实 K 线、两级分区、明暗双主题、四视图 → 截图验证。
+## 验证清单
+- 四市场真实 K 线、两级分区、明暗双主题、核心视图 → 截图验证。
 - `npm run typecheck`、`npm run build`、后端 ruff、控制台零错。

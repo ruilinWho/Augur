@@ -1,59 +1,115 @@
-<div align="center">
-
 # Augur
 
-**本地优先、LLM 驱动的个人多市场投资研究工作台**
-*A local-first, LLM-powered personal investment research workbench for macOS.*
+Augur is a local-first, LLM-powered investment research workbench for macOS.
 
-</div>
+It is built for one user who wants to follow multiple equity markets, read market-moving information with less noise, generate cited research, and keep a durable record of investment thinking. Augur is research software only: it never places orders, never moves money, and never connects to a brokerage account.
 
----
+## What Augur Does
 
-Augur 不是交易终端，而是一个本地运行的**研究**工具。它把四件事合在一处：
+Augur is organized around four product surfaces:
 
-- **看 · View**：美股 / 港股 / A 股 / 韩股 K 线、报价、基本面快照、财报趋势、判断日记 marker。
-- **研 · Research**：用确定性数据 + LLM 对单支股票生成带引用的深度研究报告，也支持导入他人研报并写评论。
-- **知 · Know**：聚合 RSS/API/X/定向 ticker 新闻，分类、翻译、过滤噪音，蒸馏成每日趋势、要事、机会和个股叙事。
-- **记 · Note**：与个股无关的自由长文笔记，用于市场随想、方法论、复盘思考。
+- **View**: multi-market candlestick charts for US, Hong Kong, China A-share, and Korea equities, with quotes, fundamentals, financial trends, 52-week position, related-news summaries, and decision journal markers.
+- **Research**: single-stock research reports generated from deterministic local context plus an LLM, with citations, imported reports, and personal comments.
+- **Know**: a daily market intelligence layer that ingests curated RSS/API sources, X, Reddit, TikHub-backed social sources, ticker-specific news, and stock-specific sources; it translates, filters, clusters, tags stocks, and distills decision-grade daily briefs, opportunities, risks, and narratives.
+- **Note**: long-form Markdown notes for market thoughts, investing process, and retrospectives that are not tied to a single ticker.
 
-底座是两级自选分区、统一 LLM 网关和本地 SQLite/Parquet 存储。Augur 永不下单、不动钱，也不把本地数据发往任何地方，除非作者明确配置的 LLM 或数据源需要。
+The common foundation is a two-level watchlist taxonomy, a configurable LLM gateway, local SQLite metadata, and Parquet market-data caches.
+
+## Features
+
+- Local-first storage under `data/`, with `resources/` reserved for versioned human-authored inputs.
+- Normalized multi-market symbols such as `US:AAPL`, `HK:00700`, `CN:600519`, and `KR:005930`.
+- Two-level watchlist sections with drag-and-drop organization and market filters.
+- Candlestick charts using a calm paper-like design language rather than trading-terminal noise.
+- Fundamentals and financial trend tables backed primarily by yfinance, with market-specific adapters and caches.
+- LLM gateway based on dynamic OpenAI-compatible connections and role routing (`chat`, `deep_research`, `summarize`, `cheap`).
+- Streaming research and news distillation, with token usage logged locally.
+- Source health checks and runtime configuration from the Settings UI.
+- News ingestion, translation, relevance filtering, stock grounding, daily snapshots, opportunity cards, and single-stock narrative timelines.
+- Free-form Markdown notes and stock-bound decision journals.
 
 ## Tech Stack
 
-`Python 3.13 + FastAPI` · `React 19 + TypeScript + Vite 8` · `litellm` · `FinanceDataReader / akshare / yfinance / pykrx` · `Lightweight Charts v5` · `Tailwind CSS v4` · `SQLite + Parquet` · `Tauri 2 (Phase 2)`
+| Layer | Stack |
+|---|---|
+| Backend | Python 3.13, FastAPI, uv, APScheduler |
+| Market data | FinanceDataReader, akshare, yfinance, pykrx |
+| LLM | litellm, OpenAI-compatible provider routing |
+| Storage | SQLite, Parquet, pyarrow |
+| Frontend | React 19, TypeScript, Vite 8, TanStack Query, Zustand, Zod |
+| UI | Tailwind CSS v4, Motion, dnd-kit |
+| Charts | Lightweight Charts v5 |
+| Desktop packaging | Planned Tauri 2 shell with a Python sidecar |
 
-## Status
+## Getting Started
 
-当前主线：**M1 / M1.5 / M1.6 / M2 已完成，M3「知」推进中，M3.5 优化与第 4 支柱「记」已落地**。
+Prerequisites:
 
-已能本地跑通四市场 K 线、自选分区、基本面/财报、单股研究、趋势日报、今日要事/机会、个股叙事、导入研报、自由笔记、动态 LLM/信源设置。实时状态看 [docs/roadmap.md](docs/roadmap.md)。
+- macOS
+- Python 3.13
+- `uv`
+- Node.js 20.19 or newer
+- npm
 
-## Local Run
+Start the backend:
 
 ```bash
-# backend
 cd backend
 uv sync
 uv run uvicorn augur.main:app --reload --port 8788
+```
 
-# frontend
+Start the frontend:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-密钥放在 `backend/.env` 或设置页写入的 `data/config.local.json`；两者都被 git 忽略。
+The Vite dev server runs on `http://localhost:5173` and proxies API requests to the FastAPI backend on `http://localhost:8788`.
 
-## For Developers And LLMs
+## Configuration
 
-Start with [AGENTS.md](AGENTS.md) — it is the project constitution. Then:
+Secrets must stay out of git.
 
-- Architecture → [docs/architecture.md](docs/architecture.md)
-- Roadmap & status → [docs/roadmap.md](docs/roadmap.md)
-- Design system → [docs/design-system.md](docs/design-system.md)
-- Decisions (ADRs) → [docs/decisions/](docs/decisions/)
-- Cross-session memory → [docs/memory/](docs/memory/)
+Augur reads configuration from two local, ignored locations:
+
+- `backend/.env`
+- `data/config.local.json`, written by the Settings UI and applied at runtime
+
+LLM connections, role routing, source credentials, source-specific options, and scheduler settings can be managed from the app. Runtime settings take precedence over `.env` values and do not require a backend restart.
+
+## Project Structure
+
+```text
+Augur/
+├── AGENTS.md            Project constitution for coding agents
+├── README.md            Human-facing project entry point
+├── backend/             FastAPI service and domain modules
+├── frontend/            React/Vite application
+├── resources/           Versioned prompts, source lists, fonts, aliases
+├── data/                Runtime data, ignored by git
+└── docs/                Architecture, roadmap, design system, ADRs, memory
+```
+
+The key rule is simple: manually authored inputs belong in `resources/`; generated, cached, fetched, or private runtime data belongs in `data/`.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Roadmap](docs/roadmap.md)
+- [Design system](docs/design-system.md)
+- [Architecture decisions](docs/decisions/)
+- [Project memory](docs/memory/)
+- [Agent instructions](AGENTS.md)
+
+## Roadmap
+
+Near-term work is tracked in [docs/roadmap.md](docs/roadmap.md). Current priorities include official Deep Research job integration, richer research templates and workflows, stock-specific source verification, section-level intelligence, and eventually native macOS packaging.
 
 ## Guardrails
 
-Research only. **Never** trades or moves money. Secrets stay out of git. Free data may be delayed or imperfect; every research output should expose freshness, uncertainty, and sources.
+Augur is not a trading terminal. It does not place trades, manage positions, or execute financial transactions.
+
+Investment outputs must remain traceable: cite sources, expose freshness, show uncertainty, and state counter-evidence or invalidation conditions. Free data sources can be delayed, incomplete, or wrong, and LLMs can hallucinate.

@@ -53,7 +53,7 @@
 │  notes/     → 「记」自由长文笔记（与个股无关）             │
 │  storage/   → SQLite（元数据）+ Parquet（行情缓存）        │
 └───────────────────────┬──────────────────────────────┘
-                        │  （Phase 2）
+                        │  （桌面打包方向）
                   Tauri 2 外壳 → 原生 .app（<10MB）
 ```
 
@@ -76,14 +76,13 @@ Augur/
 ├── backend/               ← Python（uv 管理）FastAPI 服务
 │   ├── pyproject.toml
 │   └── augur/  market/ · watchlist/ · journal/ · llm/ · research/ · news/ · notes/ · storage/ · config.py · main.py
-├── frontend/              ← React + Vite + TS（M1 搭建）
+├── frontend/              ← React + Vite + TS 前端
 ├── resources/             ← 入库的静态资产（版本控制）
 │   ├── fonts/             ← 自带字体
 │   ├── prompts/           ← LLM 提示词模板（要版本化！）
 │   └── sources/           ← 新闻信源清单 + aliases.yaml（跨语言别名种子）（YAML）
-├── data/                  ← 仅运行时 · 被 git 忽略 · 在 git 里永不作为真相来源
-│   ├── cache/（parquet）   ├── db/（sqlite）  └── logs/
-└── src-tauri/             ← Phase 2 桌面外壳
+└── data/                  ← 仅运行时 · 被 git 忽略 · 在 git 里永不作为真相来源
+    ├── cache/（parquet）   ├── db/（sqlite）  └── logs/
 ```
 
 **最重要的一条结构规则：** `resources/`（入库）vs `data/`（忽略）。
@@ -107,7 +106,7 @@ Augur/
 | 样式 | **Tailwind CSS v4** + 自定义设计 token | Anthropic 主题；CSS-first 配置（见 design-system.md） |
 | 拖拽 | **dnd-kit** | 自选分区拖拽组织（无障碍友好） |
 | 动效 | **Motion**（motion.dev，原 Framer Motion） | 克制、顺滑的过渡 |
-| 桌面（P2） | **Tauri 2** + PyInstaller sidecar | 原生 .app，<10MB（Electron 动辄 100MB+） |
+| 桌面 | **Tauri 2** + PyInstaller sidecar | 原生 .app，<10MB（Electron 动辄 100MB+） |
 | 前端包管理 | **npm（当前）** | 仓库真相是 `package-lock.json`；pnpm 是原目标，待本机环境可用再切 |
 
 > 本文件**不钉死精确版本**——`pyproject.toml` / `package.json` 才是版本真相。新增依赖要在提交里说明理由，并优先用上表里的库再考虑替代品。**"前沿"指主流稳定的最新大版本，不是不稳定的实验版。**
@@ -213,7 +212,7 @@ cd frontend && npm run dev
 本项目**全程由 LLM 协助开发**，所以写下来的持久上下文就是产品的记忆。规则：
 
 - **每次改动同一口气更新文档。** 新能力 → 更新 `AGENTS.md` 相关 § + `docs/`。带权衡的新决策 → 在 `docs/decisions/` 加一篇 ADR（只增不改、编号）。
-- **`docs/roadmap.md`** 是实时状态板——已完成、当前焦点、下一步。里程碑移动就更新它。
+- **`docs/roadmap.md`** 是产品路线图——当前能力、正在推进、未来方向。路线变化就更新它。
 - **`docs/memory/`** 存放放不进代码或 ADR 的跨会话上下文：坑、数据源怪癖、作者偏好、"为什么放弃了 X"。一文件一主题。（这是**项目级记忆**，区别于 Codex 的个人 `~/.Codex` 记忆。）
 - 当你（LLM）学到某个非显然、未来会话会重复踩坑的东西——**在结束这一轮前把它写下来**，放对地方。
 - 保持 `AGENTS.md` 精瘦：深度内容链接到 `docs/`；本文件是索引 + 不变量，不是百科。
@@ -232,18 +231,13 @@ cd frontend && npm run dev
 
 ## 12. 当前状态与下一步
 
-- **「记」（第 4 支柱，新）：** `notes/`（schemas/service/router）+ `notes` 表（title/body/pinned/时间戳）。`GET/POST /notes`、`GET/PATCH/DELETE /notes/{id}`。前端「记」Tab＝左栏 `NotesNav`（列表：置顶在前 + 预览 + 相对时间 +「＋新建」）＋主舞台 `NotesView`（标题 + 正文 编辑/预览 切换 + 置顶/删除 + **防抖 700ms 自动保存**带「已保存/未保存/保存中」状态）。**与个股无关的自由长文**（市场随想/方法论/复盘思考）；区别于 journal/imported_reports（均绑定个股）。store＝`features/notes/store.ts`（selectedId，非持久）。**共享 Markdown 组件** `components/Markdown.tsx`（`##`/`#`/`>`/`-`/`|表格|`/`[n]` 可点引用）——研/导入研报/记 共用，取代各处手写解析（导入研报因此获得表格/链接支持）。
-- **新闻自动标股（不限自选，"发现机会"）：** `news/stock_tag.py` + `news/grounding.py`——对相关新闻批量 LLM 识别涉及的上市公司 → **确定性接地**到真实 `MARKET:CODE`（防编造，与「今日机会」同款 `grounding.resolve_company`）→ 写 `news_item_symbols`（`matched_by='llm'`）。新闻卡股票 chip 不再只显自选：**自选股=陶土+圆点、LLM 发现的非自选股=中性**，都可点→看（作者：「看到新闻去看相应的股票，即使不在自选，才叫发现机会」）。`news_items.tagged` 每条只标一次；`linker.attach_symbols` 带 `in_watchlist` 区分。`refresh` 链：摄取→翻译→relevance→linker→**stock_tag**。relevance/translate **循环到清空**（不再封顶，垃圾都滤、英文都翻）。
-- **夜间全面优化（10 领域审计→实现，见 [docs/roadmap.md](docs/roadmap.md)）：** 后端稳健性（SQLite WAL+busy_timeout、**token 用量落库** `/llm/usage`、EDGAR 缓存 TTL、财联社失败正确记健康度、**A股北交所 BSE 解析** `symbols.cn_exchange`、个股资讯词边界去误配、relevance 积压改 ASC、调度补「今日机会」、SSE 防代理缓冲头+错误帧收尾、CORS 任意本地端口、web_search 仅注入研/对话角色）；前端（**SSE 错误吞噬修复** `consumeSSE`、`HttpError.status` 判 404 空态、全局 `ErrorBoundary`、`MotionConfig reducedMotion`、细粒度 `useUI` selector 修拖栏重渲染、**K 线蜡烛半透明蜡笔纸感**、平盘态、报价新鲜度标注、基本面/财报「失败≠无数据」、研报常驻决策边界说明、`--measure` 行宽、齿轮右对齐、`#fff`→`--accent-ink`）。
-- **本地运行：** 后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`（:5173，已代理 `/market /watchlist /journal /llm /news /research /notes /settings /health`）。LLM 需 `backend/.env` 或设置页运行时配置（见 `.env.example`，**密钥永不入库**）。
-- **知·个股（融合主线，已落地）：** `news_items.lane`（`feed` RSS策展流 / `ticker` 自选股定向抓取）。**①定向抓取** `directed.py`：每只自选股按 ticker 直取雅虎新闻、落 `lane='ticker'` 并**确定性挂钩**（`matched_by='targeted'`），补齐新上市/冷门票名字盲区；全局流/日报/要点/翻译/相关性**只扫 `lane='feed'`**、prune 豁免定向源（28 股不淹宏观流）；`POST /news/directed/refresh`＋并入 scheduler。**②标的叙事** `stock_narratives`＋`generate_narrative`：近 45 天挂钩资讯喂 summarize → `{summary 主线, timeline[{date,title,importance,refs}]}`、事件提炼合并、refs 接真实条目、防幻觉；`GET/POST /news/narrative`、`GET /news/stock`；前端**「知」新增一级「个股」**（二级=自选股列表、主舞台=综述+左轴时间线+抓取/重生成+资讯流）。提示词 `stock_narrative.md`。**③机会卡直通研** `store.research(symbol)`＋机会卡关联 chip 拆分胶囊「名字→看 · 研→研」。**④晨读 Top3**：总览 hero「晨读 · 今日要事」复用 news@1d 要点前 3、scheduler 每日预生成；前端为可展开卡片，展开显示该要事对应的信源与原始信息。**⑤「自上次以来」** `useUI.lastSeenNewsAt`（持久化）+ `markNewsSeen`：总览列出打卡基准后的新条目（确定性零 LLM）。融合主线队列 ①–⑦ 全落地。
-- **知·决策级升级（新，ADR-0010）：** 产品目标改为 **decision-grade active investing workbench**：作者应能仅通过 Augur 做出专业、及时、全面、主动/激进且可追溯的投资决策；Augur 仍永不下单/不动钱。前端「资讯」第三层新增**决策**页：当日主动机会、风险/反证、催化、关联标的集中一屏，chip 直达「看/研」。提示词改为输出动作倾向、触发条件、反证条件与不确定性。**多信源 lane**：资讯第三层＝总结 / 决策 / 新闻 / 推特 / 推特2 / Reddit / 小红书 / Threads / 微信；新闻按 theme，社交/论坛按 `source_prefix`+category，共用时间线/要点/市场/仅自选过滤。**Reddit 已真实接入**：`reddit.py` public JSON，配置 `reddit.subreddits`，source=`Reddit·r/<sub>`；**TikHub 已接入**（ADR-0013）：`TIKHUB_KEY` 共享给 Twitter 第二源（`X2·`）、小红书、Threads、Reddit 关键词搜索（`Reddit·TikHub·`）和微信公众文章；2026-06-06 充值 key 复测：小红书/Threads/Reddit 可达，Twitter 第二源/微信返回 TikHub 端点 400 且未扣费，设置页应诊断为“TikHub 端点当前失败”。**看·社媒热度**新增 `GET /news/social-heat`：TikHub 多源并发搜索某股关键词，每平台最多 10 条，某源失败不阻断其他源，经 cheap 模型输出热度/观点/反证，不展示原始帖子。**雪球**曾接入轻量内容探活，但登录 Cookie 已被雪球风控墙封死，2026-06-06 退役（见 [docs/memory/xueqiu-source-quirks.md](docs/memory/xueqiu-source-quirks.md)）。
-- **深夜产品修正（新）：** 「资讯」source lane 的 cluster scope 按真实 lane 分离，避免 Reddit/小红书读到新闻/推特旧要点；小红书 lane 支持**关注用户 + 个股/关键词**配置；cluster 标题/理由清洗 `[47]` 这类裸编号；「决策」显示当日独立信源数；「看·相关资讯」改为 AI 摘要卡（`/news/for/brief`），不再铺直接新闻列表；「记」去冗余标题/空态文案；设置·模型连接卡默认折叠且编辑字段按 base_url 短、API key 长分配；数据/信源名称保持唯一官方名，Bloomberg 频道成为可配置项，信源「测试 / 保存 / 添加」按钮统一操作列对齐。
-- **看·个股头部信息层级（新）：** K 线头部按第一性原理收敛为一个统一信息带：当前价/涨跌、52 周位置百分比、市值、市盈率、净利率、更新时间；删除日内高低、52 周刻度条和 `fdr/yfinance` 等内部适配器名，不再把基本面指标拆成独立 snapshot 条。规则见 [docs/memory/view-stock-info-hierarchy.md](docs/memory/view-stock-info-hierarchy.md)。
-- **信源测试修正（新）：** 设置·数据/信源的操作按钮固定宽度且 `nowrap`，`测试中…` 不再换成两行；twtapi 兼容新版 `api.twtapi.io` 与旧版 `api.twtapi.com/api/v1/twitter`，并区分 key 无效、HTTP 429、旧 API `code=429/sub_code=42903` 月度额度用完、账号不存在，不再误报“解析账号失败”；**所有信源测试错误统一翻成中文问题诊断**（没有配置/没有接入/没有额度/没有权限/网络超时/适配器需更新），不向作者显示 `RuntimeError`/第三方英文报错；信源详情页测试结果必须全宽换行显示，不复用模型卡片 150px 省略徽标（见 [docs/memory/source-test-diagnostics.md](docs/memory/source-test-diagnostics.md) + [docs/memory/twtapi-source-quirks.md](docs/memory/twtapi-source-quirks.md)）。Tushare Pro / 必盈 / iTick 已按作者要求从设置页与探活注册中移除。
-- **设置 · 全部 / 信源健康度（新）：** 设置左栏新增**「全部」**（默认入口）：`POST /settings/test-all` 一键体检所有 LLM 连接 + 登记信源 API，按**接通 / 未配置 / 额度 / 权限或余额 / 未接入 / 异常**展示，并给 twtapi、小红书等凭证入口；体检结果**不返回 key**。`source_health` 表补 `last_error`，`ingest_all` 记录最近失败中文原因，公共 RSS 401/403 归为“源站拒绝访问/反爬/下线/UA 需更新”而非凭证问题；前端健康度默认只列异常源，可“显示全部”展开 90+ 源。见 [docs/memory/source-health-dashboard.md](docs/memory/source-health-dashboard.md)。
-- **外部信源接入向导（新）：** `news/source_registry.py` 增加 `docs_url/official_url/setup/best_use/boundary`，设置·数据/信源与设置·全部体检直接展示**取凭证入口 + 文档/官方入口 + 最佳用途 + 接入边界**。核查结论：X 当前用 `twtapi` 的 `TWTAPI_KEY`（X 官方 `console.x.com` 仅作未来原生适配器入口）；TikHub 用 `TIKHUB_KEY` 接 Twitter 第二源/小红书/Threads/Reddit 搜索/微信公众文章；Reddit public JSON 已接且无需 key；雪球非官方路线（网页登录 Cookie/token）已被风控墙封死、2026-06-06 退役。见 [ADR-0012](docs/decisions/0012-external-social-source-strategy.md) + [ADR-0013](docs/decisions/0013-tikhub-social-source-layer.md) + [docs/memory/external-source-api-setup.md](docs/memory/external-source-api-setup.md)。
-- **白天自动 · 全部生成（新）：** `service.generate_all(date, refresh_first)`＝**单一真相**：刷新信源（RSS+推特+自选定向）→ 蒸馏当天 日报/要事/**推特要点**/机会，每步独立成败、LLM 未配则只刷新。供两处共用：① 调度器 `_hourly_job` 每个整点跑（**默认 11:00–23:00 可配**，`runtime_config.get/set_auto_refresh`＋`GET/POST /settings/schedule`＋设置页「自动」，运行时读配置即时生效；`max_instances=1`+APScheduler 不堆叠）；② 前端「资讯·总结」**「一键刷新并生成」**按钮（先刷新→并行 日报/要事/推特要点/机会，带 `抓取·日报·要事·推特·机会` 状态点）。**新闻/推特默认「要点」**（仅今天，历史日默认时间线）。**积压清空根治**（作者诊断「新闻多但要事/机会涉及少」）：relevance/translate/stock_tag 的 loop-until-empty 改为**毒批跳过**（`_select_pending(limit, offset)`，队首一批解析失败时 advance offset 继续清，连续 `_MAX_FAILS=5` 批才停）——旧 `break` 会让队首毒批永久堵死整条 ASC 队列（实测 969 条 `relevance=0` 跨 13 天积压）；`stock_tag.tag_pending` 也改循环到清空。**蒸馏深度可配**：要点/机会喂 LLM 的当日条数上限**可配、默认 1000、0=不限**（`runtime_config.get/set_cluster_input_max`，`_cap_items` 读它，超出记日志不静默丢；设置页「自动 · 生成 · 蒸馏深度」选；日报不受限、始终喂全部）。删死常量 `_DIGEST_INPUT_MAX`/`_OPP_INPUT_MAX`。**今日要事条数可配**（`brief_top_n` 默认 5，原写死 3；`MorningBrief` 读 `useSchedule`；同设置段选）。**LLM 调用并行化**（作者：尽量并行、不担心 token）：① `generate_all` 的 日报/要事/推特要点/机会 **4 个生成并发**（`ThreadPoolExecutor`，各写不同表/scope、WAL 串行化写；前端按钮本就并行，此为补齐每小时调度）；② translate/relevance/stock_tag 的批量 LLM 改 **每轮并发多批**（`news/_batch.map_batches`，`WORKERS=8`，window=`_BATCH×WORKERS`，毒「窗」跳过逻辑同前；`market.search`/`gateway` 用量落库均线程安全）。
-- **每股专属信源回流（新）：** `stock_sources` Phase 2 已接上「追踪」闭环：作者/LLM 为某股发现并启用的 **X 账号 / Reddit 子版 / RSS·Atom URL** 会随 `POST /news/directed/refresh?symbol=` 抓取，写入 `news_items(lane='ticker')` 并以 `matched_by='stock_source'` 确定性挂回该股；`news_for_symbol` 现在合并 Yahoo ticker 新闻、持久化挂钩流与聚合流，再交给 `/news/for/brief` 做 AI 摘要。因此「看·相关资讯」会看到专属源的新信息，且卡片头部显示专属源数量与「刷新」按钮。普通网页、小红书仍需各自稳定适配器/Cookie 策略后才能真实抓取；不把未接入源伪装成已接入（雪球已退役）。细节见 [docs/memory/per-stock-source-tracking.md](docs/memory/per-stock-source-tracking.md)。
-- **下一步：** M3 续——TikHub key 权限/余额打通后做真实数据 QA 与默认关键词策略；个股 IR 新闻室·官方 X 并入「一条龙」、KR DART / CN cninfo 一手扩展、arXiv 论文 lane、机会接地阈值调优、日报/机会按**自选分区**聚合；M2「研」续——深度增强：接**实时网络搜索 / Deep Research**（多轮检索→综合）、按**自选分区**批量研究、报告版本历史、财报分析面板回归 AI 解读。
-- 完整分阶段计划与实时状态见 [docs/roadmap.md](docs/roadmap.md)。
+Augur 当前已形成完整的本地研究工作台：**看 / 研 / 知 / 记** 四个表面都可用，底层包含两级自选分区、四市场行情、动态 LLM 网关、新闻/社媒摄取、SQLite/Parquet 本地存储、运行时设置、信源健康度和调度任务。完整产品状态见 [docs/roadmap.md](docs/roadmap.md)。
+
+- **看：** 四市场 K 线、报价头部、52 周位置、基本面、财报趋势、AI 相关资讯摘要、社媒热度摘要、判断日记 marker。个股头部只展示决策相关字段，不暴露内部适配器名。
+- **研：** 单股研究走 `research.gather(symbol)` 收集本地确定性上下文，再由 `deep_research` 角色流式生成带引用 Markdown；支持导入外部研报、排序、编辑和写个人评论。官方 Deep Research job 化接入是当前优先方向，详见 [ADR-0011](docs/decisions/0011-research-deep-research-api-strategy.md)。
+- **知：** `feed` lane 聚合 RSS/API/X/Reddit/TikHub 等全局信源；`ticker` lane 服务自选股定向新闻和每股专属信源。刷新链路为摄取 → 翻译 → relevance → 确定性挂钩 → LLM 标股 → grounding。日报、要事、机会、决策页、个股叙事和某日快照都围绕可追溯引用与反证条件。
+- **记：** `notes/` 提供与个股无关的 Markdown 长文、置顶、预览/编辑和 700ms 防抖自动保存；共享 Markdown 渲染器供研报、导入研报、笔记复用。
+- **设置与基础设施：** 设置页管理 LLM 连接、角色指派、信源 key/config、源测试、全部体检、自动刷新、蒸馏深度和 token 用量。后端已做 SQLite WAL/busy_timeout、SSE 错误收尾、源健康度、毒批跳过、批量 LLM 并行化和本地端口 CORS。
+- **当前优先级：** 研究任务 job 化；OpenAI/Gemini Deep Research 正式 API 接入；ChatGPT/Claude/Gemini 网页 Research 结果回流 Augur；Prompt 模板与未来 Skills；每股专属信源验证；分区级情报；反思/复盘闭环；Tauri 桌面打包。
+
+本地运行：后端 `cd backend && uv run uvicorn augur.main:app --reload --port 8788`；前端 `cd frontend && npm run dev`。密钥放 `backend/.env` 或设置页写入的 `data/config.local.json`，二者都不入 git。
