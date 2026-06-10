@@ -710,7 +710,8 @@ def fetch_twitter(cutoff: datetime | None = None) -> list[dict]:
         _fetch_queries(
             twitter_keywords(),
             path="/api/v1/twitter/web/fetch_search_timeline",
-            base_params={"search_type": "Latest", "cursor": "undefined"},
+            # search_type 必须 'Top'；'Latest'/cursor='undefined' 都会 400（实测 2026-06-11）
+            base_params={"search_type": "Top"},
             param_name="keyword",
             source_prefix="X2·搜索·",
             platform="twitter",
@@ -801,7 +802,7 @@ def ping_source(source_id: str) -> int:
         return len(
             _fetch_search(
                 "/api/v1/twitter/web/fetch_search_timeline",
-                params={"keyword": _PROBE_QUERY, "search_type": "Latest", "cursor": "undefined"},
+                params={"keyword": _PROBE_QUERY, "search_type": "Top"},
                 source="X2·测试",
                 platform="twitter",
                 lang="en",
@@ -972,7 +973,7 @@ def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) ->
     jobs = [
         {
             "path": "/api/v1/twitter/web/fetch_search_timeline",
-            "base_params": {"search_type": "Latest", "cursor": "undefined"},
+            "base_params": {"search_type": "Top"},  # 'Latest'/cursor 会 400（见 fetch_twitter）
             "param_name": "keyword",
             "source_prefix": "X2·搜索·",
             "platform": "twitter",
