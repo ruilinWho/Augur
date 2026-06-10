@@ -1390,6 +1390,46 @@ export function useDeleteTemplate() {
   })
 }
 
+// ───────────────────────── Skills · 可插拔投研技能 ─────────────────────────
+const skillMetaSchema = z.object({
+  slug: z.string(),
+  name: z.string().default(''),
+  summary: z.string().default(''),
+  surface: z.string().default('yan'),
+  enabled: z.boolean().default(true),
+  has_scorecard: z.boolean().default(false),
+})
+export type SkillMeta = z.infer<typeof skillMetaSchema>
+
+export function useSkills(surface?: string, onlyEnabled = false) {
+  const qs = new URLSearchParams()
+  if (surface) qs.set('surface', surface)
+  if (onlyEnabled) qs.set('enabled', 'true')
+  return useQuery({
+    queryKey: ['skills', surface ?? 'all', onlyEnabled],
+    queryFn: async () =>
+      z.array(skillMetaSchema).parse(await getJSON(`/skills?${qs.toString()}`)),
+  })
+}
+
+export function useSetSkillEnabled() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { slug: string; enabled: boolean }) =>
+      send(`/skills/${v.slug}/enable`, 'POST', { enabled: v.enabled }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['skills'] }),
+    onError: onMutErr,
+  })
+}
+
+// 取某技能按当前标的渲染后的 prompt（供「研·复制 Prompt」）
+export async function renderSkill(slug: string, symbol: string): Promise<string> {
+  const d = (await getJSON(
+    `/skills/${slug}/render?symbol=${encodeURIComponent(symbol)}`,
+  )) as { prompt?: string }
+  return d.prompt ?? ''
+}
+
 // ───────────────────────── 「寻」· 发现候选标的（第 4 支柱）─────────────────────────
 const discoveryEvidenceSchema = z.object({
   news_id: z.number(),

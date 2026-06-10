@@ -31,6 +31,8 @@ import {
   useDeleteConnection,
   useDeleteTemplate,
   useLlmUsage,
+  useSetSkillEnabled,
+  useSkills,
   useTemplates,
   useUpdateTemplate,
   useReorderConnections,
@@ -49,6 +51,7 @@ import {
   type ApiAuditItem,
   type Connection,
   type PromptTemplate,
+  type SkillMeta,
   type RoleTarget,
   type Schedule,
   type SourceHealthRow,
@@ -1130,40 +1133,84 @@ function TemplateCard({ t }: { t: PromptTemplate }) {
   )
 }
 
+function SkillRow({ s }: { s: SkillMeta }) {
+  const setEnabled = useSetSkillEnabled()
+  return (
+    <div className="skill-row">
+      <div className="skill-row-l">
+        <div className="skill-row-name">
+          {s.name}
+          {s.has_scorecard && <span className="skill-badge">评分卡</span>}
+        </div>
+        {s.summary && <div className="skill-row-sum">{s.summary}</div>}
+      </div>
+      <Seg
+        value={s.enabled ? 'on' : 'off'}
+        options={[
+          { v: 'on', label: '启用' },
+          { v: 'off', label: '停用' },
+        ]}
+        onChange={(v) => setEnabled.mutate({ slug: s.slug, enabled: v === 'on' })}
+      />
+    </div>
+  )
+}
+
+function SkillsSection() {
+  const skills = useSkills()
+  const items = skills.data ?? []
+  if (!items.length) return null
+  return (
+    <Section title="技能 · Skills">
+      <div className="tpl-hint">
+        放进 resources/skills/ 的研究方法，启用后在「研」的「复制 Prompt」里按标的填充。
+      </div>
+      <div style={{ marginTop: 10 }}>
+        {items.map((s) => (
+          <SkillRow key={s.slug} s={s} />
+        ))}
+      </div>
+    </Section>
+  )
+}
+
 function TemplatesPage() {
   const list = useTemplates()
   const create = useCreateTemplate()
   const items = list.data ?? []
   return (
-    <Section
-      title="Prompt 模板"
-      action={
-        <button
-          className="btn btn-primary jsm"
-          disabled={create.isPending}
-          onClick={() => create.mutate({})}
-        >
-          添加
-        </button>
-      }
-    >
-      <div className="tpl-hint">
-        {'{STOCK}'} 代码 · {'{NAME}'} 名称 · {'{MARKET}'} 市场 · {'{SYMBOL}'} 市场:代码
-      </div>
-      {list.isLoading ? (
-        <div className="report-card faint">加载…</div>
-      ) : items.length === 0 ? (
-        <div className="know-empty">
-          <div className="ke-title">暂无模板</div>
+    <>
+      <Section
+        title="Prompt 模板"
+        action={
+          <button
+            className="btn btn-primary jsm"
+            disabled={create.isPending}
+            onClick={() => create.mutate({})}
+          >
+            添加
+          </button>
+        }
+      >
+        <div className="tpl-hint">
+          {'{STOCK}'} 代码 · {'{NAME}'} 名称 · {'{MARKET}'} 市场 · {'{SYMBOL}'} 市场:代码
         </div>
-      ) : (
-        <div className="tpl-list">
-          {items.map((t) => (
-            <TemplateCard key={t.id} t={t} />
-          ))}
-        </div>
-      )}
-    </Section>
+        {list.isLoading ? (
+          <div className="report-card faint">加载…</div>
+        ) : items.length === 0 ? (
+          <div className="know-empty">
+            <div className="ke-title">暂无模板</div>
+          </div>
+        ) : (
+          <div className="tpl-list">
+            {items.map((t) => (
+              <TemplateCard key={t.id} t={t} />
+            ))}
+          </div>
+        )}
+      </Section>
+      <SkillsSection />
+    </>
   )
 }
 

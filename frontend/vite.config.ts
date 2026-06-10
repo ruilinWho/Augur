@@ -19,6 +19,7 @@ export default defineConfig({
       '/notes': backend,
       '/templates': backend,
       '/discovery': backend,
+      '/skills': backend,
       '/settings': backend,
       '/health': backend,
     },

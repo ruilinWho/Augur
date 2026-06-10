@@ -68,7 +68,8 @@ The product is organized around four surfaces:
 
 2. **Research templates and workflows**
 
-   Promote prompts into reusable research templates with variables, output contracts, and actions such as copy, run locally, run with a provider Deep Research engine, or import an external result. This should become the foundation for future Skills.
+   - **Available**: prompt templates (user-authored, SQLite) and pluggable **Skills** (`resources/skills/<slug>/SKILL.md`, drop-a-folder, enable/disable in Settings) both feed the Research surface's copy-prompt entry. Ships the "供应链卡点研究" Skill (distilled Serenity methodology) and a ported bottleneck scorecard (`POST /skills/scorecard`). See [ADR-0017](decisions/0017-pluggable-skills.md).
+   - **Planned**: `surface=xun` candidate-generator Skills feeding Discover; multi-step workflows (earnings prep, counter-evidence scan); in-UI scorecard form; running a Skill as the system prompt for local generation.
 
 3. **External Research capture**
 
@@ -85,7 +86,7 @@ The product is organized around four surfaces:
 
 ## Planned Directions
 
-- **Skills**: reusable multi-step research workflows such as counter-evidence scan, earnings prep, post-earnings review, industry comparison, new listing cold start, and stock-source discovery.
+- **Skills (expansion)**: the pluggable Skills framework ships (see Active Work #2); next are multi-step workflows such as counter-evidence scan, earnings prep, post-earnings review, industry comparison, new listing cold start, and stock-source discovery.
 - **Section-level intelligence**: daily briefs, risks, and opportunities grouped by watchlist section instead of only by market/theme/ticker.
 - **Catalyst calendar**: earnings dates, product launches, macro releases, regulatory dates, lockups, and user-defined events.
 - **Counter-evidence radar**: per-thesis invalidation conditions that can be triggered by new information.
