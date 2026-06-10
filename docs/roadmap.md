@@ -72,7 +72,8 @@ The product is organized around four surfaces:
 
 3. **External Research capture**
 
-   Design a browser-companion workflow for ChatGPT, Claude, and Gemini subscription research results that do not expose a stable API. Augur should generate the prompt, track the intended task, and let the user save the completed web result back into the local database.
+   - **Available (MVP)**: imported reports carry `engine` + `source_url`; a userscript (`resources/userscripts/augur-capture.user.js`) reads the current ChatGPT/Claude conversation via same-origin internal APIs into clean Markdown on the clipboard for paste-import. No session automation, no data sent to any server. See [ADR-0016](decisions/0016-web-research-capture.md).
+   - **Planned**: promote `engine` into a research-job state (`awaiting_paste`) sharing one jobs table with the official-API track; structured citations for imported reports; Gemini Deep Research via its official API (`deep-research-preview-04-2026`).
 
 4. **Stock-specific source quality**
 

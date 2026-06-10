@@ -5152,3 +5152,47 @@ a.opp-ev-item:hover {
 .cand-dismiss {
   margin-left: auto;
 }
+
+/* 导入研报：回流来源元数据（引擎徽标 + 原始链接 + 导入表单 meta 行）*/
+.imp-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0 8px;
+}
+.imp-engine {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--accent-wash, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.imp-src {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.imp-src:hover {
+  color: var(--accent);
+}
+.imp-add-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.imp-add-meta .set2-select {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  padding: 7px 10px;
+}
+.imp-add-meta .cfg-input {
+  flex: 1;
+  min-width: 0;
+}

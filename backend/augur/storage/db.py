@@ -170,6 +170,8 @@ CREATE TABLE IF NOT EXISTS imported_reports (
     title       TEXT    NOT NULL DEFAULT '',
     body        TEXT    NOT NULL DEFAULT '',        -- markdown 正文
     comment     TEXT    NOT NULL DEFAULT '',        -- 我的评论
+    engine      TEXT    NOT NULL DEFAULT '',        -- 回流来源引擎 chatgpt/claude/gemini/other
+    source_url  TEXT    NOT NULL DEFAULT '',        -- 原始会话/分享链接
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -261,6 +263,9 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "lane", "TEXT NOT NULL DEFAULT 'feed'"),
     ("news_items", "tagged", "INTEGER NOT NULL DEFAULT 0"),
     ("source_health", "last_error", "TEXT NOT NULL DEFAULT ''"),
+    # 导入研报补来源元数据：网页 Deep Research 回流（ChatGPT/Claude/Gemini 订阅版无 API）
+    ("imported_reports", "engine", "TEXT NOT NULL DEFAULT ''"),  # chatgpt/claude/gemini/other/''
+    ("imported_reports", "source_url", "TEXT NOT NULL DEFAULT ''"),  # 原始会话/分享链接
 ]
 
 

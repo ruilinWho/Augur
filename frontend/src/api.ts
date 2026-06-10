@@ -1185,6 +1185,8 @@ const importedReportSchema = z.object({
   title: z.string().default(''),
   body: z.string().default(''),
   comment: z.string().default(''),
+  engine: z.string().default(''), // 回流来源：chatgpt/claude/gemini/other
+  source_url: z.string().default(''),
   sort_order: z.number().default(0),
   created_at: z.string().nullable().default(null),
 })
@@ -1204,9 +1206,15 @@ export function useImportedReports(symbol: string | null) {
 export function useAddImported() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (v: { symbol: string; title: string; body: string }) =>
-      send('/research/imported', 'POST', v),
+    mutationFn: async (v: {
+      symbol: string
+      title: string
+      body: string
+      engine?: string
+      source_url?: string
+    }) => send('/research/imported', 'POST', v),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
+    onError: onMutErr,
   })
 }
 
@@ -1219,7 +1227,16 @@ export function useUpdateImported() {
       title?: string
       body?: string
       comment?: string
-    }) => send(`/research/imported/${v.id}`, 'PATCH', { title: v.title, body: v.body, comment: v.comment }),
+      engine?: string
+      source_url?: string
+    }) =>
+      send(`/research/imported/${v.id}`, 'PATCH', {
+        title: v.title,
+        body: v.body,
+        comment: v.comment,
+        engine: v.engine,
+        source_url: v.source_url,
+      }),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
   })
 }

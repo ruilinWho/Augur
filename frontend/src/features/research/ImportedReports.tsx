@@ -91,6 +91,16 @@ function ImpCard({ r }: { r: ImportedReport }) {
           ×
         </button>
       </div>
+      {(r.engine || r.source_url) && (
+        <div className="imp-meta">
+          {r.engine && <span className="imp-engine">{ENGINE_LABEL[r.engine] ?? r.engine}</span>}
+          {r.source_url && (
+            <a className="imp-src" href={r.source_url} target="_blank" rel="noreferrer" title="原始会话">
+              来源 ↗
+            </a>
+          )}
+        </div>
+      )}
       {editBody ? (
         <textarea
           className="imp-body-edit"
@@ -120,13 +130,29 @@ function ImpCard({ r }: { r: ImportedReport }) {
   )
 }
 
+const ENGINES = [
+  { v: '', label: '来源' },
+  { v: 'chatgpt', label: 'ChatGPT' },
+  { v: 'claude', label: 'Claude' },
+  { v: 'gemini', label: 'Gemini' },
+  { v: 'other', label: '其他' },
+]
+const ENGINE_LABEL: Record<string, string> = {
+  chatgpt: 'ChatGPT',
+  claude: 'Claude',
+  gemini: 'Gemini',
+  other: '其他',
+}
+
 function AddForm({ symbol, onDone }: { symbol: string; onDone: () => void }) {
   const add = useAddImported()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
+  const [engine, setEngine] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
   const submit = () => {
     if (!title.trim() && !body.trim()) return
-    add.mutate({ symbol, title: title.trim(), body })
+    add.mutate({ symbol, title: title.trim(), body, engine, source_url: sourceUrl.trim() })
     onDone()
   }
   return (
@@ -144,6 +170,21 @@ function AddForm({ symbol, onDone }: { symbol: string; onDone: () => void }) {
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
+      <div className="imp-add-meta">
+        <select className="set2-select" value={engine} onChange={(e) => setEngine(e.target.value)}>
+          {ENGINES.map((o) => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <input
+          className="cfg-input"
+          placeholder="原始会话链接（可选）"
+          value={sourceUrl}
+          onChange={(e) => setSourceUrl(e.target.value)}
+        />
+      </div>
       <div className="imp-add-actions">
         <button className="btn btn-ghost jsm" onClick={onDone}>
           取消
