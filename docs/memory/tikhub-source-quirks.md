@@ -35,10 +35,19 @@
   `time_range=week`。旧的 `keyword` 会 422。返回结构是
   `data.search.dynamic.components.main.edges[].node.children[]`，必须只解析
   `__typename=SearchPost`，不要用通用递归抓字段，否则会抓到“排序方式”等 UI 文案。
-- Twitter 搜索 `fetch_search_timeline` 与微信公众文章 `fetch_search_article` 在 `api.tikhub.io`
-  和 `api.tikhub.dev` 都返回 TikHub 400：“请求失败，请重试……本次请求不会被扣费。”
-  文档默认示例也同样失败；这应显示为 **TikHub 端点当前失败**，不要误判为
-  key/余额/权限问题。可带响应 JSON 向 TikHub 支持确认。
+- **【已修，2026-06-11】Twitter 搜索 `fetch_search_timeline` 的 400 是参数问题，不是端点死**：
+  对照 OpenAPI（`https://api.tikhub.io/openapi.json`）实测确认——`search_type` 必须 `'Top'`
+  （我们原来用 `'Latest'` → 400），且**不能传 `cursor='undefined'`**（传了 → 400）。改成
+  `{'search_type':'Top'}`（去 cursor）后稳定 200，实测抓到 64 条真投资推文、生成 29 簇要点。
+  注意：`Top` 是热门贴（非最新），会混入老贴，但内容相关。**三处都要改**：`fetch_twitter`、
+  `social_search_for_stock` 的 jobs、`ping_source` 的测试。`fetch_user_post_tweet`（按账号拉）
+  的 `cursor='undefined'` **是 OK 的**（只有 search 端点拒绝它），别一起改。
+- **【仍坏，TikHub 服务端】微信公众文章 `wechat_mp/web/fetch_search_article`**：OpenAPI 里参数
+  只有 keyword/offset/sort_type，我们全按文档传（含默认 `sort_type='_0'`）在两个域名仍全部
+  400“请求失败……不扣费”。这是 **TikHub 端点本身的问题**（错误信息自己让“提交 response JSON
+  给支持”），非 key/参数问题，我们改不了。适配器已优雅跳过（计入 sources_failed、不阻断其余）。
+  TikHub 修了就会自动恢复；或带 request_id 找 TikHub 支持。无可用替代端点（其余 wechat_mp/*
+  是按 biz 取文章列表、wechat_channels/* 是视频号，都不是关键词文章搜索）。
 - 「看·社媒热度」是即时体验：按平台并发探测、每平台最多 10 条、某个 endpoint 失败不阻断
   其他源。当前真实抓取 NVDA 可得到小红书/Threads/Reddit 各 10 条；Twitter/微信临时失败会被跳过。
 - 本文件不记录 key 明文。key 只应存在于 gitignored `backend/.env` 或 `data/config.local.json`。
