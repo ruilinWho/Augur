@@ -14,11 +14,15 @@ const KINDS: { key: string; label: string }[] = [
   { key: 'ir', label: 'IR' },
   { key: 'official_x', label: '官方X' },
   { key: 'influencer_x', label: '大V' },
+  { key: 'xiaohongshu', label: '小红书' },
+  { key: 'threads', label: 'Threads' },
   { key: 'reddit', label: 'Reddit' },
   { key: 'forum', label: '论坛' },
   { key: 'fin_site', label: '财经站' },
 ]
 const kindLabel = (k: string) => KINDS.find((x) => x.key === k)?.label ?? k
+// 关键词搜索型（TikHub）：ref 填关键词而非 URL/句柄
+const KEYWORD_KINDS = new Set(['xiaohongshu', 'threads'])
 
 // ref → 可点 href（URL 原样；@handle→x.com；r/sub→reddit）
 function href(ref: string): string | null {
@@ -93,7 +97,7 @@ function AddRow({ symbol, onDone }: { symbol: string; onDone: () => void }) {
       />
       <input
         className="input ssrc-in"
-        placeholder="URL / @句柄 / r/子版"
+        placeholder={KEYWORD_KINDS.has(kind) ? '关键词（公司名/产品名）' : 'URL / @句柄 / r/子版'}
         value={ref}
         onChange={(e) => setRef(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}

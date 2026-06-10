@@ -853,6 +853,78 @@ def ping_source(source_id: str) -> int:
     raise TikhubError(f"{source_id}：没有接入这个 TikHub 信源")
 
 
+# ── 每股专属信源用：单关键词/单账号抓取（供 stock_sources 的 TikHub kind 调用）──
+_STOCK_SOURCE_LIMIT = 12
+
+
+def search_xiaohongshu(
+    query: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某股的小红书关键词笔记（每股专属信源 kind=xiaohongshu）。失败抛 Tikhub*。"""
+    q = _norm_query(query)
+    if not q:
+        return []
+    return _fetch_queries_limited(
+        [q],
+        limit=limit,
+        path="/api/v1/xiaohongshu/app_v2/search_notes",
+        base_params={
+            "page": 1,
+            "sort_type": "time_descending",
+            "note_type": "不限",
+            "time_filter": "一周内",
+            "source": "explore_feed",
+            "ai_mode": 0,
+        },
+        param_name="keyword",
+        source_prefix="小红书·",
+        platform="xhs",
+        lang="zh",
+        category="forum",
+        cutoff=cutoff,
+    )
+
+
+def search_threads(
+    query: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某股的 Threads 关键词热门帖（每股专属信源 kind=threads）。失败抛 Tikhub*。"""
+    q = _norm_query(query)
+    if not q:
+        return []
+    return _fetch_queries_limited(
+        [q],
+        limit=limit,
+        path="/api/v1/threads/web/search_top",
+        base_params={"end_cursor": "undefined"},
+        param_name="query",
+        source_prefix="Threads·",
+        platform="threads",
+        lang="en",
+        category="forum",
+        cutoff=cutoff,
+    )
+
+
+def user_tweets(
+    screen_name: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某 X 账号的推文（TikHub 通道，作 twtapi 不可用时的每股 X 源回退）。失败抛 Tikhub*。"""
+    handle = (screen_name or "").strip().lstrip("@")
+    if not handle:
+        return []
+    got = _fetch_search(
+        "/api/v1/twitter/web/fetch_user_post_tweet",
+        params={"screen_name": handle, "cursor": "undefined"},
+        source=f"X2·@{handle}",
+        platform="twitter",
+        lang="en",
+        category="stock",
+        cutoff=cutoff,
+    )
+    return got[:limit]
+
+
 def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) -> list[dict]:
     """Twitter 第二源 + 小红书 stock-opinion search for the stock page.
 

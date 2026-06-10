@@ -41,8 +41,8 @@ The product is organized around four surfaces:
 - **Available**: source health tracking, source testing, runtime source configuration, and Chinese diagnostics for common credential/quota/adapter failures.
 - **Available**: translation, relevance filtering, stock linking, LLM stock tagging, deterministic grounding, and lane separation between global feed and ticker-directed data.
 - **Available**: daily snapshots, market briefs, clustered key points, opportunity cards, risk/counter-evidence framing, and stock chips that jump to View or Research.
-- **Available**: single-stock narrative timelines and stock-specific source tracking for enabled X accounts, Reddit communities, and RSS/Atom feeds.
-- **In progress**: broader QA for TikHub-backed sources, stronger source verification, and more first-party company/regulatory feeds.
+- **Available**: single-stock narrative timelines and stock-specific source tracking for enabled X accounts (twtapi with TikHub fallback), Xiaohongshu/Threads keyword sources (TikHub), Reddit communities, and RSS/Atom feeds.
+- **In progress**: account-following (not just keyword search) for Xiaohongshu/Threads, stronger source verification, and more first-party company/regulatory feeds.
 
 ### Discover (寻)
 
