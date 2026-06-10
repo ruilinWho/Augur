@@ -1,21 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  fillTemplate,
-  renderSkill,
-  streamResearch,
-  useQuote,
-  useResearchReport,
-  useSkills,
-  useTemplates,
-  type PromptTemplate,
-  type SkillMeta,
-} from '../../api'
+import { streamResearch, useQuote, useResearchReport } from '../../api'
 import { useUI } from '../../store'
 import Markdown from '../../components/Markdown'
-import { useToast } from '../../components/Toast'
 import { EASE } from '../../theme/motion'
+import CopyPromptButton from './CopyPromptButton'
 import ImportedReports from './ImportedReports'
 
 function fmtWhen(iso: string | null): string {
@@ -38,51 +28,6 @@ export default function ResearchView() {
   const abortRef = useRef<AbortController | null>(null)
 
   const name = report.data?.name || quote.data?.name || ''
-
-  // 「复制 Prompt」：模板/技能按当前标的填充占位符后进剪贴板（粘到外部网页 Deep Research）
-  const templates = useTemplates()
-  const tpls = templates.data ?? []
-  const skills = useSkills('yan', true) // 只取启用的「研」技能
-  const sks = skills.data ?? []
-  const hasAny = tpls.length + sks.length > 0
-  const [tplOpen, setTplOpen] = useState(false)
-  const tplRef = useRef<HTMLDivElement | null>(null)
-  const toast = useToast((s) => s.push)
-  useEffect(() => {
-    if (!tplOpen) return
-    const onDown = (e: PointerEvent) => {
-      if (tplRef.current && !tplRef.current.contains(e.target as Node)) setTplOpen(false)
-    }
-    window.addEventListener('pointerdown', onDown)
-    return () => window.removeEventListener('pointerdown', onDown)
-  }, [tplOpen])
-  const copyTpl = async (t: PromptTemplate) => {
-    if (!symbol) return
-    setTplOpen(false)
-    try {
-      await navigator.clipboard.writeText(fillTemplate(t.body, symbol, name))
-      toast('已复制 Prompt')
-    } catch {
-      toast('复制失败', 'error')
-    }
-  }
-  const copySkill = async (sk: SkillMeta) => {
-    if (!symbol) return
-    setTplOpen(false)
-    try {
-      const prompt = await renderSkill(sk.slug, symbol)
-      await navigator.clipboard.writeText(prompt)
-      toast(`已复制技能 · ${sk.name}`)
-    } catch {
-      toast('复制失败', 'error')
-    }
-  }
-  // 单个来源时直接复制；多个时下拉选
-  const onlyOne = tpls.length + sks.length === 1
-  const copyTheOnlyOne = () => {
-    if (sks.length === 1) copySkill(sks[0])
-    else if (tpls.length === 1) copyTpl(tpls[0])
-  }
 
   const runGenerate = async () => {
     if (!symbol) return
@@ -131,32 +76,7 @@ export default function ResearchView() {
           )}
         </div>
         <div className="rh-actions">
-          {hasAny && (
-            <div className="tpl-copy" ref={tplRef}>
-              <button
-                className="btn jsm"
-                onClick={() => (onlyOne ? copyTheOnlyOne() : setTplOpen((v) => !v))}
-              >
-                复制 Prompt
-              </button>
-              {tplOpen && !onlyOne && (
-                <div className="tpl-pop">
-                  {sks.length > 0 && <div className="tpl-pop-h">技能</div>}
-                  {sks.map((sk) => (
-                    <button key={sk.slug} onClick={() => copySkill(sk)}>
-                      {sk.name}
-                    </button>
-                  ))}
-                  {tpls.length > 0 && sks.length > 0 && <div className="tpl-pop-h">模板</div>}
-                  {tpls.map((t) => (
-                    <button key={t.id} onClick={() => copyTpl(t)}>
-                      {t.name || `模板 ${t.id}`}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <CopyPromptButton symbol={symbol} name={name} />
           <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
             {streaming ? '研究中…' : data ? '重新生成' : '生成深度研究'}
           </button>

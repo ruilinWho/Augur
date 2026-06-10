@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS discovery_candidates (
     first_seen_at TEXT,                                -- 最早出现日（按新闻 published_at）
     last_seen_at  TEXT,                                -- 最近出现日
     evidence      TEXT    NOT NULL DEFAULT '[]',       -- JSON：[{news_id,title,source,url,date}]
+    theme         TEXT    NOT NULL DEFAULT '',          -- 主导主题（从证据新闻推断，供主题级屏蔽）
     status        TEXT    NOT NULL DEFAULT 'new',       -- new待看/dismissed忽略/promoted已入自选
     created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -266,6 +267,8 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     # 导入研报补来源元数据：网页 Deep Research 回流（ChatGPT/Claude/Gemini 订阅版无 API）
     ("imported_reports", "engine", "TEXT NOT NULL DEFAULT ''"),  # chatgpt/claude/gemini/other/''
     ("imported_reports", "source_url", "TEXT NOT NULL DEFAULT ''"),  # 原始会话/分享链接
+    # 「寻」候选主导主题（从证据新闻 theme 推断）——供主题级屏蔽/偏好
+    ("discovery_candidates", "theme", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 

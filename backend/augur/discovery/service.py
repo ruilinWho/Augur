@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import re
 
+from .. import runtime_config
 from ..market import search
 from ..news import directed
 from ..storage import get_conn
@@ -55,7 +56,8 @@ def refresh() -> dict:
 
         rows = conn.execute(
             "SELECT nis.symbol AS symbol, nis.name AS name, ni.id AS nid, ni.title AS title, "
-            "ni.title_zh AS title_zh, ni.source AS source, ni.url AS url, ni.published_at AS pub "
+            "ni.title_zh AS title_zh, ni.source AS source, ni.url AS url, ni.published_at AS pub, "
+            "ni.theme AS theme "
             "FROM news_item_symbols nis JOIN news_items ni ON ni.id = nis.news_id "
             "WHERE nis.matched_by = 'llm' "
             "ORDER BY ni.published_at DESC"
@@ -80,9 +82,13 @@ def refresh() -> dict:
                     "evidence": [],
                     "ev_urls": set(),
                     "sym_counts": {},
+                    "themes": {},
                 }
             g["count"] += 1
             g["sym_counts"][sym] = g["sym_counts"].get(sym, 0) + 1
+            th = (r["theme"] or "").strip()
+            if th and th != "other":
+                g["themes"][th] = g["themes"].get(th, 0) + 1
             day = (r["pub"] or "")[:10]
             if day:
                 g["days"].add(day)
@@ -107,16 +113,17 @@ def refresh() -> dict:
             symbol = max(g["sym_counts"].items(), key=lambda kv: kv[1])[0]
             kept.add(symbol)
             days = sorted(g["days"])
+            theme = max(g["themes"].items(), key=lambda kv: kv[1])[0] if g["themes"] else ""
             conn.execute(
                 "INSERT INTO discovery_candidates "
                 "(symbol, name, mention_count, day_span, first_seen_at, last_seen_at, evidence, "
-                "status, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 'new', datetime('now')) "
+                "theme, status, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', datetime('now')) "
                 "ON CONFLICT(symbol) DO UPDATE SET "
                 "name=excluded.name, mention_count=excluded.mention_count, "
                 "day_span=excluded.day_span, first_seen_at=excluded.first_seen_at, "
                 "last_seen_at=excluded.last_seen_at, evidence=excluded.evidence, "
-                "updated_at=datetime('now')",  # status 不覆盖：保留作者 dismissed/promoted
+                "theme=excluded.theme, updated_at=datetime('now')",  # status 不覆盖：保留作者拍板
                 (
                     symbol,
                     g["name"][:120],
@@ -125,6 +132,7 @@ def refresh() -> dict:
                     days[0] if days else None,
                     days[-1] if days else None,
                     json.dumps(g["evidence"], ensure_ascii=False),
+                    theme,
                 ),
             )
 
@@ -158,6 +166,7 @@ def _out(row) -> dict:
         ev = json.loads(row["evidence"] or "[]")
     except (ValueError, TypeError):
         ev = []
+    keys = row.keys()
     return {
         "symbol": row["symbol"],
         "name": row["name"],
@@ -167,22 +176,77 @@ def _out(row) -> dict:
         "first_seen_at": row["first_seen_at"],
         "last_seen_at": row["last_seen_at"],
         "evidence": ev,
+        "theme": row["theme"] if "theme" in keys else "",
         "status": row["status"],
     }
 
 
+# ── 主题级偏好（屏蔽某主题——智能忽略：你不想看的整类不再出现）──
+_MUTED_PREF = "discovery_muted_themes"
+
+
+def muted_themes() -> list[str]:
+    return list(runtime_config.get_pref(_MUTED_PREF, []) or [])
+
+
+def set_theme_muted(theme: str, muted: bool) -> list[str]:
+    theme = (theme or "").strip()
+    if not theme:
+        raise ValueError("主题不能为空")
+    cur = set(muted_themes())
+    if muted:
+        cur.add(theme)
+    else:
+        cur.discard(theme)
+    runtime_config.set_pref(_MUTED_PREF, sorted(cur))
+    return sorted(cur)
+
+
 def list_candidates(status: str = "new", limit: int = 100) -> list[dict]:
-    """按状态列候选，提及次数→出现天数降序。"""
+    """按状态列候选，提及次数→出现天数降序。status='new' 时在 SQL 里剔除被屏蔽主题
+    （必须 LIMIT 之前过滤，否则屏蔽会把列表截断到不足 limit）。"""
+    sql = (
+        "SELECT * FROM discovery_candidates WHERE status = ? "
+        "ORDER BY mention_count DESC, day_span DESC, last_seen_at DESC"
+    )
+    args: list = [status]
+    muted = [m for m in muted_themes() if m] if status == "new" else []
+    if muted:
+        placeholders = ",".join("?" * len(muted))
+        sql = (
+            f"SELECT * FROM discovery_candidates WHERE status = ? "
+            f"AND theme NOT IN ({placeholders}) "
+            "ORDER BY mention_count DESC, day_span DESC, last_seen_at DESC"
+        )
+        args = [status, *muted]
+    sql += " LIMIT ?"
+    args.append(limit)
     conn = get_conn()
     try:
-        rows = conn.execute(
-            "SELECT * FROM discovery_candidates WHERE status = ? "
-            "ORDER BY mention_count DESC, day_span DESC, last_seen_at DESC LIMIT ?",
-            (status, limit),
-        ).fetchall()
+        rows = conn.execute(sql, tuple(args)).fetchall()
         return [_out(r) for r in rows]
     finally:
         conn.close()
+
+
+def theme_counts() -> list[dict]:
+    """各主题下 new 候选数 + 是否被屏蔽——供「偏好」面板展示与一键屏蔽。"""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT theme, COUNT(*) AS n FROM discovery_candidates "
+            "WHERE status='new' AND theme != '' GROUP BY theme ORDER BY n DESC"
+        ).fetchall()
+    finally:
+        conn.close()
+    muted = set(muted_themes())
+    # 含被屏蔽但当前无 new 候选的主题，仍要能在面板里取消屏蔽
+    seen = {r["theme"] for r in rows}
+    out = [{"theme": r["theme"], "count": r["n"], "muted": r["theme"] in muted} for r in rows]
+    for t in muted:
+        if t not in seen:
+            out.append({"theme": t, "count": 0, "muted": True})
+    return out
 
 
 def set_status(symbol: str, status: str) -> dict:

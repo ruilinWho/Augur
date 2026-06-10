@@ -732,11 +732,21 @@ export function useNewsForSymbol(symbol: string | null) {
   })
 }
 
+const sourceRefSchema = z.object({
+  source: z.string().default(''),
+  url: z.string().default(''),
+})
+const citedPointSchema = z.object({
+  text: z.string().default(''),
+  refs: z.array(sourceRefSchema).default([]),
+})
+export type CitedPoint = z.infer<typeof citedPointSchema>
+
 const stockNewsBriefSchema = z.object({
   symbol: z.string(),
   summary: z.string().default(''),
-  points: z.array(z.string()).default([]),
-  risks: z.array(z.string()).default([]),
+  points: z.array(citedPointSchema).default([]),
+  risks: z.array(citedPointSchema).default([]),
   source_count: z.number().default(0),
   generated_at: z.string().nullable().default(null),
 })
@@ -749,9 +759,9 @@ const stockSocialHeatSchema = z.object({
   summary: z.string().default(''),
   sentiment: z.string().default('不明'),
   heat: z.string().default('低'),
-  bull_points: z.array(z.string()).default([]),
-  bear_points: z.array(z.string()).default([]),
-  watch: z.array(z.string()).default([]),
+  bull_points: z.array(citedPointSchema).default([]),
+  bear_points: z.array(citedPointSchema).default([]),
+  watch: z.array(citedPointSchema).default([]),
   source_count: z.number().default(0),
   platforms: z.record(z.string(), z.number()).default({}),
   generated_at: z.string().nullable().default(null),
@@ -1447,9 +1457,17 @@ const candidateSchema = z.object({
   first_seen_at: z.string().nullable().default(null),
   last_seen_at: z.string().nullable().default(null),
   evidence: z.array(discoveryEvidenceSchema).default([]),
+  theme: z.string().default(''),
   status: z.string().default('new'),
 })
 export type Candidate = z.infer<typeof candidateSchema>
+
+const themeCountSchema = z.object({
+  theme: z.string(),
+  count: z.number().default(0),
+  muted: z.boolean().default(false),
+})
+export type ThemeCount = z.infer<typeof themeCountSchema>
 
 export function useDiscovery(status = 'new') {
   return useQuery({
@@ -1477,6 +1495,26 @@ export function useSetCandidateStatus() {
       return send(`/discovery/${market}/${code}`, 'PATCH', { status: v.status })
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['discovery'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useDiscoveryThemes() {
+  return useQuery({
+    queryKey: ['discovery-themes'],
+    queryFn: async () => z.array(themeCountSchema).parse(await getJSON('/discovery/themes')),
+  })
+}
+
+export function useMuteTheme() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { theme: string; muted: boolean }) =>
+      send('/discovery/themes/mute', 'POST', v),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['discovery'] })
+      qc.invalidateQueries({ queryKey: ['discovery-themes'] })
+    },
     onError: onMutErr,
   })
 }

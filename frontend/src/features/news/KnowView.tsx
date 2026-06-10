@@ -261,8 +261,9 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
   const [digest, setDigest] = useState<GenStep>('idle')
   const [clusters, setClusters] = useState<GenStep>('idle')
   const [tw, setTw] = useState<GenStep>('idle')
+  const [social, setSocial] = useState<GenStep>('idle')
   const [opps, setOpps] = useState<GenStep>('idle')
-  const running = [fetch, digest, clusters, tw, opps].includes('run')
+  const running = [fetch, digest, clusters, tw, social, opps].includes('run')
 
   // 一键刷新并生成：先刷新信源（新闻+推特+自选定向），再并行蒸馏 日报/要事/推特要点/机会。
   // 先刷新后生成——否则蒸馏的是旧数据。仅今天可刷新（历史日不再抓新源）。
@@ -271,6 +272,7 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
     setDigest('run')
     setClusters('run')
     setTw('run')
+    setSocial('run')
     setOpps('run')
     if (isToday) {
       setFetch('run')
@@ -299,6 +301,13 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         .mutateAsync({ sourcePrefix: 'X·', days: 1, date }) // 推特要点
         .then(() => setTw('done'))
         .catch(() => setTw('err')),
+      // 社媒各 lane 要点（推特2/小红书/Reddit/Threads/微信）——合并成一个步骤；无数据的 lane
+      // 会失败（无条目），只要有一个成功就算 done，全失败才 err。
+      Promise.allSettled(
+        ['X2·', '小红书·', 'Reddit·', 'Threads·', '微信·'].map((sp) =>
+          genClusters.mutateAsync({ sourcePrefix: sp, days: 1, date }),
+        ),
+      ).then((r) => setSocial(r.some((x) => x.status === 'fulfilled') ? 'done' : 'err')),
       genOpps
         .mutateAsync(date)
         .then(() => setOpps('done'))
@@ -313,7 +322,8 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         {(running || digest !== 'idle') && (
           <span className="sum-steps faint">
             {isToday && <>抓取 {stepDot(fetch)} · </>}日报 {stepDot(digest)} · 要事{' '}
-            {stepDot(clusters)} · 推特 {stepDot(tw)} · 机会 {stepDot(opps)}
+            {stepDot(clusters)} · 推特 {stepDot(tw)} · 社媒 {stepDot(social)} · 机会{' '}
+            {stepDot(opps)}
           </span>
         )}
         <button className="btn btn-primary jsm" disabled={running} onClick={run}>

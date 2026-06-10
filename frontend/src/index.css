@@ -1414,6 +1414,16 @@ body.resizing * {
   gap: 6px;
   margin-left: auto;
 }
+.stock-head-actions {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.stock-head-actions .tf {
+  margin-left: 0;
+}
 .ipo-note {
   font-size: 0.72rem;
   color: var(--accent);
@@ -5071,74 +5081,135 @@ a.opp-ev-item:hover {
 
 /* ───────────────────────── 「寻」· 发现候选标的 ───────────────────────── */
 .discovery {
-  max-width: 920px;
+  max-width: 880px;
   margin: 0 auto;
   width: 100%;
 }
 .disc-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 18px;
 }
-.disc-id {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-.disc-id h2 {
+.disc-head h2 {
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-.disc-n {
-  color: var(--text-faint);
-  font-size: 0.84rem;
-  font-variant-numeric: tabular-nums;
+.disc-seg {
+  margin-left: 4px;
 }
+.disc-refresh {
+  margin-left: auto;
+}
+/* 偏好面板 */
+.disc-prefs {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.disc-prefs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.disc-prefs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.disc-theme-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.disc-theme-chip i {
+  font-style: normal;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.disc-theme-chip.muted {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+/* 候选卡 */
 .cand-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .cand-card {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
-.cand-head {
+.cand-top {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: baseline;
+  gap: 12px;
 }
 .cand-id {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 .cand-id h3 {
   font-family: var(--font-display);
-  font-size: 1.12rem;
+  font-size: 1.1rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cand-sym {
+  flex: none;
   font-family: var(--font-mono);
   font-size: 0.74rem;
   color: var(--text-faint);
 }
+.cand-mkt {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.cand-theme {
+  flex: none;
+  font-size: 0.68rem;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
 .cand-metrics {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   flex: none;
+  align-items: baseline;
 }
 .cand-metric {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.78rem;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 .cand-metric b {
@@ -5147,41 +5218,42 @@ a.opp-ev-item:hover {
   font-variant-numeric: tabular-nums;
 }
 .cand-ev {
-  margin: 12px 0 14px;
+  margin: 10px 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .cand-ev-row {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
   padding: 4px 0;
   text-decoration: none;
   color: var(--text-muted);
   font-size: 0.86rem;
-  border-bottom: 1px solid transparent;
+  line-height: 1.4;
 }
-.cand-ev-row:hover {
+.cand-ev-row:hover .cand-ev-title {
   color: var(--text);
 }
 .cand-ev-date {
   flex: none;
+  width: 3em;
   font-variant-numeric: tabular-nums;
   font-size: 0.74rem;
   color: var(--text-faint);
-  width: 2.6em;
+  white-space: nowrap;
 }
 .cand-ev-src {
   flex: none;
+  width: 8.5em;
   font-size: 0.74rem;
   color: var(--accent);
-  max-width: 9em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .cand-ev-title {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5192,8 +5264,47 @@ a.opp-ev-item:hover {
   align-items: center;
   gap: 8px;
 }
-.cand-dismiss {
+.cand-actions-r {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 寻里所有行内操作统一成一种按钮，避免字号/对齐不一 */
+.cand-btn {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.15s;
+}
+.cand-btn:hover {
+  border-color: var(--text-faint);
+}
+.cand-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-faint);
+}
+.cand-btn.ghost:hover {
+  color: var(--accent);
+}
+.cand-btn.ghost.on {
+  color: var(--accent);
+}
+/* 寻里复用 AddToWatchlist：让它的触发按钮与 cand-btn 同款 */
+.cand-actions .addwl-btn {
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 
 /* 导入研报：回流来源元数据（引擎徽标 + 原始链接 + 导入表单 meta 行）*/
@@ -5238,4 +5349,103 @@ a.opp-ev-item:hover {
 .imp-add-meta .cfg-input {
   flex: 1;
   min-width: 0;
+}
+
+/* ───────────────────────── 看·相关资讯（合并 brief + 时间线 + 社媒，带可点来源）───────────────────────── */
+.srn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
+}
+.srn-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.srn-block + .srn-block {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.srn-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.srn-sub {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.srn-n {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.srn-link {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.srn-link:hover {
+  color: var(--accent);
+}
+.srn-summary {
+  font-size: 0.96rem;
+  line-height: 1.62;
+  color: var(--text);
+}
+.srn-risks {
+  margin-top: 4px;
+}
+.srn-empty {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+.srn-sg {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.srn-sg-l {
+  flex: none;
+  width: 2.6em;
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  padding-top: 2px;
+}
+.srn-sg .cited-list {
+  flex: 1;
+  min-width: 0;
+}
+/* 要点 + 来源芯片（看·相关资讯 / 社媒共用，像新闻一样可点回看）*/
+.cited-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.cited-row p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+.cited-srcs {
+  display: inline;
+  white-space: nowrap;
+}
+.cited-src {
+  margin-left: 6px;
+  font-size: 0.72rem;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.cited-src:hover {
+  text-decoration: underline;
 }

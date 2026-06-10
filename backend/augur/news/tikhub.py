@@ -22,10 +22,12 @@ from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
+from functools import lru_cache
 from typing import Any
 from urllib.parse import quote_plus
 
 import httpx
+import yaml
 
 from .. import runtime_config
 from . import classify
@@ -168,6 +170,21 @@ def _norm_query(q: Any) -> str:
     return _clean(q, max_len=80)
 
 
+@lru_cache(maxsize=1)
+def _default_keywords() -> dict[str, list[str]]:
+    """内置默认社媒关键词（resources/sources/social_keywords.yaml）；缺失 → {}。"""
+    from ..config import get_settings
+
+    path = get_settings().resources_dir / "sources" / "social_keywords.yaml"
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return {}
+    return {k: list(v or []) for k, v in data.items() if isinstance(v, list)}
+
+
 def _tags(source_id: str, field: str, fallback: list[str] | None = None) -> list[str]:
     raw = runtime_config.get_source_config(source_id, field, fallback or []) or []
     out: list[str] = []
@@ -178,6 +195,14 @@ def _tags(source_id: str, field: str, fallback: list[str] | None = None) -> list
             seen.add(q.lower())
             out.append(q)
     return out[:60]
+
+
+def _keywords(source_id: str, platform: str) -> list[str]:
+    """生效关键词：作者在设置里配的优先，否则回退到内置默认（按平台）。"""
+    cfg = runtime_config.get_source_config(source_id, "keywords")
+    if cfg:
+        return _tags(source_id, "keywords")
+    return _tags(source_id, "keywords", _default_keywords().get(platform, []))
 
 
 def twitter_accounts() -> list[dict]:
@@ -197,23 +222,23 @@ def twitter_accounts() -> list[dict]:
 
 
 def twitter_keywords() -> list[str]:
-    return _tags("tikhub_twitter", "keywords")
+    return _keywords("tikhub_twitter", "twitter")
 
 
 def xiaohongshu_keywords() -> list[str]:
-    return _tags("xiaohongshu", "keywords")
+    return _keywords("xiaohongshu", "xiaohongshu")
 
 
 def threads_keywords() -> list[str]:
-    return _tags("tikhub_threads", "keywords")
+    return _keywords("tikhub_threads", "threads")
 
 
 def reddit_keywords() -> list[str]:
-    return _tags("tikhub_reddit", "keywords")
+    return _keywords("tikhub_reddit", "reddit")
 
 
 def wechat_keywords() -> list[str]:
-    return _tags("tikhub_wechat", "keywords")
+    return _keywords("tikhub_wechat", "wechat")
 
 
 def source_names() -> set[str]:

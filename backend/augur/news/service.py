@@ -494,7 +494,9 @@ def stock_news_brief(symbol: str, limit: int = 32, role: str = "cheap") -> dict:
         _stock_brief_cache[symbol] = (now, data)
         return data
     lines: list[str] = []
+    by_n: dict[int, dict] = {}
     for i, it in enumerate(items, start=1):
+        by_n[i] = it
         day = (it.get("published_at") or it.get("fetched_at") or "")[:10]
         title = _strip_inline_refs(it.get("title_zh") or it["title"])
         src = it.get("source") or ""
@@ -509,25 +511,54 @@ def stock_news_brief(symbol: str, limit: int = 32, role: str = "cheap") -> dict:
         .replace("{{ITEMS}}", "\n".join(lines))
     )
     data = _complete_json(prompt, role, "summary")
-    points = data.get("points") if isinstance(data, dict) else []
-    risks = data.get("risks") if isinstance(data, dict) else []
     out = {
         "symbol": symbol,
-        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:260],
-        "points": [
-            _strip_inline_refs(str(x))[:200]
-            for x in (points if isinstance(points, list) else [])
-            if str(x).strip()
-        ][:6],
-        "risks": [
-            _strip_inline_refs(str(x))[:200]
-            for x in (risks if isinstance(risks, list) else [])
-            if str(x).strip()
-        ][:4],
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:260]
+        if isinstance(data, dict)
+        else "",
+        "points": _cited_points(data.get("points") if isinstance(data, dict) else [], by_n, 6),
+        "risks": _cited_points(data.get("risks") if isinstance(data, dict) else [], by_n, 4),
         "source_count": len(items),
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
     }
     _stock_brief_cache[symbol] = (now, out)
+    return out
+
+
+def _cited_points(raw: object, by_n: dict[int, dict], limit: int, max_refs: int = 3) -> list[dict]:
+    """把 LLM 的 [{text, refs:[n]}]（或兼容纯字符串）转成带原始链接的要点。
+
+    refs 编号映射回 by_n 的条目 → [{source, url}]，去重、上限 max_refs。说人话 + 可溯源。
+    """
+    out: list[dict] = []
+    if not isinstance(raw, list):
+        return out
+    for item in raw:
+        if isinstance(item, str):
+            text, ref_ns = item, []
+        elif isinstance(item, dict):
+            text = str(item.get("text") or "")
+            ref_ns = item.get("refs") or []
+        else:
+            continue
+        text = _strip_inline_refs(text).strip()[:200]
+        if not text:
+            continue
+        refs: list[dict] = []
+        seen: set[str] = set()
+        for nv in ref_ns if isinstance(ref_ns, list) else []:
+            ok = isinstance(nv, int) or (isinstance(nv, str) and str(nv).isdigit())
+            key = int(nv) if ok else None
+            it = by_n.get(key) if key is not None else None
+            url = (it or {}).get("url") or ""
+            if it and url and url not in seen:
+                seen.add(url)
+                refs.append({"source": it.get("source") or "", "url": url})
+            if len(refs) >= max_refs:
+                break
+        out.append({"text": text, "refs": refs})
+        if len(out) >= limit:
+            break
     return out
 
 
@@ -595,7 +626,9 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         return out
 
     lines: list[str] = []
+    by_n: dict[int, dict] = {}
     for i, it in enumerate(items[:24], start=1):
+        by_n[i] = it
         day = (it.get("published_at") or "")[:10] or "日期不详"
         src = it.get("source") or ""
         title = _strip_inline_refs(it.get("title_zh") or it["title"])
@@ -603,37 +636,34 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         lines.append(f"[{i}] ({day}) [{src}] {title}" + (f" - {summary}" if summary else ""))
     name = search.display_name(symbol)
     heading = (
-        "你是 Augur 的投资社媒/论坛弱信号分析器。只基于下列 TikHub 搜索结果，"
-        f"判断 {name} / {symbol} 的大众观点与热度。"
+        f"下面是小红书/推特/Reddit/Threads/微信上关于 {name} / {symbol} 的帖子（每条带编号 `[n]`、"
+        "日期、平台、内容）。请用大白话告诉我「网上的人都在聊什么、情绪怎么样」。"
     )
     prompt = f"""{heading}
 
-要求：
-- 只输出 JSON 对象，不要 Markdown。
-- 不要引用原始帖子编号，不要编造价格、目标价、成交量或未给出的事实。
-- 把社媒当作弱信号：结论必须包含反证/需要观察的方向。
-- heat 只能是 低 / 中 / 高；sentiment 只能是 偏多 / 中性 / 偏空 / 分歧 / 不明。
+怎么写：
+- **说人话**，像转述群里的讨论，别用"市场情绪""舆论关注"这种空话。
+- 社媒是弱信号、噪音多：别当真，要给出反方和需要观察的点。
+- 每条都标注来自哪几条（`refs` 填编号，必须真实存在），我要能点回原帖。
+- 不编价格、目标价、成交量。heat 只能填 低/中/高；sentiment 只能填 偏多/中性/偏空/分歧/不明。
 
-返回字段：
+只输出 JSON（不要 Markdown）：
 {{
-  "summary": "一句话说明大众观点和热度如何影响投资判断，80 字内",
+  "summary": "一两句大白话：大家在聊什么、情绪偏哪边",
   "heat": "低|中|高",
   "sentiment": "偏多|中性|偏空|分歧|不明",
-  "bull_points": ["最多 3 条偏多社媒信号"],
-  "bear_points": ["最多 3 条偏空/反证社媒信号"],
-  "watch": ["最多 3 条下一步需要观察的触发条件"]
+  "bull_points": [{{"text": "有人看好什么，具体点", "refs": [2]}}],
+  "bear_points": [{{"text": "有人担心/唱空什么", "refs": [5]}}],
+  "watch": [{{"text": "接下来值得盯的点", "refs": [3]}}]
 }}
 
-搜索结果：
+帖子：
 {chr(10).join(lines)}
 """
     try:
         data = _complete_json(prompt, role, "summary")
     except gateway.LLMNotConfigured:
         data = {}
-    points = data.get("bull_points") if isinstance(data, dict) else []
-    risks = data.get("bear_points") if isinstance(data, dict) else []
-    watch = data.get("watch") if isinstance(data, dict) else []
     heat = str(data.get("heat") or "中") if isinstance(data, dict) else "中"
     if heat not in {"低", "中", "高"}:
         heat = "中"
@@ -644,26 +674,18 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         "symbol": symbol,
         "configured": True,
         "status": "已生成",
-        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:120]
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:140]
         if isinstance(data, dict)
         else "",
         "sentiment": sentiment,
         "heat": heat,
-        "bull_points": [
-            _strip_inline_refs(str(x))[:120]
-            for x in (points if isinstance(points, list) else [])
-            if str(x).strip()
-        ][:3],
-        "bear_points": [
-            _strip_inline_refs(str(x))[:120]
-            for x in (risks if isinstance(risks, list) else [])
-            if str(x).strip()
-        ][:3],
-        "watch": [
-            _strip_inline_refs(str(x))[:120]
-            for x in (watch if isinstance(watch, list) else [])
-            if str(x).strip()
-        ][:3],
+        "bull_points": _cited_points(
+            data.get("bull_points") if isinstance(data, dict) else [], by_n, 3
+        ),
+        "bear_points": _cited_points(
+            data.get("bear_points") if isinstance(data, dict) else [], by_n, 3
+        ),
+        "watch": _cited_points(data.get("watch") if isinstance(data, dict) else [], by_n, 3),
         "source_count": len(items),
         "platforms": counts,
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
@@ -1279,6 +1301,17 @@ def generate_clusters(
     }
 
 
+# 社媒 lane → source 前缀（与前端 consts.ts SOURCE_LANES 对齐）。要点 scope 按前缀分。
+_SOCIAL_LANES = {
+    "twitter": "X·",
+    "twitter2": "X2·",
+    "reddit": "Reddit·",
+    "xiaohongshu": "小红书·",
+    "threads": "Threads·",
+    "wechat": "微信·",
+}
+
+
 # ───────────────────────── 全部生成（刷新 + 蒸馏当天全套）─────────────────────────
 def generate_all(
     date: str | None = None, refresh_first: bool = True, role: str = "summarize"
@@ -1312,14 +1345,17 @@ def generate_all(
         for _ in generate_report_stream(rd, role):  # 消费流以触发落库
             pass
 
-    # 4 个生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
-    # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；推特要点单独 scope（'X·'）。
+    # 各生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
+    # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。
+    # 社媒 lane（X2·/小红书/Reddit/Threads/微信）此前从不预生成 → 要点常年空；这里补齐，
+    # 无数据的 lane generate_clusters 抛 ValueError 被吞为 'err'，不影响其余（§11 优雅降级）。
     tasks = {
         "digest": _digest,
         "clusters": lambda: generate_clusters(None, None, None, 1, role, rd),
-        "twitter": lambda: generate_clusters(None, "X·", None, 1, role, rd),
         "opportunities": lambda: generate_opportunities(rd, role),
     }
+    for name, prefix in _SOCIAL_LANES.items():
+        tasks[name] = (lambda p: lambda: generate_clusters(None, p, None, 1, role, rd))(prefix)
     with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
         futs = {ex.submit(fn): name for name, fn in tasks.items()}
         for fut in as_completed(futs):

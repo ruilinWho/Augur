@@ -22,8 +22,20 @@ class Candidate(BaseModel):
     first_seen_at: str | None = None
     last_seen_at: str | None = None
     evidence: list[DiscoveryEvidence] = []
+    theme: str = ""
     status: str = "new"
 
 
 class StatusPatch(BaseModel):
     status: str  # new / dismissed / promoted
+
+
+class ThemeCount(BaseModel):
+    theme: str
+    count: int = 0
+    muted: bool = False
+
+
+class MutePatch(BaseModel):
+    theme: str
+    muted: bool
