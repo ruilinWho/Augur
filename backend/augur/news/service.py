@@ -136,6 +136,32 @@ def refresh() -> dict:
         _refresh_lock.release()
 
 
+# 社媒 lane 的 source 前缀（与 consts.ts SOURCE_LANES 对齐）。社媒在「知」里与新闻区别对待：
+# ① 用户主动进社媒 lane 看原貌 → 不套用为新闻从严调的 relevance 过滤（否则带货/生活方式被全杀，
+#    实测 87% 社媒帖被判 relevance=2）；② 新闻/日报/要点反过来排除社媒前缀，免社媒噪音污染；
+# ③ 社媒按**抓取日 fetched_at** 归桶——搜索来的社媒「今天抓到的」归到「今天」才符合直觉
+#    （否则按帖子发布日散落到过去几天，「今天」永远空）。
+_SOCIAL_PREFIXES = ("X·", "X2·", "小红书·", "Threads·", "Reddit·", "微信·")
+
+
+def _date_col(source_prefix: str | None) -> str:
+    """归桶/排序日期列：社媒按抓取日 fetched_at，新闻按发布日（缺则抓取日兜底）。"""
+    if source_prefix in _SOCIAL_PREFIXES:
+        return "fetched_at"
+    return "COALESCE(published_at, fetched_at)"
+
+
+def _lane_where(source_prefix: str | None) -> tuple[str, list]:
+    """relevance / 社媒隔离 WHERE 片段（接在 lane='feed' 之后，其 args 排在最前）。"""
+    if source_prefix in _SOCIAL_PREFIXES:
+        return "", []  # 社媒 lane：不按 relevance 过滤，看原貌
+    if source_prefix is None:
+        # 新闻/通用：保留 relevance!=2 + 排除社媒前缀（社媒不进新闻/日报/要点）
+        frag = " AND relevance != 2" + " AND source NOT LIKE ?" * len(_SOCIAL_PREFIXES)
+        return frag, [f"{p}%" for p in _SOCIAL_PREFIXES]
+    return " AND relevance != 2", []
+
+
 def recent_items(
     limit: int = 60,
     theme: str | None = None,
@@ -154,10 +180,12 @@ def recent_items(
         return linker.attach_symbols(items_for_day(day, theme, source_prefix, category)[:limit])
     conn = get_conn()
     try:
-        # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
-        # lane='feed'：全局流只含 RSS 策展源，定向抓取（lane='ticker'）只服务个股视图
-        sql = "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed'"
-        args: list = []
+        # lane='feed'：全局流（RSS+社媒）；定向抓取（lane='ticker'）只服务个股视图。
+        # relevance/社媒隔离与日期列按 lane 分（见 _lane_where/_date_col）。
+        dc = _date_col(source_prefix)
+        where, wargs = _lane_where(source_prefix)
+        sql = f"SELECT * FROM news_items WHERE lane = 'feed'{where}"
+        args: list = list(wargs)
         if theme:
             sql += " AND theme = ?"
             args.append(theme)
@@ -169,9 +197,9 @@ def recent_items(
             args.append(category)
         if days and days > 0:
             lo, _ = _window_bounds_utc(days)
-            sql += " AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?)"
+            sql += f" AND datetime({dc}) >= datetime(?)"
             args.append(lo)
-        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
+        sql += f" ORDER BY {dc} DESC LIMIT ?"
         args.append(limit)
         items = [_item_out(r) for r in conn.execute(sql, args).fetchall()]
         return linker.attach_symbols(items)  # 挂上关联自选股 ticker chip
@@ -212,17 +240,19 @@ def _items_between(
     source_prefix: str | None = None,
     category: str | None = None,
 ) -> list[dict]:
-    """[lo, hi)（UTC 字符串）内的相关条目（relevance!=2、lane='feed'），时间倒序。
+    """[lo, hi)（UTC 字符串）内的条目（lane='feed'），时间倒序。
     共享 SQL，供 items_for_window / items_for_day（唯一差别是时间边界来源）。
+    relevance/社媒隔离与日期列按 lane 分（见 _lane_where/_date_col）：社媒不滤 relevance、按抓取日。
     """
     conn = get_conn()
     try:
+        dc = _date_col(source_prefix)
+        where, wargs = _lane_where(source_prefix)
         sql = (
-            "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed' "
-            "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
-            "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
+            f"SELECT * FROM news_items WHERE lane = 'feed'{where} "
+            f"AND datetime({dc}) >= datetime(?) AND datetime({dc}) < datetime(?)"
         )
-        args: list = [lo, hi]
+        args: list = [*wargs, lo, hi]
         if theme:
             sql += " AND theme = ?"
             args.append(theme)
@@ -232,7 +262,7 @@ def _items_between(
         if category:
             sql += " AND category = ?"
             args.append(category)
-        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC"
+        sql += f" ORDER BY {dc} DESC"
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
     finally:
         conn.close()
