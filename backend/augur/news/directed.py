@@ -60,17 +60,19 @@ def _store(symbol: str, name: str, items: list[dict]) -> int:
             title = (it.get("title") or "").strip()
             if not url or not title:
                 continue
-            theme, topics = classify.classify_rule(title, "", "")
+            summary = (it.get("summary") or "").strip()
+            theme, topics = classify.classify_rule(title, summary, "")
             before = conn.total_changes
             conn.execute(
                 "INSERT OR IGNORE INTO news_items "
                 "(source, title, url, summary, lang, category, published_at, "
                 "theme, topics, classified_by, lane) "
-                "VALUES (?, ?, ?, '', ?, '', ?, ?, ?, 'rule', 'ticker')",
+                "VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, 'rule', 'ticker')",
                 (
                     it["source"],
                     title[:500],
                     url,
+                    summary[:1000],
                     lang,
                     it.get("published_at"),
                     theme,

@@ -37,6 +37,7 @@ import NotesNav from './features/notes/NotesNav'
 import NotesView from './features/notes/NotesView'
 import { useNews } from './features/news/store'
 import StockNews from './features/news/StockNews'
+import StockNarrativeCard from './features/news/StockNarrativeCard'
 import ResearchView from './features/research/ResearchView'
 
 const TABS: { v: View; label: string }[] = [
@@ -174,6 +175,7 @@ function NewsResizeHandle() {
 const KAN_RENDER: Record<string, (symbol: string) => ReactNode> = {
   financials: (s) => <FinancialsPanel symbol={s} />,
   news: (s) => <StockNews symbol={s} />,
+  narrative: (s) => <StockNarrativeCard symbol={s} />,
   journal: (s) => <JournalPanel symbol={s} />,
 }
 

@@ -52,7 +52,16 @@ def _norm(item: dict) -> dict | None:
                 published = datetime.fromtimestamp(int(epoch), tz=UTC).isoformat()
             except (ValueError, OSError, OverflowError):
                 published = None
-    return {"source": str(source)[:60], "title": title[:500], "url": url, "published_at": published}
+    # 雅虎逐-ticker 条目自带摘要——务必保留（缺它「看·个股资讯」与「研」gather 无正文可喂，
+    # 只能拿标题，是个股资讯薄的根因之一）。新版在 content.summary/description，旧版扁平 summary。
+    summary = str(c.get("summary") or c.get("description") or item.get("summary") or "").strip()
+    return {
+        "source": str(source)[:60],
+        "title": title[:500],
+        "url": url,
+        "summary": summary[:1000],
+        "published_at": published,
+    }
 
 
 def ticker_news(symbol: str, limit: int = 15) -> list[dict]:

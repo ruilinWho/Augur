@@ -233,7 +233,7 @@ cd frontend && npm run dev
 
 Augur 当前已形成完整的本地研究工作台：**看 / 研 / 知 / 记** 四个表面都可用，底层包含两级自选分区、四市场行情、动态 LLM 网关、新闻/社媒摄取、SQLite/Parquet 本地存储、运行时设置、信源健康度和调度任务。完整产品状态见 [docs/roadmap.md](docs/roadmap.md)。
 
-- **看：** 四市场 K 线、报价头部、52 周位置、基本面、财报趋势、AI 相关资讯摘要、社媒热度摘要、判断日记 marker。个股头部只展示决策相关字段，不暴露内部适配器名。
+- **看：** 四市场 K 线、报价头部、52 周位置、基本面、财报趋势、AI 相关资讯摘要、社媒热度摘要、**叙事时间线**（复用「知」的 `/news/narrative`，只读+可就地生成）、判断日记 marker。个股头部只展示决策相关字段，不暴露内部适配器名。ticker 新闻保留雅虎上游摘要、brief 喂正文加厚（见 [view-stock-info-hierarchy](docs/memory/view-stock-info-hierarchy.md)）。
 - **研：** 单股研究走 `research.gather(symbol)` 收集本地确定性上下文，再由 `deep_research` 角色流式生成带引用 Markdown；支持导入外部研报、排序、编辑和写个人评论。官方 Deep Research job 化接入是当前优先方向，详见 [ADR-0011](docs/decisions/0011-research-deep-research-api-strategy.md)。**Prompt 模板**（`templates/` 域，SQLite）：设置·模板页管理，`{STOCK}/{NAME}/{MARKET}/{SYMBOL}` 占位符，研页头部「复制 Prompt」按当前标的填充进剪贴板——服务外部网页 Deep Research（ChatGPT/Claude 订阅版无 API），见 [ADR-0014](docs/decisions/0014-prompt-templates.md)。
 - **知：** `feed` lane 聚合 RSS/API/X/Reddit/TikHub 等全局信源；`ticker` lane 服务自选股定向新闻和每股专属信源。刷新链路为摄取 → 翻译 → relevance → 确定性挂钩 → LLM 标股 → grounding。日报、要事、机会、决策页、个股叙事和某日快照都围绕可追溯引用与反证条件。
 - **记：** `notes/` 提供与个股无关的 Markdown 长文、置顶、预览/编辑和 700ms 防抖自动保存；共享 Markdown 渲染器供研报、导入研报、笔记复用。

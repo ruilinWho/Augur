@@ -444,7 +444,7 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
                 "source": it["source"],
                 "title": it["title"],
                 "url": it["url"],
-                "summary": "",
+                "summary": it.get("summary") or "",
                 "lang": "en",
                 "category": "",
                 "published_at": it["published_at"],
@@ -470,7 +470,7 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
     return _clean_stock_news(symbol, out[:limit])
 
 
-def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
+def stock_news_brief(symbol: str, limit: int = 32, role: str = "cheap") -> dict:
     """个股「相关资讯」摘要：AI 筛选+合成要点，前端不再铺直接新闻列表。
 
     原始资讯仍用于生成与来源计数，但 UI 只呈现 summary/points/risks。若模型未配置，让路由返回
@@ -499,6 +499,10 @@ def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
         title = _strip_inline_refs(it.get("title_zh") or it["title"])
         src = it.get("source") or ""
         lines.append(f"[{i}] ({day or '日期不详'}) [{src}] {title}")
+        # 有摘要就附一行正文——让模型有正文可总结，而非只有标题（个股资讯加厚的关键）
+        summ = _strip_inline_refs(str(it.get("summary") or "")).strip()
+        if summ:
+            lines.append(f"    {summ[:280]}")
     prompt = (
         _load_prompt("stock_news_brief")
         .replace("{{SYMBOL}}", f"{search.display_name(symbol)} / {symbol}")
@@ -509,17 +513,17 @@ def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
     risks = data.get("risks") if isinstance(data, dict) else []
     out = {
         "symbol": symbol,
-        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:180],
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:260],
         "points": [
-            _strip_inline_refs(str(x))[:180]
+            _strip_inline_refs(str(x))[:200]
             for x in (points if isinstance(points, list) else [])
             if str(x).strip()
-        ][:5],
+        ][:6],
         "risks": [
-            _strip_inline_refs(str(x))[:180]
+            _strip_inline_refs(str(x))[:200]
             for x in (risks if isinstance(risks, list) else [])
             if str(x).strip()
-        ][:3],
+        ][:4],
         "source_count": len(items),
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
     }

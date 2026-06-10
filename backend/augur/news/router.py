@@ -69,7 +69,7 @@ async def news_for(symbol: str, limit: int = 20) -> list[dict]:
 
 
 @router.get("/for/brief", response_model=StockNewsBrief)
-async def news_for_brief(symbol: str, limit: int = 16) -> dict:
+async def news_for_brief(symbol: str, limit: int = 32) -> dict:
     """某标的相关资讯的 AI 摘要；看页只展示摘要，不直接铺新闻列表。"""
     try:
         return await run_in_threadpool(service.stock_news_brief, symbol, limit)

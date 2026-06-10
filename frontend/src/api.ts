@@ -764,7 +764,7 @@ export function useStockNewsBrief(symbol: string | null) {
     queryKey: ['stock-news-brief', symbol],
     queryFn: async () =>
       stockNewsBriefSchema.parse(
-        await getJSON(`/news/for/brief?symbol=${encodeURIComponent(symbol!)}&limit=16`),
+        await getJSON(`/news/for/brief?symbol=${encodeURIComponent(symbol!)}&limit=32`),
       ),
     staleTime: 30 * 60_000,
     retry: 1,

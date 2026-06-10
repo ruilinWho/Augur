@@ -27,6 +27,7 @@ import { SOURCE_LANES, type SourceLaneId } from './consts'
 import { Digest, FeedGroups } from './shared'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
+import { IMP, NarrativeBody } from './NarrativeTimeline'
 import { EASE } from '../../theme/motion'
 
 const fmtDate = (d: string) => {
@@ -492,12 +493,6 @@ function DecisionView({ date }: { date: string }) {
 }
 
 // ── 新闻 / 推特：时间线 ↔ 要点（去重聚类+重要性排序）+ 时间范围 ──
-const IMP: Record<string, { label: string; cls: string }> = {
-  critical: { label: '非常重要', cls: 'imp-critical' },
-  high: { label: '重要', cls: 'imp-high' },
-  med: { label: '一般', cls: 'imp-med' },
-  low: { label: '次要', cls: 'imp-low' },
-}
 function ClusterCard({ c }: { c: NewsCluster }) {
   const [open, setOpen] = useState(false)
   const imp = IMP[c.importance] ?? IMP.med
@@ -710,31 +705,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
         <div className="report-card faint">融合中…</div>
       ) : data ? (
         <>
-          {data.summary && <div className="narr-summary">{data.summary}</div>}
-          <div className="narr-timeline">
-            {data.timeline.map((ev, i) => {
-              const imp = IMP[ev.importance] ?? IMP.med
-              return (
-                <div className="narr-ev" key={`ev-${i}`}>
-                  <div className="narr-ev-head">
-                    <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
-                    {ev.date && <span className="narr-date">{ev.date}</span>}
-                    <span className="narr-ev-title">{ev.title}</span>
-                  </div>
-                  {ev.refs.length > 0 && (
-                    <div className="narr-refs">
-                      {ev.refs.map((r, j) => (
-                        <a key={j} className="narr-ref" href={r.url} target="_blank" rel="noreferrer">
-                          <span className="narr-ref-src">{r.source}</span>
-                          <span className="narr-ref-title">{r.title}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          <NarrativeBody data={data} />
           <div className="report-foot faint">
             融合 {data.item_count} 条资讯
             {data.created_at && ` · 生成于 ${data.created_at.slice(0, 10)}`}
