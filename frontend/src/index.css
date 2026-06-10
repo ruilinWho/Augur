@@ -5351,44 +5351,84 @@ a.opp-ev-item:hover {
   min-width: 0;
 }
 
-/* ───────────────────────── 看·相关资讯（合并 brief + 时间线 + 社媒）───────────────────────── */
+/* ───────────────────────── 看·相关资讯（一卡片内含 近况/社媒/时间线 三个可折叠子卡片）─────────────────────────
+   外层是 KanStack 模块卡；这里每个子模块再做成独立小卡片 + 独立折叠，清晰区分。 */
 .srn {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   padding-top: 4px;
 }
-.srn-block {
+.srn-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.srn-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.srn-card.open .srn-card-head {
+  border-bottom: 1px solid var(--border);
+}
+.srn-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.srn-card.open .srn-card-title {
+  color: var(--text);
+}
+.srn-card:not(.open) .srn-card-title {
+  color: var(--text-muted);
+}
+.srn-card-head:hover .srn-card-title {
+  color: var(--accent);
+}
+.srn-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.srn-card-body {
+  padding: 12px 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-.srn-block + .srn-block {
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
-}
-.srn-sub {
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-  text-transform: none;
+  gap: 10px;
 }
 .srn-n {
   font-size: 0.72rem;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.srn-card-meta .srn-n {
+  margin-left: 0;
 }
 .srn-summary {
-  font-size: 0.96rem;
+  font-size: 0.95rem;
   line-height: 1.64;
   color: var(--text);
 }
 .srn-risks {
-  margin-top: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.srn-risks-l {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--down, #c0563a);
 }
 .srn-empty {
   font-size: 0.86rem;
@@ -5439,21 +5479,7 @@ a.opp-ev-item:hover {
 .cited-sup:hover {
   text-decoration: underline;
 }
-/* 社媒热度：卡片式 */
-.srn-social {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-2);
-  padding: 13px 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.srn-social-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* 社媒热度子卡片内部 */
 .srn-social-sum {
   font-size: 0.9rem;
   line-height: 1.6;

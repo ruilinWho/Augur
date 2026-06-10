@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import Collapse from '../../components/Collapse'
 import {
   useGenerateNarrative,
@@ -28,14 +28,7 @@ function CitedText({ p }: { p: CitedPoint }) {
         <span>{p.text}</span>
       )}
       {extra.map((r, i) => (
-        <a
-          key={i}
-          className="cited-sup"
-          href={r.url}
-          target="_blank"
-          rel="noreferrer"
-          title={r.source}
-        >
+        <a key={i} className="cited-sup" href={r.url} target="_blank" rel="noreferrer" title={r.source}>
           {i + 2}
         </a>
       ))}
@@ -55,8 +48,34 @@ function CitedList({ items }: { items: CitedPoint[] }) {
   )
 }
 
-// 「看·相关资讯」：一个板块一眼看全——现状一句话 + 要点 + 时间线 + 社媒热度。
-// 傻瓜式：全部自动加载/生成，只有一个「刷新」按钮重抓+重生成。
+// 子卡片：标题行点击折叠（无三角，靠 hover+点击发现）。每个子模块独立卡片、独立折叠。
+function SubCard({
+  title,
+  right,
+  children,
+  defaultOpen = true,
+}: {
+  title: string
+  right?: ReactNode
+  children: ReactNode
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={`srn-card ${open ? 'open' : ''}`}>
+      <div className="srn-card-head" role="button" onClick={() => setOpen((o) => !o)}>
+        <span className="srn-card-title">{title}</span>
+        {right}
+      </div>
+      <Collapse open={open}>
+        <div className="srn-card-body">{children}</div>
+      </Collapse>
+    </div>
+  )
+}
+
+// 「看·相关资讯」：一张卡片，内含 近况 / 社媒热度 / 时间线 三个独立可折叠子卡片。
+// 傻瓜式：全部自动加载/生成，只有一个「刷新」重抓+重生成。
 export default function StockNews({ symbol }: { symbol: string }) {
   const brief = useStockNewsBrief(symbol)
   const social = useStockSocialHeat(symbol)
@@ -77,6 +96,7 @@ export default function StockNews({ symbol }: { symbol: string }) {
   const hasSocial = Boolean(
     heat?.summary || heat?.bull_points.length || heat?.bear_points.length || heat?.watch.length,
   )
+  const hasTimeline = Boolean(narr && narr.timeline.length > 0)
 
   // 傻瓜式：时间线没生成过就自动生成一次（本会话每只股只试一次，cached 后直接读库）
   const genRef = useRef(genNar.mutate)
@@ -95,7 +115,6 @@ export default function StockNews({ symbol }: { symbol: string }) {
     refresh.mutate(symbol)
     genNar.mutate(symbol)
   }
-
   const busy = refresh.isPending || genNar.isPending
 
   return (
@@ -111,46 +130,37 @@ export default function StockNews({ symbol }: { symbol: string }) {
 
       <Collapse open={open}>
         <div className="srn">
-          {/* 现状 + 要点 */}
-          {brief.isLoading ? (
-            <div className="fin-empty">加载…</div>
-          ) : hasBrief ? (
-            <div className="srn-block">
-              {data?.summary && <p className="srn-summary">{data.summary}</p>}
-              {data?.points.length ? <CitedList items={data.points} /> : null}
-              {data?.risks.length ? (
-                <div className="srn-risks">
-                  <span className="srn-sub">值得担心</span>
-                  <CitedList items={data.risks} />
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="srn-empty faint">暂无摘要</div>
-          )}
+          {/* 近况 */}
+          <SubCard title="近况">
+            {brief.isLoading ? (
+              <div className="fin-empty">加载…</div>
+            ) : hasBrief ? (
+              <>
+                {data?.summary && <p className="srn-summary">{data.summary}</p>}
+                {data?.points.length ? <CitedList items={data.points} /> : null}
+                {data?.risks.length ? (
+                  <div className="srn-risks">
+                    <span className="srn-risks-l">值得担心</span>
+                    <CitedList items={data.risks} />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="srn-empty faint">暂无摘要</div>
+            )}
+          </SubCard>
 
-          {/* 时间线（自动生成）*/}
-          {narr && narr.timeline.length > 0 && (
-            <div className="srn-block">
-              <span className="srn-sub">时间线</span>
-              <NarrativeBody data={narr} />
-            </div>
-          )}
-          {!narr && genNar.isPending && (
-            <div className="srn-block">
-              <span className="srn-sub">时间线</span>
-              <div className="fin-empty">融合中…</div>
-            </div>
-          )}
-
-          {/* 社媒热度（卡片式）*/}
-          <div className="srn-social">
-            <div className="srn-social-head">
-              <span className="srn-sub">社媒热度</span>
-              <span className={`social-pill heat-${heatTone}`}>{heat?.heat ?? '低'}</span>
-              <span className="social-pill">{heat?.sentiment ?? '不明'}</span>
-              {heat?.source_count ? <span className="srn-n">{heat.source_count} 条</span> : null}
-            </div>
+          {/* 社媒热度 */}
+          <SubCard
+            title="社媒热度"
+            right={
+              <span className="srn-card-meta">
+                <span className={`social-pill heat-${heatTone}`}>{heat?.heat ?? '低'}</span>
+                <span className="social-pill">{heat?.sentiment ?? '不明'}</span>
+                {heat?.source_count ? <span className="srn-n">{heat.source_count} 条</span> : null}
+              </span>
+            }
+          >
             {social.isLoading ? (
               <div className="fin-empty">加载…</div>
             ) : hasSocial ? (
@@ -174,7 +184,17 @@ export default function StockNews({ symbol }: { symbol: string }) {
             ) : (
               <div className="srn-empty faint">{heat?.status || '暂无社媒信号'}</div>
             )}
-          </div>
+          </SubCard>
+
+          {/* 时间线（自动生成）——放在社媒热度下面 */}
+          {(hasTimeline || (!narr && genNar.isPending)) && (
+            <SubCard
+              title="时间线"
+              right={narr?.item_count ? <span className="srn-n">{narr.item_count} 条</span> : undefined}
+            >
+              {hasTimeline ? <NarrativeBody data={narr!} /> : <div className="fin-empty">融合中…</div>}
+            </SubCard>
+          )}
         </div>
       </Collapse>
     </section>
