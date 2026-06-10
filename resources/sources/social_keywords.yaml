@@ -1,0 +1,51 @@
+# 社媒/论坛全局信源的**默认搜索关键词**——版本化、作者可在「设置」逐源覆盖（read-with-fallback）。
+# 这些 lane（小红书/Threads/Reddit/微信/推特2）靠关键词搜索，没关键词就抓不到东西、要点也空。
+# 这里给一份贴合作者主题（AI/半导体/机器人/航天/新能源/算力）的开箱默认，让 lane 一上来就有内容。
+# 改法：在「设置 · 数据/信源」对应源行里增删关键词即可；留空则回退到这份默认。
+
+# 中文平台（小红书 / 微信公众号）——用中文投研/科技词
+xiaohongshu:
+  - 英伟达
+  - 人工智能
+  - 半导体
+  - 算力
+  - 机器人
+  - 新能源车
+  - 比亚迪
+  - 固态电池
+  - 人形机器人
+  - 国产芯片
+
+wechat:
+  - 半导体
+  - 人工智能
+  - 算力
+  - 机器人
+  - 大模型
+  - 光模块
+  - 先进封装
+  - 国产替代
+
+# 英文平台（Threads / Reddit / 推特2）——用英文科技/股票词
+threads:
+  - Nvidia
+  - AI chips
+  - semiconductor
+  - robotics
+  - data center
+  - AMD
+  - TSMC
+
+reddit:
+  - Nvidia
+  - semiconductor
+  - AI datacenter
+  - robotics
+  - TSMC
+  - AMD
+
+twitter:
+  - AI chips
+  - semiconductor
+  - datacenter GPU
+  - humanoid robot

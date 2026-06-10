@@ -21,9 +21,11 @@ from urllib.parse import urlparse
 from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
-from . import classify, ingest, reddit, twtapi
+from . import classify, ingest, reddit, tikhub, twtapi
 from .service import _load_prompt, _parse_json_lenient
 
+# kind 抓取支持矩阵：X(twtapi→TikHub 回退) / Reddit(public JSON) / RSS·官网·IR·财经站(feedparser)
+# / xiaohongshu·threads(TikHub 关键词搜索，ref=关键词)。其余仅作书签展示。
 _VALID_KINDS = {
     "official",
     "ir",
@@ -32,6 +34,8 @@ _VALID_KINDS = {
     "reddit",
     "forum",
     "fin_site",
+    "xiaohongshu",
+    "threads",
 }
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9_]{1,30}$")
 _SUB_RE = re.compile(r"^[A-Za-z0-9_]{2,40}$")
@@ -40,7 +44,17 @@ _RECENT_DAYS = 30
 _KIND_ORDER = {
     k: i
     for i, k in enumerate(
-        ["official", "ir", "official_x", "influencer_x", "reddit", "forum", "fin_site"]
+        [
+            "official",
+            "ir",
+            "official_x",
+            "influencer_x",
+            "xiaohongshu",
+            "threads",
+            "reddit",
+            "forum",
+            "fin_site",
+        ]
     )
 }
 
@@ -220,6 +234,14 @@ def _feed_url(ref: str) -> str:
     return r
 
 
+def _keyword(ref: str) -> str:
+    """小红书/Threads 用关键词（去 @、去 URL 壳，留作搜索词）。"""
+    r = (ref or "").strip()
+    if r.startswith("http"):
+        return ""  # 关键词源不收 URL
+    return r.lstrip("@").strip()[:60]
+
+
 def _fetch_one(s: dict, cutoff: datetime) -> tuple[dict, list[dict], str]:
     """拉一个已启用源。返回 (source, items, problem)。problem 非空表示未支持/失败。"""
     kind = s["kind"]
@@ -228,7 +250,31 @@ def _fetch_one(s: dict, cutoff: datetime) -> tuple[dict, list[dict], str]:
         handle = _x_handle(ref)
         if not handle:
             return s, [], "无法解析 X 账号"
-        return s, twtapi.fetch_accounts([{"screen_name": handle, "category": "stock"}], cutoff), ""
+        items = twtapi.fetch_accounts([{"screen_name": handle, "category": "stock"}], cutoff)
+        if not items:  # twtapi 额度耗尽/失败 → 退 TikHub X2 通道（修 X 通道）
+            try:
+                items = tikhub.user_tweets(handle, cutoff)
+            except Exception as e:  # noqa: BLE001 — 两通道都挂 → 报问题
+                return s, [], f"X 双通道均不可用：{e}"
+        return s, items, ""
+    if kind == "xiaohongshu":
+        q = _keyword(ref)
+        if not q:
+            return s, [], "小红书源需填关键词（公司名/产品名），不收 URL"
+        try:
+            items = tikhub.search_xiaohongshu(q, cutoff)
+        except Exception as e:  # noqa: BLE001
+            return s, [], f"小红书抓取失败：{e}"
+        return s, items, "" if items else "小红书近一周无匹配笔记"
+    if kind == "threads":
+        q = _keyword(ref)
+        if not q:
+            return s, [], "Threads 源需填关键词，不收 URL"
+        try:
+            items = tikhub.search_threads(q, cutoff)
+        except Exception as e:  # noqa: BLE001
+            return s, [], f"Threads 抓取失败：{e}"
+        return s, items, "" if items else "Threads 近一周无匹配帖子"
     if kind == "reddit":
         sub = _subreddit(ref)
         if not sub:
@@ -240,7 +286,7 @@ def _fetch_one(s: dict, cutoff: datetime) -> tuple[dict, list[dict], str]:
             {"name": s.get("name") or ref, "url": url, "category": "stock_source"}, cutoff
         )
         return s, items, "" if items else "RSS/Atom 可达但没有新条目"
-    return s, [], "暂只支持 X 账号、Reddit 子版、RSS/Atom URL"
+    return s, [], "暂只支持 X 账号、小红书/Threads 关键词、Reddit 子版、RSS/Atom URL"
 
 
 def _store_items(symbol: str, stock_name: str, items: list[dict]) -> int:

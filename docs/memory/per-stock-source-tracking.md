@@ -12,16 +12,20 @@
 - `news_for_symbol` 会合并 Yahoo ticker 新闻、持久化挂钩流、聚合流匹配，再交给 `/news/for/brief` 做 AI 筛选/摘要；所以「看·相关资讯」能消费专属源。
 - 前端「看·相关资讯」头部显示 `专属 N`（仅启用源大于 0 时）和「刷新」按钮；刷新后失效 `stock-news` / `stock-news-brief` / `news-for` 查询。
 
-当前支持的 `ref`：
+当前支持的 `ref`（kind → 抓取通道）：
 
-- X：`@nvidia`、`nvidia`、`https://x.com/nvidia/status/...`、`https://twitter.com/nvidia`，走 `twtapi.fetch_accounts`，需要 `TWTAPI_KEY` 且额度可用。
-- Reddit：`r/NVDA_Stock`、`https://www.reddit.com/r/NVDA_Stock/new/`，走 public JSON。
-- RSS/Atom：`https://example.com/feed.xml` 或可被 feedparser 解析的 feed URL。
+- `official_x`/`influencer_x`（X）：`@nvidia`、`https://x.com/nvidia` → 先 `twtapi.fetch_accounts`（需 `TWTAPI_KEY` 且额度可用），**twtapi 返回空则自动回退 `tikhub.user_tweets`（TikHub X2 通道）**——「修 X 通道」：twtapi 月额度耗尽时仍出数据（2026-06-10）。
+- `xiaohongshu`（**新**）：`ref` 填**关键词**（公司名/产品名，如「比亚迪」），走 `tikhub.search_xiaohongshu`（app_v2/search_notes，近一周、≤12 条）。不收 URL。
+- `threads`（**新**）：`ref` 填**关键词**（英文公司名/ticker），走 `tikhub.search_threads`（web/search_top）。不收 URL。
+- `reddit`：`r/NVDA_Stock` → public JSON。
+- RSS/Atom（official/ir/fin_site/forum 的 URL）：feedparser。
+
+以上 TikHub kind 共用 `TIKHUB_KEY`，无新增 secret；失败/无 key 时 `_fetch_one` 返回 problem（计入 unsupported），不崩溃。实测（2026-06-10）三类各抓 12 条并确定性挂回该股。
 
 明确不支持但不能伪装：
 
 - 普通官网/IR 页面如果不是 RSS/Atom，不会自动抽取页面内容；后续要做 feed 自动发现或网页正文抓取。
-- 小红书需要登录 Cookie/稳定接口与限流策略，当前只登记配置槽，不抓取。（雪球已于 2026-06-06 退役。）
+- 小红书/Threads 仅**关键词搜索**，**不支持关注特定账号**（TikHub 该平台 user-posts 端点未接入）。雪球已于 2026-06-06 退役。
 - X 账号、Reddit 子版、URL 的强验证仍很薄：当前是抓到条目才标 `verified=1`，后续应补独立探活和中文诊断。
 
 实现边界：

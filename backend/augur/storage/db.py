@@ -170,6 +170,8 @@ CREATE TABLE IF NOT EXISTS imported_reports (
     title       TEXT    NOT NULL DEFAULT '',
     body        TEXT    NOT NULL DEFAULT '',        -- markdown 正文
     comment     TEXT    NOT NULL DEFAULT '',        -- 我的评论
+    engine      TEXT    NOT NULL DEFAULT '',        -- 回流来源引擎 chatgpt/claude/gemini/other
+    source_url  TEXT    NOT NULL DEFAULT '',        -- 原始会话/分享链接
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -186,6 +188,35 @@ CREATE TABLE IF NOT EXISTS notes (
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(pinned DESC, updated_at DESC);
+
+-- 「寻」候选标的（M4）：从新闻流 LLM 标股(matched_by='llm')里聚合**不在自选**、反复出现的票，
+-- 跨天累积 + 证据引用 + 作者拍板状态机。喂料零新增 LLM 成本（复用 news_item_symbols）。
+-- 区别于 news_opportunities（当日事件论点卡、每日覆盖）——这是标的轴、跨天累积的候选池。
+CREATE TABLE IF NOT EXISTS discovery_candidates (
+    symbol        TEXT    PRIMARY KEY,                -- 归一化 MARKET:CODE
+    name          TEXT    NOT NULL DEFAULT '',
+    mention_count INTEGER NOT NULL DEFAULT 0,          -- 被 LLM 标到的次数（同名双重上市已并）
+    day_span      INTEGER NOT NULL DEFAULT 0,          -- 出现的不同天数（信号持续度）
+    first_seen_at TEXT,                                -- 最早出现日（按新闻 published_at）
+    last_seen_at  TEXT,                                -- 最近出现日
+    evidence      TEXT    NOT NULL DEFAULT '[]',       -- JSON：[{news_id,title,source,url,date}]
+    theme         TEXT    NOT NULL DEFAULT '',          -- 主导主题（从证据新闻推断，供主题级屏蔽）
+    status        TEXT    NOT NULL DEFAULT 'new',       -- new待看/dismissed忽略/promoted已入自选
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_discovery_status ON discovery_candidates(status, mention_count DESC);
+
+-- Prompt 模板（「研」）：作者自存的 Deep Research 提示词模板。占位符 {STOCK}/{NAME}/
+-- {MARKET}/{SYMBOL} 由前端按当前标的填充后复制——用于粘到外部网页 Deep Research。
+CREATE TABLE IF NOT EXISTS prompt_templates (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL DEFAULT '',
+    body        TEXT    NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 
 -- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
 CREATE TABLE IF NOT EXISTS research_reports (
@@ -233,6 +264,11 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("news_items", "lane", "TEXT NOT NULL DEFAULT 'feed'"),
     ("news_items", "tagged", "INTEGER NOT NULL DEFAULT 0"),
     ("source_health", "last_error", "TEXT NOT NULL DEFAULT ''"),
+    # 导入研报补来源元数据：网页 Deep Research 回流（ChatGPT/Claude/Gemini 订阅版无 API）
+    ("imported_reports", "engine", "TEXT NOT NULL DEFAULT ''"),  # chatgpt/claude/gemini/other/''
+    ("imported_reports", "source_url", "TEXT NOT NULL DEFAULT ''"),  # 原始会话/分享链接
+    # 「寻」候选主导主题（从证据新闻 theme 推断）——供主题级屏蔽/偏好
+    ("discovery_candidates", "theme", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 

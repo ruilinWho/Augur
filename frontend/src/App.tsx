@@ -38,11 +38,13 @@ import NotesView from './features/notes/NotesView'
 import { useNews } from './features/news/store'
 import StockNews from './features/news/StockNews'
 import ResearchView from './features/research/ResearchView'
+import DiscoveryView from './features/discovery/DiscoveryView'
 
 const TABS: { v: View; label: string }[] = [
   { v: 'kan', label: '看' },
   { v: 'yan', label: '研' },
   { v: 'zhi', label: '知' },
+  { v: 'xun', label: '寻' },
   { v: 'ji', label: '记' },
 ]
 
@@ -87,6 +89,16 @@ const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
       <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
         <circle cx="10" cy="10" r="7" />
         <path d="M3 10h14M10 3c2 2.2 2 11.8 0 14M10 3c-2 2.2-2 11.8 0 14" />
+      </svg>
+    ),
+  },
+  {
+    id: 'templates',
+    label: '模板',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="4" y="3.5" width="12" height="13" rx="1.5" />
+        <path d="M7 7.5h6M7 10.5h6M7 13.5h3.5" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -240,7 +252,9 @@ export default function App() {
       ? `layout know-${newsCols}`
       : view === 'kan' || view === 'yan'
         ? 'layout kan'
-        : 'layout'
+        : view === 'xun'
+          ? 'layout full'
+          : 'layout'
 
   useEffect(() => {
     const el = document.documentElement
@@ -309,12 +323,12 @@ export default function App() {
               <NotesNav />
               <ResizeHandle />
             </>
-          ) : (
+          ) : view === 'set' ? (
             <>
               <SettingsNav />
               <ResizeHandle />
             </>
-          )}
+          ) : null /* 寻：全宽单栏，无左栏 */}
 
           <main className="stage">
             {/* 视图切换：keyed motion.div 只做进场动画。刻意不用 AnimatePresence——
@@ -335,6 +349,7 @@ export default function App() {
               )}
               {view === 'yan' && <ResearchView />}
               {view === 'zhi' && <KnowView />}
+              {view === 'xun' && <DiscoveryView />}
               {view === 'ji' && <NotesView />}
               {view === 'set' && <SettingsView />}
             </motion.div>

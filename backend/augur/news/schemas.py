@@ -25,11 +25,25 @@ class NewsItem(BaseModel):
     symbols: list[LinkedSymbol] = []  # 挂钩的自选股 ticker（linker.py，确定性接地）
 
 
+class SourceRef(BaseModel):
+    """一条要点背后的原始链接（像新闻一样可点回看）。"""
+
+    source: str = ""
+    url: str = ""
+
+
+class CitedPoint(BaseModel):
+    """带原始链接引用的要点（说人话 + 可溯源）。"""
+
+    text: str = ""
+    refs: list[SourceRef] = []
+
+
 class StockNewsBrief(BaseModel):
     symbol: str
     summary: str = ""
-    points: list[str] = []
-    risks: list[str] = []
+    points: list[CitedPoint] = []
+    risks: list[CitedPoint] = []
     source_count: int = 0
     generated_at: str | None = None
 
@@ -41,9 +55,9 @@ class StockSocialHeat(BaseModel):
     summary: str = ""
     sentiment: str = "不明"
     heat: str = "低"
-    bull_points: list[str] = []
-    bear_points: list[str] = []
-    watch: list[str] = []
+    bull_points: list[CitedPoint] = []
+    bear_points: list[CitedPoint] = []
+    watch: list[CitedPoint] = []
     source_count: int = 0
     platforms: dict[str, int] = {}
     generated_at: str | None = None

@@ -211,6 +211,9 @@ button {
   min-height: 0;
   position: relative;
 }
+.layout.full {
+  grid-template-columns: 1fr;
+}
 /* 「知」两列纵向导航：rail（一级）+ 条件二级卡 + 主舞台 */
 .layout.know-2 {
   grid-template-columns: 92px 1fr;
@@ -1410,6 +1413,16 @@ body.resizing * {
   display: flex;
   gap: 6px;
   margin-left: auto;
+}
+.stock-head-actions {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.stock-head-actions .tf {
+  margin-left: 0;
 }
 .ipo-note {
   font-size: 0.72rem;
@@ -4915,4 +4928,602 @@ a.opp-ev-item:hover {
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* ───────────────────────── Prompt 模板（设置·模板 + 研页复制入口）───────────────────────── */
+.tpl-hint {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-top: 10px;
+  letter-spacing: 0.01em;
+}
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+.tpl-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px 14px 14px;
+}
+.tpl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.tpl-save {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.tpl-del {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.tpl-del:hover {
+  color: var(--down);
+}
+.tpl-body {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.tpl-body::placeholder {
+  color: var(--text-faint);
+}
+.tpl-body:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.rh-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.tpl-copy {
+  position: relative;
+}
+.tpl-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+}
+.tpl-pop button {
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tpl-pop button:hover {
+  background: var(--surface-2);
+}
+.tpl-pop-h {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  padding: 6px 10px 2px;
+  letter-spacing: 0.04em;
+}
+
+/* 设置·技能区 */
+.skill-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.skill-row:first-child {
+  border-top: none;
+}
+.skill-row-l {
+  min-width: 0;
+  flex: 1;
+}
+.skill-row-name {
+  font-weight: 600;
+  font-size: 0.96rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.skill-badge {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.skill-row-sum {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* ───────────────────────── 「寻」· 发现候选标的 ───────────────────────── */
+.discovery {
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+}
+.disc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.disc-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.disc-seg {
+  margin-left: 4px;
+}
+.disc-refresh {
+  margin-left: auto;
+}
+/* 偏好面板 */
+.disc-prefs {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.disc-prefs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.disc-prefs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.disc-theme-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.disc-theme-chip i {
+  font-style: normal;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.disc-theme-chip.muted {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+/* 候选卡 */
+.cand-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cand-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 14px 16px;
+}
+.cand-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.cand-id {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.cand-id h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cand-sym {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+.cand-mkt {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.cand-theme {
+  flex: none;
+  font-size: 0.68rem;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.cand-metrics {
+  display: flex;
+  gap: 12px;
+  flex: none;
+  align-items: baseline;
+}
+.cand-metric {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.cand-metric b {
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cand-ev {
+  margin: 10px 0 12px;
+  display: flex;
+  flex-direction: column;
+}
+.cand-ev-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.cand-ev-row:hover .cand-ev-title {
+  color: var(--text);
+}
+.cand-ev-date {
+  flex: none;
+  width: 3em;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.cand-ev-src {
+  flex: none;
+  width: 8.5em;
+  font-size: 0.74rem;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cand-ev-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cand-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cand-actions-r {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 寻里所有行内操作统一成一种按钮，避免字号/对齐不一 */
+.cand-btn {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.15s;
+}
+.cand-btn:hover {
+  border-color: var(--text-faint);
+}
+.cand-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-faint);
+}
+.cand-btn.ghost:hover {
+  color: var(--accent);
+}
+.cand-btn.ghost.on {
+  color: var(--accent);
+}
+/* 寻里复用 AddToWatchlist：让它的触发按钮与 cand-btn 同款 */
+.cand-actions .addwl-btn {
+  font-size: 0.82rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* 导入研报：回流来源元数据（引擎徽标 + 原始链接 + 导入表单 meta 行）*/
+.imp-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0 8px;
+}
+.imp-engine {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: var(--accent-wash, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.imp-src {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.imp-src:hover {
+  color: var(--accent);
+}
+.imp-add-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.imp-add-meta .set2-select {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  padding: 7px 10px;
+}
+.imp-add-meta .cfg-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ───────────────────────── 看·相关资讯（一卡片内含 近况/社媒/时间线 三个可折叠子卡片）─────────────────────────
+   外层是 KanStack 模块卡；这里每个子模块再做成独立小卡片 + 独立折叠，清晰区分。 */
+.srn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+.srn-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.srn-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.srn-card.open .srn-card-head {
+  border-bottom: 1px solid var(--border);
+}
+.srn-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.srn-card.open .srn-card-title {
+  color: var(--text);
+}
+.srn-card:not(.open) .srn-card-title {
+  color: var(--text-muted);
+}
+.srn-card-head:hover .srn-card-title {
+  color: var(--accent);
+}
+.srn-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.srn-card-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.srn-n {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.srn-card-meta .srn-n {
+  margin-left: 0;
+}
+.srn-summary {
+  font-size: 0.95rem;
+  line-height: 1.64;
+  color: var(--text);
+}
+.srn-risks {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.srn-risks-l {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--down, #c0563a);
+}
+.srn-empty {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+/* 要点列表：文字本身可点（hover 出下划线），不显 url */
+.cited-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+}
+.cited-list li {
+  position: relative;
+  padding-left: 15px;
+  font-size: 0.9rem;
+  line-height: 1.58;
+  color: var(--text);
+}
+.cited-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.66em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.cited-link {
+  color: inherit;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+.cited-link:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+.cited-sup {
+  margin-left: 3px;
+  font-size: 0.62rem;
+  vertical-align: super;
+  color: var(--accent);
+  text-decoration: none;
+}
+.cited-sup:hover {
+  text-decoration: underline;
+}
+/* 社媒热度子卡片内部 */
+.srn-social-sum {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+.srn-social-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.srn-sc {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.srn-sc-l {
+  flex: none;
+  width: 2.4em;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.srn-sc-bull .srn-sc-l {
+  color: var(--up, #4a8f5b);
+}
+.srn-sc-bear .srn-sc-l {
+  color: var(--down, #c0563a);
+}
+.srn-sc-watch .srn-sc-l {
+  color: var(--text-muted);
+}
+.srn-sc .cited-list {
+  flex: 1;
+  min-width: 0;
+}
+.srn-social-plat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+.srn-social-plat b {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }

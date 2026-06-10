@@ -1,12 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type View = 'kan' | 'yan' | 'zhi' | 'ji' | 'set'
+export type View = 'kan' | 'yan' | 'zhi' | 'xun' | 'ji' | 'set'
 export type Market = 'ALL' | 'US' | 'HK' | 'CN' | 'KR'
 export type Theme = 'light' | 'dark'
 export type DisplayFont = 'serif' | 'sans'
 export type Convention = 'us' | 'cn' // us: 绿涨红跌；cn: 红涨绿跌
-export type SettingsPage = 'all' | 'appearance' | 'models' | 'sources' | 'schedule'
+export type SettingsPage = 'all' | 'appearance' | 'models' | 'sources' | 'templates' | 'schedule'
 
 export const PANEL_MIN = 208
 export const PANEL_MAX = 520

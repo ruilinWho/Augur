@@ -6,9 +6,9 @@
 {
   "sources": [
     {
-      "kind": "official | ir | official_x | influencer_x | reddit | forum | fin_site",
+      "kind": "official | ir | official_x | influencer_x | xiaohongshu | threads | reddit | forum | fin_site",
       "name": "人读名（如 NVIDIA 投资者关系、@nvidia、r/NVDA_Stock、某分析师）",
-      "ref":  "可定位的句柄/地址：URL（https://…）/ X 句柄（@handle）/ 子版（r/sub）",
+      "ref":  "可定位的句柄/地址：URL（https://…）/ X 句柄（@handle）/ 子版（r/sub）/ 关键词（小红书·Threads 填中文或英文搜索词）",
       "note": "一句：为什么值得看（≤30 字）"
     }
   ]
@@ -20,6 +20,8 @@
 - `ir` 投资者关系页（IR，财报、SEC/公告入口）
 - `official_x` 公司**官方** X 账号
 - `influencer_x` 深耕这只股的**关键 X 大V**（分析师、行业记者、可信投资者）
+- `xiaohongshu` 小红书**搜索关键词**（中文公司名/产品名，如「比亚迪」「英伟达」）——`ref` 填关键词，非 URL；适合中国消费/品牌侧标的
+- `threads` Threads **搜索关键词**（英文公司名/ticker）——`ref` 填关键词，非 URL
 - `reddit` 相关子版（如 `r/NVDA_Stock`、`r/wallstreetbets` 的相关讨论）
 - `forum` Stocktwits 等股票论坛
 - `fin_site` 重点财经/分析站（Seeking Alpha 作者页、专业站点）

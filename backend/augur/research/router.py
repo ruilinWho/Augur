@@ -59,13 +59,17 @@ class _ImportIn(BaseModel):
     symbol: str
     title: str = ""
     body: str = ""
+    engine: str = ""  # 网页 Deep Research 回流标注：chatgpt/claude/gemini/other
+    source_url: str = ""
 
 
 @router.post("/imported")
 async def add_imported(body: _ImportIn) -> dict:
-    """导入一份研报（粘贴 markdown）。"""
+    """导入一份研报（粘贴 markdown）；engine/source_url 标注网页回流来源。"""
     try:
-        return await run_in_threadpool(service.add_imported, body.symbol, body.title, body.body)
+        return await run_in_threadpool(
+            service.add_imported, body.symbol, body.title, body.body, body.engine, body.source_url
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -74,14 +78,22 @@ class _ImportPatch(BaseModel):
     title: str | None = None
     body: str | None = None
     comment: str | None = None
+    engine: str | None = None
+    source_url: str | None = None
 
 
 @router.patch("/imported/{report_id}")
 async def update_imported(report_id: int, body: _ImportPatch) -> dict:
-    """改某份研报的标题/正文/评论。"""
+    """改某份研报的标题/正文/评论/来源。"""
     try:
         return await run_in_threadpool(
-            service.update_imported, report_id, body.title, body.body, body.comment
+            service.update_imported,
+            report_id,
+            body.title,
+            body.body,
+            body.comment,
+            body.engine,
+            body.source_url,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

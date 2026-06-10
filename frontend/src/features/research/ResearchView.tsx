@@ -5,6 +5,7 @@ import { streamResearch, useQuote, useResearchReport } from '../../api'
 import { useUI } from '../../store'
 import Markdown from '../../components/Markdown'
 import { EASE } from '../../theme/motion'
+import CopyPromptButton from './CopyPromptButton'
 import ImportedReports from './ImportedReports'
 
 function fmtWhen(iso: string | null): string {
@@ -74,9 +75,12 @@ export default function ResearchView() {
             <span className="rh-when faint">{fmtWhen(data.created_at)} 生成</span>
           )}
         </div>
-        <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
-          {streaming ? '研究中…' : data ? '重新生成' : '生成深度研究'}
-        </button>
+        <div className="rh-actions">
+          <CopyPromptButton symbol={symbol} name={name} />
+          <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
+            {streaming ? '研究中…' : data ? '重新生成' : '生成深度研究'}
+          </button>
+        </div>
       </div>
 
       {streaming || genState === 'error' ? (

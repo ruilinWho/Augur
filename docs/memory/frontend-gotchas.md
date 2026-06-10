@@ -2,6 +2,14 @@
 
 一句话：折叠组件踩过两个坑——Tailwind 类名撞车 + motion 折叠动画不生效（2026-06）。
 
+## ⚠️ 新增后端路由前缀必须同步 vite.config.ts 的 proxy 列表
+- 开发期前端经 Vite 代理访问后端，`vite.config.ts` 的 `server.proxy` 是**按路径前缀逐个枚举**的
+  （`/market`、`/notes`、`/templates`…），不是通配。
+- 新开一个后端域（如 `/templates`）若忘了加 proxy 条目，请求会落到 Vite 自己手里 →
+  **返回 200 + index.html**，zod parse 失败或 mutation 静默不生效，控制台还没有网络错误，极具迷惑性
+  （2026-06 加 Prompt 模板时踩过：「添加」点了没反应，后端却一切正常）。
+- **教训**：`augur/main.py` 每 include 一个新 router，就在 `vite.config.ts` proxy 里加同名前缀。
+
 ## ⚠️ 不要把 class 命名为 `.collapse`（撞 Tailwind v4 内置工具类）
 - Tailwind v4 自带 `.collapse { visibility: collapse; }`（本是给表格行用的）。
 - 我们自定义的折叠容器一度也叫 `.collapse` → **内容被 `visibility:collapse` 静默隐藏**：

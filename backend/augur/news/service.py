@@ -136,6 +136,32 @@ def refresh() -> dict:
         _refresh_lock.release()
 
 
+# 社媒 lane 的 source 前缀（与 consts.ts SOURCE_LANES 对齐）。社媒在「知」里与新闻区别对待：
+# ① 用户主动进社媒 lane 看原貌 → 不套用为新闻从严调的 relevance 过滤（否则带货/生活方式被全杀，
+#    实测 87% 社媒帖被判 relevance=2）；② 新闻/日报/要点反过来排除社媒前缀，免社媒噪音污染；
+# ③ 社媒按**抓取日 fetched_at** 归桶——搜索来的社媒「今天抓到的」归到「今天」才符合直觉
+#    （否则按帖子发布日散落到过去几天，「今天」永远空）。
+_SOCIAL_PREFIXES = ("X·", "X2·", "小红书·", "Threads·", "Reddit·", "微信·")
+
+
+def _date_col(source_prefix: str | None) -> str:
+    """归桶/排序日期列：社媒按抓取日 fetched_at，新闻按发布日（缺则抓取日兜底）。"""
+    if source_prefix in _SOCIAL_PREFIXES:
+        return "fetched_at"
+    return "COALESCE(published_at, fetched_at)"
+
+
+def _lane_where(source_prefix: str | None) -> tuple[str, list]:
+    """relevance / 社媒隔离 WHERE 片段（接在 lane='feed' 之后，其 args 排在最前）。"""
+    if source_prefix in _SOCIAL_PREFIXES:
+        return "", []  # 社媒 lane：不按 relevance 过滤，看原貌
+    if source_prefix is None:
+        # 新闻/通用：保留 relevance!=2 + 排除社媒前缀（社媒不进新闻/日报/要点）
+        frag = " AND relevance != 2" + " AND source NOT LIKE ?" * len(_SOCIAL_PREFIXES)
+        return frag, [f"{p}%" for p in _SOCIAL_PREFIXES]
+    return " AND relevance != 2", []
+
+
 def recent_items(
     limit: int = 60,
     theme: str | None = None,
@@ -154,10 +180,12 @@ def recent_items(
         return linker.attach_symbols(items_for_day(day, theme, source_prefix, category)[:limit])
     conn = get_conn()
     try:
-        # relevance != 2：滤掉 cheap LLM 判为"与投资无关"的（未判=0 仍显示，优雅降级）
-        # lane='feed'：全局流只含 RSS 策展源，定向抓取（lane='ticker'）只服务个股视图
-        sql = "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed'"
-        args: list = []
+        # lane='feed'：全局流（RSS+社媒）；定向抓取（lane='ticker'）只服务个股视图。
+        # relevance/社媒隔离与日期列按 lane 分（见 _lane_where/_date_col）。
+        dc = _date_col(source_prefix)
+        where, wargs = _lane_where(source_prefix)
+        sql = f"SELECT * FROM news_items WHERE lane = 'feed'{where}"
+        args: list = list(wargs)
         if theme:
             sql += " AND theme = ?"
             args.append(theme)
@@ -169,9 +197,9 @@ def recent_items(
             args.append(category)
         if days and days > 0:
             lo, _ = _window_bounds_utc(days)
-            sql += " AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?)"
+            sql += f" AND datetime({dc}) >= datetime(?)"
             args.append(lo)
-        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?"
+        sql += f" ORDER BY {dc} DESC LIMIT ?"
         args.append(limit)
         items = [_item_out(r) for r in conn.execute(sql, args).fetchall()]
         return linker.attach_symbols(items)  # 挂上关联自选股 ticker chip
@@ -212,17 +240,19 @@ def _items_between(
     source_prefix: str | None = None,
     category: str | None = None,
 ) -> list[dict]:
-    """[lo, hi)（UTC 字符串）内的相关条目（relevance!=2、lane='feed'），时间倒序。
+    """[lo, hi)（UTC 字符串）内的条目（lane='feed'），时间倒序。
     共享 SQL，供 items_for_window / items_for_day（唯一差别是时间边界来源）。
+    relevance/社媒隔离与日期列按 lane 分（见 _lane_where/_date_col）：社媒不滤 relevance、按抓取日。
     """
     conn = get_conn()
     try:
+        dc = _date_col(source_prefix)
+        where, wargs = _lane_where(source_prefix)
         sql = (
-            "SELECT * FROM news_items WHERE relevance != 2 AND lane = 'feed' "
-            "AND datetime(COALESCE(published_at, fetched_at)) >= datetime(?) "
-            "AND datetime(COALESCE(published_at, fetched_at)) < datetime(?)"
+            f"SELECT * FROM news_items WHERE lane = 'feed'{where} "
+            f"AND datetime({dc}) >= datetime(?) AND datetime({dc}) < datetime(?)"
         )
-        args: list = [lo, hi]
+        args: list = [*wargs, lo, hi]
         if theme:
             sql += " AND theme = ?"
             args.append(theme)
@@ -232,7 +262,7 @@ def _items_between(
         if category:
             sql += " AND category = ?"
             args.append(category)
-        sql += " ORDER BY COALESCE(published_at, fetched_at) DESC"
+        sql += f" ORDER BY {dc} DESC"
         return [_item_out(r) for r in conn.execute(sql, args).fetchall()]
     finally:
         conn.close()
@@ -444,7 +474,7 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
                 "source": it["source"],
                 "title": it["title"],
                 "url": it["url"],
-                "summary": "",
+                "summary": it.get("summary") or "",
                 "lang": "en",
                 "category": "",
                 "published_at": it["published_at"],
@@ -470,7 +500,7 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
     return _clean_stock_news(symbol, out[:limit])
 
 
-def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
+def stock_news_brief(symbol: str, limit: int = 32, role: str = "cheap") -> dict:
     """个股「相关资讯」摘要：AI 筛选+合成要点，前端不再铺直接新闻列表。
 
     原始资讯仍用于生成与来源计数，但 UI 只呈现 summary/points/risks。若模型未配置，让路由返回
@@ -494,36 +524,71 @@ def stock_news_brief(symbol: str, limit: int = 16, role: str = "cheap") -> dict:
         _stock_brief_cache[symbol] = (now, data)
         return data
     lines: list[str] = []
+    by_n: dict[int, dict] = {}
     for i, it in enumerate(items, start=1):
+        by_n[i] = it
         day = (it.get("published_at") or it.get("fetched_at") or "")[:10]
         title = _strip_inline_refs(it.get("title_zh") or it["title"])
         src = it.get("source") or ""
         lines.append(f"[{i}] ({day or '日期不详'}) [{src}] {title}")
+        # 有摘要就附一行正文——让模型有正文可总结，而非只有标题（个股资讯加厚的关键）
+        summ = _strip_inline_refs(str(it.get("summary") or "")).strip()
+        if summ:
+            lines.append(f"    {summ[:280]}")
     prompt = (
         _load_prompt("stock_news_brief")
         .replace("{{SYMBOL}}", f"{search.display_name(symbol)} / {symbol}")
         .replace("{{ITEMS}}", "\n".join(lines))
     )
     data = _complete_json(prompt, role, "summary")
-    points = data.get("points") if isinstance(data, dict) else []
-    risks = data.get("risks") if isinstance(data, dict) else []
     out = {
         "symbol": symbol,
-        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:180],
-        "points": [
-            _strip_inline_refs(str(x))[:180]
-            for x in (points if isinstance(points, list) else [])
-            if str(x).strip()
-        ][:5],
-        "risks": [
-            _strip_inline_refs(str(x))[:180]
-            for x in (risks if isinstance(risks, list) else [])
-            if str(x).strip()
-        ][:3],
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:260]
+        if isinstance(data, dict)
+        else "",
+        "points": _cited_points(data.get("points") if isinstance(data, dict) else [], by_n, 6),
+        "risks": _cited_points(data.get("risks") if isinstance(data, dict) else [], by_n, 4),
         "source_count": len(items),
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
     }
     _stock_brief_cache[symbol] = (now, out)
+    return out
+
+
+def _cited_points(raw: object, by_n: dict[int, dict], limit: int, max_refs: int = 3) -> list[dict]:
+    """把 LLM 的 [{text, refs:[n]}]（或兼容纯字符串）转成带原始链接的要点。
+
+    refs 编号映射回 by_n 的条目 → [{source, url}]，去重、上限 max_refs。说人话 + 可溯源。
+    """
+    out: list[dict] = []
+    if not isinstance(raw, list):
+        return out
+    for item in raw:
+        if isinstance(item, str):
+            text, ref_ns = item, []
+        elif isinstance(item, dict):
+            text = str(item.get("text") or "")
+            ref_ns = item.get("refs") or []
+        else:
+            continue
+        text = _strip_inline_refs(text).strip()[:200]
+        if not text:
+            continue
+        refs: list[dict] = []
+        seen: set[str] = set()
+        for nv in ref_ns if isinstance(ref_ns, list) else []:
+            ok = isinstance(nv, int) or (isinstance(nv, str) and str(nv).isdigit())
+            key = int(nv) if ok else None
+            it = by_n.get(key) if key is not None else None
+            url = (it or {}).get("url") or ""
+            if it and url and url not in seen:
+                seen.add(url)
+                refs.append({"source": it.get("source") or "", "url": url})
+            if len(refs) >= max_refs:
+                break
+        out.append({"text": text, "refs": refs})
+        if len(out) >= limit:
+            break
     return out
 
 
@@ -591,7 +656,9 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         return out
 
     lines: list[str] = []
+    by_n: dict[int, dict] = {}
     for i, it in enumerate(items[:24], start=1):
+        by_n[i] = it
         day = (it.get("published_at") or "")[:10] or "日期不详"
         src = it.get("source") or ""
         title = _strip_inline_refs(it.get("title_zh") or it["title"])
@@ -599,37 +666,39 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         lines.append(f"[{i}] ({day}) [{src}] {title}" + (f" - {summary}" if summary else ""))
     name = search.display_name(symbol)
     heading = (
-        "你是 Augur 的投资社媒/论坛弱信号分析器。只基于下列 TikHub 搜索结果，"
-        f"判断 {name} / {symbol} 的大众观点与热度。"
+        f"下面是小红书/推特/Reddit/Threads/微信上关于 {name} / {symbol} 的帖子（每条带编号 `[n]`、"
+        "日期、平台、内容）。请用大白话告诉我「网上和这只股票投资相关的讨论与情绪」。"
     )
     prompt = f"""{heading}
 
-要求：
-- 只输出 JSON 对象，不要 Markdown。
-- 不要引用原始帖子编号，不要编造价格、目标价、成交量或未给出的事实。
-- 把社媒当作弱信号：结论必须包含反证/需要观察的方向。
-- heat 只能是 低 / 中 / 高；sentiment 只能是 偏多 / 中性 / 偏空 / 分歧 / 不明。
+**只看与股价多空/投资相关的**：业绩与指引、产品与技术、订单与产能、竞争与份额、监管与政策、
+资金与持仓、估值、明确的看多/看空理由与情绪。**坚决丢掉**：招聘/求职/培训带货/职场吐槽、
+生活方式、追星八卦、与这家公司投资逻辑无关的闲聊——这些不是投资信号，一条都不要进结论。
 
-返回字段：
+怎么写：
+- **说人话**，像转述群里聊这只股票的人，别用"市场情绪""舆论关注"这种空话。
+- 社媒是弱信号、噪音多：别当真，要给出反方和需要观察的点。
+- 每条都标注来自哪几条（`refs` 填编号，必须真实存在），我要能点回原帖。
+- 不编价格、目标价、成交量。heat 只能填 低/中/高；sentiment 只能填 偏多/中性/偏空/分歧/不明。
+- 如果筛完几乎没有投资相关讨论，summary 如实说「多是无关闲聊，没什么投资信号」，各列可空。
+
+只输出 JSON（不要 Markdown）：
 {{
-  "summary": "一句话说明大众观点和热度如何影响投资判断，80 字内",
+  "summary": "一两句大白话：大家在聊这只股票的什么、情绪偏哪边（只说投资相关的）",
   "heat": "低|中|高",
   "sentiment": "偏多|中性|偏空|分歧|不明",
-  "bull_points": ["最多 3 条偏多社媒信号"],
-  "bear_points": ["最多 3 条偏空/反证社媒信号"],
-  "watch": ["最多 3 条下一步需要观察的触发条件"]
+  "bull_points": [{{"text": "有人看好什么，具体点", "refs": [2]}}],
+  "bear_points": [{{"text": "有人担心/唱空什么", "refs": [5]}}],
+  "watch": [{{"text": "接下来值得盯的点", "refs": [3]}}]
 }}
 
-搜索结果：
+帖子：
 {chr(10).join(lines)}
 """
     try:
         data = _complete_json(prompt, role, "summary")
     except gateway.LLMNotConfigured:
         data = {}
-    points = data.get("bull_points") if isinstance(data, dict) else []
-    risks = data.get("bear_points") if isinstance(data, dict) else []
-    watch = data.get("watch") if isinstance(data, dict) else []
     heat = str(data.get("heat") or "中") if isinstance(data, dict) else "中"
     if heat not in {"低", "中", "高"}:
         heat = "中"
@@ -640,26 +709,18 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         "symbol": symbol,
         "configured": True,
         "status": "已生成",
-        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:120]
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:140]
         if isinstance(data, dict)
         else "",
         "sentiment": sentiment,
         "heat": heat,
-        "bull_points": [
-            _strip_inline_refs(str(x))[:120]
-            for x in (points if isinstance(points, list) else [])
-            if str(x).strip()
-        ][:3],
-        "bear_points": [
-            _strip_inline_refs(str(x))[:120]
-            for x in (risks if isinstance(risks, list) else [])
-            if str(x).strip()
-        ][:3],
-        "watch": [
-            _strip_inline_refs(str(x))[:120]
-            for x in (watch if isinstance(watch, list) else [])
-            if str(x).strip()
-        ][:3],
+        "bull_points": _cited_points(
+            data.get("bull_points") if isinstance(data, dict) else [], by_n, 3
+        ),
+        "bear_points": _cited_points(
+            data.get("bear_points") if isinstance(data, dict) else [], by_n, 3
+        ),
+        "watch": _cited_points(data.get("watch") if isinstance(data, dict) else [], by_n, 3),
         "source_count": len(items),
         "platforms": counts,
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
@@ -1275,6 +1336,17 @@ def generate_clusters(
     }
 
 
+# 社媒 lane → source 前缀（与前端 consts.ts SOURCE_LANES 对齐）。要点 scope 按前缀分。
+_SOCIAL_LANES = {
+    "twitter": "X·",
+    "twitter2": "X2·",
+    "reddit": "Reddit·",
+    "xiaohongshu": "小红书·",
+    "threads": "Threads·",
+    "wechat": "微信·",
+}
+
+
 # ───────────────────────── 全部生成（刷新 + 蒸馏当天全套）─────────────────────────
 def generate_all(
     date: str | None = None, refresh_first: bool = True, role: str = "summarize"
@@ -1308,14 +1380,17 @@ def generate_all(
         for _ in generate_report_stream(rd, role):  # 消费流以触发落库
             pass
 
-    # 4 个生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
-    # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；推特要点单独 scope（'X·'）。
+    # 各生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
+    # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。
+    # 社媒 lane（X2·/小红书/Reddit/Threads/微信）此前从不预生成 → 要点常年空；这里补齐，
+    # 无数据的 lane generate_clusters 抛 ValueError 被吞为 'err'，不影响其余（§11 优雅降级）。
     tasks = {
         "digest": _digest,
         "clusters": lambda: generate_clusters(None, None, None, 1, role, rd),
-        "twitter": lambda: generate_clusters(None, "X·", None, 1, role, rd),
         "opportunities": lambda: generate_opportunities(rd, role),
     }
+    for name, prefix in _SOCIAL_LANES.items():
+        tasks[name] = (lambda p: lambda: generate_clusters(None, p, None, 1, role, rd))(prefix)
     with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
         futs = {ex.submit(fn): name for name, fn in tasks.items()}
         for fut in as_completed(futs):

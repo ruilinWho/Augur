@@ -13,6 +13,7 @@ The product is organized around four surfaces:
 - **View**: inspect price, fundamentals, financial trends, related information, and decision journal markers.
 - **Research**: generate or import single-stock research reports with citations and personal comments.
 - **Know**: ingest, clean, cluster, translate, and summarize daily market information into decision-grade briefs, opportunities, risks, and stock narratives.
+- **Discover (寻)**: surface non-watchlist tickers that recur in the Know stream, ranked by mention count and day span, with author triage (add to watchlist / dismiss).
 - **Note**: keep free-form Markdown notes that are not tied to a ticker.
 
 ## Current Capabilities
@@ -31,6 +32,7 @@ The product is organized around four surfaces:
 - **Available**: single-stock report generation from Augur's deterministic local context plus the configured `deep_research` LLM role.
 - **Available**: streaming Markdown output, saved reports, clickable sources, and a permanent decision-boundary notice.
 - **Available**: imported external research reports, sorting, editing, and personal comments.
+- **Available**: prompt templates with `{STOCK}/{NAME}/{MARKET}/{SYMBOL}` placeholders, managed in Settings, filled per stock and copied from the Research surface for external web Deep Research. See [ADR-0014](decisions/0014-prompt-templates.md).
 - **In progress**: official Deep Research job architecture. See [ADR-0011](decisions/0011-research-deep-research-api-strategy.md).
 
 ### Know
@@ -39,8 +41,13 @@ The product is organized around four surfaces:
 - **Available**: source health tracking, source testing, runtime source configuration, and Chinese diagnostics for common credential/quota/adapter failures.
 - **Available**: translation, relevance filtering, stock linking, LLM stock tagging, deterministic grounding, and lane separation between global feed and ticker-directed data.
 - **Available**: daily snapshots, market briefs, clustered key points, opportunity cards, risk/counter-evidence framing, and stock chips that jump to View or Research.
-- **Available**: single-stock narrative timelines and stock-specific source tracking for enabled X accounts, Reddit communities, and RSS/Atom feeds.
-- **In progress**: broader QA for TikHub-backed sources, stronger source verification, and more first-party company/regulatory feeds.
+- **Available**: single-stock narrative timelines and stock-specific source tracking for enabled X accounts (twtapi with TikHub fallback), Xiaohongshu/Threads keyword sources (TikHub), Reddit communities, and RSS/Atom feeds.
+- **In progress**: account-following (not just keyword search) for Xiaohongshu/Threads, stronger source verification, and more first-party company/regulatory feeds.
+
+### Discover (寻)
+
+- **Available**: candidate pool aggregated from non-watchlist LLM stock tags in the Know stream, with cross-language/share-class alias dedup, mention-count and day-span ranking, evidence links, and a `new`/`dismissed`/`promoted` triage state machine. Zero extra LLM cost. See [ADR-0015](decisions/0015-discovery-pillar.md).
+- **Planned**: second ranking key (independent-source count), unresolved-entity candidates, opportunity-card cross-feed, and Skills-based candidate generators.
 
 ### Note
 
@@ -61,11 +68,13 @@ The product is organized around four surfaces:
 
 2. **Research templates and workflows**
 
-   Promote prompts into reusable research templates with variables, output contracts, and actions such as copy, run locally, run with a provider Deep Research engine, or import an external result. This should become the foundation for future Skills.
+   - **Available**: prompt templates (user-authored, SQLite) and pluggable **Skills** (`resources/skills/<slug>/SKILL.md`, drop-a-folder, enable/disable in Settings) both feed the Research surface's copy-prompt entry. Ships the "供应链卡点研究" Skill (distilled Serenity methodology) and a ported bottleneck scorecard (`POST /skills/scorecard`). See [ADR-0017](decisions/0017-pluggable-skills.md).
+   - **Planned**: `surface=xun` candidate-generator Skills feeding Discover; multi-step workflows (earnings prep, counter-evidence scan); in-UI scorecard form; running a Skill as the system prompt for local generation.
 
 3. **External Research capture**
 
-   Design a browser-companion workflow for ChatGPT, Claude, and Gemini subscription research results that do not expose a stable API. Augur should generate the prompt, track the intended task, and let the user save the completed web result back into the local database.
+   - **Available (MVP)**: imported reports carry `engine` + `source_url`; a userscript (`resources/userscripts/augur-capture.user.js`) reads the current ChatGPT/Claude conversation via same-origin internal APIs into clean Markdown on the clipboard for paste-import. No session automation, no data sent to any server. See [ADR-0016](decisions/0016-web-research-capture.md).
+   - **Planned**: promote `engine` into a research-job state (`awaiting_paste`) sharing one jobs table with the official-API track; structured citations for imported reports; Gemini Deep Research via its official API (`deep-research-preview-04-2026`).
 
 4. **Stock-specific source quality**
 
@@ -77,7 +86,7 @@ The product is organized around four surfaces:
 
 ## Planned Directions
 
-- **Skills**: reusable multi-step research workflows such as counter-evidence scan, earnings prep, post-earnings review, industry comparison, new listing cold start, and stock-source discovery.
+- **Skills (expansion)**: the pluggable Skills framework ships (see Active Work #2); next are multi-step workflows such as counter-evidence scan, earnings prep, post-earnings review, industry comparison, new listing cold start, and stock-source discovery.
 - **Section-level intelligence**: daily briefs, risks, and opportunities grouped by watchlist section instead of only by market/theme/ticker.
 - **Catalyst calendar**: earnings dates, product launches, macro releases, regulatory dates, lockups, and user-defined events.
 - **Counter-evidence radar**: per-thesis invalidation conditions that can be triggered by new information.

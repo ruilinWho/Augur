@@ -27,6 +27,7 @@ import { SOURCE_LANES, type SourceLaneId } from './consts'
 import { Digest, FeedGroups } from './shared'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
+import { IMP, NarrativeBody } from './NarrativeTimeline'
 import { EASE } from '../../theme/motion'
 
 const fmtDate = (d: string) => {
@@ -260,8 +261,9 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
   const [digest, setDigest] = useState<GenStep>('idle')
   const [clusters, setClusters] = useState<GenStep>('idle')
   const [tw, setTw] = useState<GenStep>('idle')
+  const [social, setSocial] = useState<GenStep>('idle')
   const [opps, setOpps] = useState<GenStep>('idle')
-  const running = [fetch, digest, clusters, tw, opps].includes('run')
+  const running = [fetch, digest, clusters, tw, social, opps].includes('run')
 
   // 一键刷新并生成：先刷新信源（新闻+推特+自选定向），再并行蒸馏 日报/要事/推特要点/机会。
   // 先刷新后生成——否则蒸馏的是旧数据。仅今天可刷新（历史日不再抓新源）。
@@ -270,6 +272,7 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
     setDigest('run')
     setClusters('run')
     setTw('run')
+    setSocial('run')
     setOpps('run')
     if (isToday) {
       setFetch('run')
@@ -298,6 +301,13 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         .mutateAsync({ sourcePrefix: 'X·', days: 1, date }) // 推特要点
         .then(() => setTw('done'))
         .catch(() => setTw('err')),
+      // 社媒各 lane 要点（推特2/小红书/Reddit/Threads/微信）——合并成一个步骤；无数据的 lane
+      // 会失败（无条目），只要有一个成功就算 done，全失败才 err。
+      Promise.allSettled(
+        ['X2·', '小红书·', 'Reddit·', 'Threads·', '微信·'].map((sp) =>
+          genClusters.mutateAsync({ sourcePrefix: sp, days: 1, date }),
+        ),
+      ).then((r) => setSocial(r.some((x) => x.status === 'fulfilled') ? 'done' : 'err')),
       genOpps
         .mutateAsync(date)
         .then(() => setOpps('done'))
@@ -312,7 +322,8 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         {(running || digest !== 'idle') && (
           <span className="sum-steps faint">
             {isToday && <>抓取 {stepDot(fetch)} · </>}日报 {stepDot(digest)} · 要事{' '}
-            {stepDot(clusters)} · 推特 {stepDot(tw)} · 机会 {stepDot(opps)}
+            {stepDot(clusters)} · 推特 {stepDot(tw)} · 社媒 {stepDot(social)} · 机会{' '}
+            {stepDot(opps)}
           </span>
         )}
         <button className="btn btn-primary jsm" disabled={running} onClick={run}>
@@ -492,12 +503,6 @@ function DecisionView({ date }: { date: string }) {
 }
 
 // ── 新闻 / 推特：时间线 ↔ 要点（去重聚类+重要性排序）+ 时间范围 ──
-const IMP: Record<string, { label: string; cls: string }> = {
-  critical: { label: '非常重要', cls: 'imp-critical' },
-  high: { label: '重要', cls: 'imp-high' },
-  med: { label: '一般', cls: 'imp-med' },
-  low: { label: '次要', cls: 'imp-low' },
-}
 function ClusterCard({ c }: { c: NewsCluster }) {
   const [open, setOpen] = useState(false)
   const imp = IMP[c.importance] ?? IMP.med
@@ -710,31 +715,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
         <div className="report-card faint">融合中…</div>
       ) : data ? (
         <>
-          {data.summary && <div className="narr-summary">{data.summary}</div>}
-          <div className="narr-timeline">
-            {data.timeline.map((ev, i) => {
-              const imp = IMP[ev.importance] ?? IMP.med
-              return (
-                <div className="narr-ev" key={`ev-${i}`}>
-                  <div className="narr-ev-head">
-                    <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
-                    {ev.date && <span className="narr-date">{ev.date}</span>}
-                    <span className="narr-ev-title">{ev.title}</span>
-                  </div>
-                  {ev.refs.length > 0 && (
-                    <div className="narr-refs">
-                      {ev.refs.map((r, j) => (
-                        <a key={j} className="narr-ref" href={r.url} target="_blank" rel="noreferrer">
-                          <span className="narr-ref-src">{r.source}</span>
-                          <span className="narr-ref-title">{r.title}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          <NarrativeBody data={data} />
           <div className="report-foot faint">
             融合 {data.item_count} 条资讯
             {data.created_at && ` · 生成于 ${data.created_at.slice(0, 10)}`}

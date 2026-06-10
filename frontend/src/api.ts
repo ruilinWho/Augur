@@ -732,11 +732,21 @@ export function useNewsForSymbol(symbol: string | null) {
   })
 }
 
+const sourceRefSchema = z.object({
+  source: z.string().default(''),
+  url: z.string().default(''),
+})
+const citedPointSchema = z.object({
+  text: z.string().default(''),
+  refs: z.array(sourceRefSchema).default([]),
+})
+export type CitedPoint = z.infer<typeof citedPointSchema>
+
 const stockNewsBriefSchema = z.object({
   symbol: z.string(),
   summary: z.string().default(''),
-  points: z.array(z.string()).default([]),
-  risks: z.array(z.string()).default([]),
+  points: z.array(citedPointSchema).default([]),
+  risks: z.array(citedPointSchema).default([]),
   source_count: z.number().default(0),
   generated_at: z.string().nullable().default(null),
 })
@@ -749,9 +759,9 @@ const stockSocialHeatSchema = z.object({
   summary: z.string().default(''),
   sentiment: z.string().default('不明'),
   heat: z.string().default('低'),
-  bull_points: z.array(z.string()).default([]),
-  bear_points: z.array(z.string()).default([]),
-  watch: z.array(z.string()).default([]),
+  bull_points: z.array(citedPointSchema).default([]),
+  bear_points: z.array(citedPointSchema).default([]),
+  watch: z.array(citedPointSchema).default([]),
   source_count: z.number().default(0),
   platforms: z.record(z.string(), z.number()).default({}),
   generated_at: z.string().nullable().default(null),
@@ -764,7 +774,7 @@ export function useStockNewsBrief(symbol: string | null) {
     queryKey: ['stock-news-brief', symbol],
     queryFn: async () =>
       stockNewsBriefSchema.parse(
-        await getJSON(`/news/for/brief?symbol=${encodeURIComponent(symbol!)}&limit=16`),
+        await getJSON(`/news/for/brief?symbol=${encodeURIComponent(symbol!)}&limit=32`),
       ),
     staleTime: 30 * 60_000,
     retry: 1,
@@ -1185,6 +1195,8 @@ const importedReportSchema = z.object({
   title: z.string().default(''),
   body: z.string().default(''),
   comment: z.string().default(''),
+  engine: z.string().default(''), // 回流来源：chatgpt/claude/gemini/other
+  source_url: z.string().default(''),
   sort_order: z.number().default(0),
   created_at: z.string().nullable().default(null),
 })
@@ -1204,9 +1216,15 @@ export function useImportedReports(symbol: string | null) {
 export function useAddImported() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (v: { symbol: string; title: string; body: string }) =>
-      send('/research/imported', 'POST', v),
+    mutationFn: async (v: {
+      symbol: string
+      title: string
+      body: string
+      engine?: string
+      source_url?: string
+    }) => send('/research/imported', 'POST', v),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
+    onError: onMutErr,
   })
 }
 
@@ -1219,7 +1237,16 @@ export function useUpdateImported() {
       title?: string
       body?: string
       comment?: string
-    }) => send(`/research/imported/${v.id}`, 'PATCH', { title: v.title, body: v.body, comment: v.comment }),
+      engine?: string
+      source_url?: string
+    }) =>
+      send(`/research/imported/${v.id}`, 'PATCH', {
+        title: v.title,
+        body: v.body,
+        comment: v.comment,
+        engine: v.engine,
+        source_url: v.source_url,
+      }),
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['imported', v.symbol] }),
   })
 }
@@ -1305,6 +1332,190 @@ export function useDeleteNote() {
   return useMutation({
     mutationFn: async (id: number) => send(`/notes/${id}`, 'DELETE'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+  })
+}
+
+// ───────────────────────── Prompt 模板（「研」一键复制 Deep Research 提示词）─────────────────────────
+const templateSchema = z.object({
+  id: z.number(),
+  name: z.string().default(''),
+  body: z.string().default(''),
+  sort_order: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+  updated_at: z.string().nullable().default(null),
+})
+export type PromptTemplate = z.infer<typeof templateSchema>
+
+// 占位符填充：{STOCK} 代码 · {NAME} 名称 · {MARKET} 市场 · {SYMBOL} 市场:代码。
+// 纯前端渲染——模板用于复制到外部网页 Deep Research，不进本地 LLM 调用链。
+const MARKET_LABEL: Record<string, string> = { US: '美股', HK: '港股', CN: 'A股', KR: '韩股' }
+export function fillTemplate(body: string, symbol: string, name?: string | null): string {
+  const i = symbol.indexOf(':')
+  const market = i > 0 ? symbol.slice(0, i) : ''
+  const code = i > 0 ? symbol.slice(i + 1) : symbol
+  return body
+    .replaceAll('{SYMBOL}', symbol)
+    .replaceAll('{STOCK}', code)
+    .replaceAll('{MARKET}', MARKET_LABEL[market] ?? market)
+    .replaceAll('{NAME}', name || code)
+}
+
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: async () => z.array(templateSchema).parse(await getJSON('/templates')),
+  })
+}
+
+export function useCreateTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { name?: string; body?: string }) =>
+      templateSchema.parse(
+        await send('/templates', 'POST', { name: v.name ?? '', body: v.body ?? '' }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useUpdateTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; name?: string; body?: string }) =>
+      templateSchema.parse(
+        await send(`/templates/${v.id}`, 'PATCH', { name: v.name, body: v.body }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => send(`/templates/${id}`, 'DELETE'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onError: onMutErr,
+  })
+}
+
+// ───────────────────────── Skills · 可插拔投研技能 ─────────────────────────
+const skillMetaSchema = z.object({
+  slug: z.string(),
+  name: z.string().default(''),
+  summary: z.string().default(''),
+  surface: z.string().default('yan'),
+  enabled: z.boolean().default(true),
+  has_scorecard: z.boolean().default(false),
+})
+export type SkillMeta = z.infer<typeof skillMetaSchema>
+
+export function useSkills(surface?: string, onlyEnabled = false) {
+  const qs = new URLSearchParams()
+  if (surface) qs.set('surface', surface)
+  if (onlyEnabled) qs.set('enabled', 'true')
+  return useQuery({
+    queryKey: ['skills', surface ?? 'all', onlyEnabled],
+    queryFn: async () =>
+      z.array(skillMetaSchema).parse(await getJSON(`/skills?${qs.toString()}`)),
+  })
+}
+
+export function useSetSkillEnabled() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { slug: string; enabled: boolean }) =>
+      send(`/skills/${v.slug}/enable`, 'POST', { enabled: v.enabled }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['skills'] }),
+    onError: onMutErr,
+  })
+}
+
+// 取某技能按当前标的渲染后的 prompt（供「研·复制 Prompt」）
+export async function renderSkill(slug: string, symbol: string): Promise<string> {
+  const d = (await getJSON(
+    `/skills/${slug}/render?symbol=${encodeURIComponent(symbol)}`,
+  )) as { prompt?: string }
+  return d.prompt ?? ''
+}
+
+// ───────────────────────── 「寻」· 发现候选标的（第 4 支柱）─────────────────────────
+const discoveryEvidenceSchema = z.object({
+  news_id: z.number(),
+  title: z.string().default(''),
+  source: z.string().default(''),
+  url: z.string().default(''),
+  date: z.string().default(''),
+})
+const candidateSchema = z.object({
+  symbol: z.string(),
+  name: z.string().default(''),
+  market: z.string().default(''),
+  mention_count: z.number().default(0),
+  day_span: z.number().default(0),
+  first_seen_at: z.string().nullable().default(null),
+  last_seen_at: z.string().nullable().default(null),
+  evidence: z.array(discoveryEvidenceSchema).default([]),
+  theme: z.string().default(''),
+  status: z.string().default('new'),
+})
+export type Candidate = z.infer<typeof candidateSchema>
+
+const themeCountSchema = z.object({
+  theme: z.string(),
+  count: z.number().default(0),
+  muted: z.boolean().default(false),
+})
+export type ThemeCount = z.infer<typeof themeCountSchema>
+
+export function useDiscovery(status = 'new') {
+  return useQuery({
+    queryKey: ['discovery', status],
+    queryFn: async () =>
+      z.array(candidateSchema).parse(await getJSON(`/discovery?status=${status}`)),
+  })
+}
+
+export function useRefreshDiscovery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => send('/discovery/refresh', 'POST'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['discovery'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useSetCandidateStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    // symbol=MARKET:CODE 拆成路径段避免冒号转义
+    mutationFn: async (v: { symbol: string; status: string }) => {
+      const [market, code] = v.symbol.split(':')
+      return send(`/discovery/${market}/${code}`, 'PATCH', { status: v.status })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['discovery'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useDiscoveryThemes() {
+  return useQuery({
+    queryKey: ['discovery-themes'],
+    queryFn: async () => z.array(themeCountSchema).parse(await getJSON('/discovery/themes')),
+  })
+}
+
+export function useMuteTheme() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { theme: string; muted: boolean }) =>
+      send('/discovery/themes/mute', 'POST', v),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['discovery'] })
+      qc.invalidateQueries({ queryKey: ['discovery-themes'] })
+    },
+    onError: onMutErr,
   })
 }
 

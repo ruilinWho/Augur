@@ -22,10 +22,12 @@ from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
+from functools import lru_cache
 from typing import Any
 from urllib.parse import quote_plus
 
 import httpx
+import yaml
 
 from .. import runtime_config
 from . import classify
@@ -168,6 +170,21 @@ def _norm_query(q: Any) -> str:
     return _clean(q, max_len=80)
 
 
+@lru_cache(maxsize=1)
+def _default_keywords() -> dict[str, list[str]]:
+    """内置默认社媒关键词（resources/sources/social_keywords.yaml）；缺失 → {}。"""
+    from ..config import get_settings
+
+    path = get_settings().resources_dir / "sources" / "social_keywords.yaml"
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return {}
+    return {k: list(v or []) for k, v in data.items() if isinstance(v, list)}
+
+
 def _tags(source_id: str, field: str, fallback: list[str] | None = None) -> list[str]:
     raw = runtime_config.get_source_config(source_id, field, fallback or []) or []
     out: list[str] = []
@@ -178,6 +195,14 @@ def _tags(source_id: str, field: str, fallback: list[str] | None = None) -> list
             seen.add(q.lower())
             out.append(q)
     return out[:60]
+
+
+def _keywords(source_id: str, platform: str) -> list[str]:
+    """生效关键词：作者在设置里配的优先，否则回退到内置默认（按平台）。"""
+    cfg = runtime_config.get_source_config(source_id, "keywords")
+    if cfg:
+        return _tags(source_id, "keywords")
+    return _tags(source_id, "keywords", _default_keywords().get(platform, []))
 
 
 def twitter_accounts() -> list[dict]:
@@ -197,23 +222,23 @@ def twitter_accounts() -> list[dict]:
 
 
 def twitter_keywords() -> list[str]:
-    return _tags("tikhub_twitter", "keywords")
+    return _keywords("tikhub_twitter", "twitter")
 
 
 def xiaohongshu_keywords() -> list[str]:
-    return _tags("xiaohongshu", "keywords")
+    return _keywords("xiaohongshu", "xiaohongshu")
 
 
 def threads_keywords() -> list[str]:
-    return _tags("tikhub_threads", "keywords")
+    return _keywords("tikhub_threads", "threads")
 
 
 def reddit_keywords() -> list[str]:
-    return _tags("tikhub_reddit", "keywords")
+    return _keywords("tikhub_reddit", "reddit")
 
 
 def wechat_keywords() -> list[str]:
-    return _tags("tikhub_wechat", "keywords")
+    return _keywords("tikhub_wechat", "wechat")
 
 
 def source_names() -> set[str]:
@@ -851,6 +876,78 @@ def ping_source(source_id: str) -> int:
             )
         )
     raise TikhubError(f"{source_id}：没有接入这个 TikHub 信源")
+
+
+# ── 每股专属信源用：单关键词/单账号抓取（供 stock_sources 的 TikHub kind 调用）──
+_STOCK_SOURCE_LIMIT = 12
+
+
+def search_xiaohongshu(
+    query: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某股的小红书关键词笔记（每股专属信源 kind=xiaohongshu）。失败抛 Tikhub*。"""
+    q = _norm_query(query)
+    if not q:
+        return []
+    return _fetch_queries_limited(
+        [q],
+        limit=limit,
+        path="/api/v1/xiaohongshu/app_v2/search_notes",
+        base_params={
+            "page": 1,
+            "sort_type": "time_descending",
+            "note_type": "不限",
+            "time_filter": "一周内",
+            "source": "explore_feed",
+            "ai_mode": 0,
+        },
+        param_name="keyword",
+        source_prefix="小红书·",
+        platform="xhs",
+        lang="zh",
+        category="forum",
+        cutoff=cutoff,
+    )
+
+
+def search_threads(
+    query: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某股的 Threads 关键词热门帖（每股专属信源 kind=threads）。失败抛 Tikhub*。"""
+    q = _norm_query(query)
+    if not q:
+        return []
+    return _fetch_queries_limited(
+        [q],
+        limit=limit,
+        path="/api/v1/threads/web/search_top",
+        base_params={"end_cursor": "undefined"},
+        param_name="query",
+        source_prefix="Threads·",
+        platform="threads",
+        lang="en",
+        category="forum",
+        cutoff=cutoff,
+    )
+
+
+def user_tweets(
+    screen_name: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某 X 账号的推文（TikHub 通道，作 twtapi 不可用时的每股 X 源回退）。失败抛 Tikhub*。"""
+    handle = (screen_name or "").strip().lstrip("@")
+    if not handle:
+        return []
+    got = _fetch_search(
+        "/api/v1/twitter/web/fetch_user_post_tweet",
+        params={"screen_name": handle, "cursor": "undefined"},
+        source=f"X2·@{handle}",
+        platform="twitter",
+        lang="en",
+        category="stock",
+        cutoff=cutoff,
+    )
+    return got[:limit]
 
 
 def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) -> list[dict]:

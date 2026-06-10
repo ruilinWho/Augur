@@ -15,6 +15,7 @@ import { useFundamentals, useJournal, useOhlcv, useQuote } from '../../api'
 import { fmtMoney, fmtPctPlain } from '../../format'
 import { EASE } from '../../theme/motion'
 import AddToWatchlist from '../watchlist/AddToWatchlist'
+import CopyPromptButton from '../research/CopyPromptButton'
 
 // 与 index.css 的 token 镜像（图表是 canvas，直接取色避免读 CSS 变量的时序问题）
 const PALETTE = {
@@ -224,17 +225,20 @@ export default function KLineView() {
               </div>
             )}
           </div>
-          <div className="tf">
-            {TF.map((t) => (
-              <button
-                key={t.label}
-                className={`chip ${tf.label === t.label ? 'active' : ''}`}
-                aria-pressed={tf.label === t.label}
-                onClick={() => setTf(t)}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="stock-head-actions">
+            <CopyPromptButton symbol={symbol} name={q?.name} />
+            <div className="tf">
+              {TF.map((t) => (
+                <button
+                  key={t.label}
+                  className={`chip ${tf.label === t.label ? 'active' : ''}`}
+                  aria-pressed={tf.label === t.label}
+                  onClick={() => setTf(t)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
         </motion.div>
       )}
