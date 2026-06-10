@@ -19,6 +19,15 @@
 - **修法**：① 加 `resources/sources/social_keywords.yaml` 内置默认关键词（贴合作者主题 AI/半导体/机器人/航天/新能源），`tikhub._keywords(source_id, platform)` read-with-fallback（设置里配的优先，空则回退默认）；② `generate_all` 与前端「一键刷新并生成」都补齐 5 个社媒 lane 的要点生成（`_SOCIAL_LANES`，无数据的 lane 抛错被吞、不影响其余）。
 - 实测：默认关键词下 `search_xiaohongshu('英伟达')`、`search_threads('Nvidia')` 都能抓到数据。**作者要在设置·数据/信源里按需调整每个社媒源的关键词**；留空即用默认。
 
+## 傻瓜式 + 社媒投资过滤 + hover 链接 + 卡片化（2026-06-11 二轮）
+
+作者补充原则与细化：**「傻瓜式使用」是长期原则——能自动就自动、少让用户按乱七八糟的按钮、用 LLM 把信息总结好直接呈现。**
+
+- **时间线自动生成**：`StockNews` 挂载时若该股无叙事则自动生成一次（`_autoNar` Set 本会话每股只试一次，避免重复/失败死循环；生成后落库 cached）。去掉「生成时间线」按钮，整块只留一个「刷新」（重抓 + 重生成 brief/social/timeline）。
+- **社媒只留投资相关**：`stock_social_heat` prompt 强制只看与股价多空/投资相关（业绩/产品/订单/竞争/监管/资金/估值/明确多空），**坚决丢掉**招聘/培训带货/职场吐槽/生活方式/追星八卦；筛完没信号就如实说「多是无关闲聊」。实测对 Meta/微软的小红书噪音（"培训拿高薪"）能正确滤掉。
+- **链接不写出来**：要点文字本身就是 `<a class="cited-link">`（默认无下划线、hover 出下划线、点进原帖），不再显示「小红书·Meta ↗」这种 url 文字；多来源时附极小上标 `²³`。
+- **社媒热度卡片化**：`.srn-social` 独立卡（surface-2 描边圆角），头部 heat/sentiment pill + 条数，偏多(绿)/反方(红)/观察 分列，底部平台计数。
+
 ## 相关文件
 
 - 前端：`features/news/StockNews.tsx`（合并卡）、`NarrativeTimeline.tsx`、`research/CopyPromptButton.tsx`、`kline/KLineView.tsx`（看页复制入口）。

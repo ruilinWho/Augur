@@ -5351,7 +5351,7 @@ a.opp-ev-item:hover {
   min-width: 0;
 }
 
-/* ───────────────────────── 看·相关资讯（合并 brief + 时间线 + 社媒，带可点来源）───────────────────────── */
+/* ───────────────────────── 看·相关资讯（合并 brief + 时间线 + 社媒）───────────────────────── */
 .srn {
   display: flex;
   flex-direction: column;
@@ -5367,85 +5367,137 @@ a.opp-ev-item:hover {
   border-top: 1px solid var(--border);
   padding-top: 14px;
 }
-.srn-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .srn-sub {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  text-transform: none;
 }
 .srn-n {
   font-size: 0.72rem;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
-.srn-link {
-  margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: var(--text-faint);
-  font: inherit;
-  font-size: 0.74rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.srn-link:hover {
-  color: var(--accent);
-}
 .srn-summary {
   font-size: 0.96rem;
-  line-height: 1.62;
+  line-height: 1.64;
   color: var(--text);
 }
 .srn-risks {
-  margin-top: 4px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .srn-empty {
   font-size: 0.86rem;
   color: var(--text-muted);
 }
-.srn-sg {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-}
-.srn-sg-l {
-  flex: none;
-  width: 2.6em;
-  font-size: 0.76rem;
-  color: var(--text-faint);
-  padding-top: 2px;
-}
-.srn-sg .cited-list {
-  flex: 1;
-  min-width: 0;
-}
-/* 要点 + 来源芯片（看·相关资讯 / 社媒共用，像新闻一样可点回看）*/
+/* 要点列表：文字本身可点（hover 出下划线），不显 url */
 .cited-list {
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
 }
-.cited-row p {
+.cited-list li {
+  position: relative;
+  padding-left: 15px;
+  font-size: 0.9rem;
+  line-height: 1.58;
+  color: var(--text);
+}
+.cited-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.66em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.cited-link {
+  color: inherit;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+.cited-link:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+.cited-sup {
+  margin-left: 3px;
+  font-size: 0.62rem;
+  vertical-align: super;
+  color: var(--accent);
+  text-decoration: none;
+}
+.cited-sup:hover {
+  text-decoration: underline;
+}
+/* 社媒热度：卡片式 */
+.srn-social {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.srn-social-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.srn-social-sum {
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--text);
 }
-.cited-srcs {
-  display: inline;
-  white-space: nowrap;
+.srn-social-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.cited-src {
-  margin-left: 6px;
-  font-size: 0.72rem;
-  color: var(--accent);
-  text-decoration: none;
-  white-space: nowrap;
+.srn-sc {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
 }
-.cited-src:hover {
-  text-decoration: underline;
+.srn-sc-l {
+  flex: none;
+  width: 2.4em;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.srn-sc-bull .srn-sc-l {
+  color: var(--up, #4a8f5b);
+}
+.srn-sc-bear .srn-sc-l {
+  color: var(--down, #c0563a);
+}
+.srn-sc-watch .srn-sc-l {
+  color: var(--text-muted);
+}
+.srn-sc .cited-list {
+  flex: 1;
+  min-width: 0;
+}
+.srn-social-plat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+.srn-social-plat b {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }

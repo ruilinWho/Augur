@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import Collapse from '../../components/Collapse'
 import {
   useGenerateNarrative,
@@ -11,14 +11,32 @@ import {
 } from '../../api'
 import { NarrativeBody } from './NarrativeTimeline'
 
-// 一条要点背后的原始链接（像新闻一样可点回看）
-function SourceChips({ refs }: { refs: CitedPoint['refs'] }) {
-  if (!refs.length) return null
+// 已尝试过自动生成时间线的标的（本会话内，避免每次挂载重复触发 / 失败死循环）
+const _autoNar = new Set<string>()
+
+// 要点：文字本身就是可点链接（hover 出下划线），不把 url 写出来；多来源时附极小上标。
+function CitedText({ p }: { p: CitedPoint }) {
+  const primary = p.refs[0]?.url
+  const extra = p.refs.slice(1)
   return (
-    <span className="cited-srcs">
-      {refs.map((r, i) => (
-        <a key={i} className="cited-src" href={r.url} target="_blank" rel="noreferrer" title={r.source}>
-          {r.source || '来源'} ↗
+    <span className="cited-text">
+      {primary ? (
+        <a className="cited-link" href={primary} target="_blank" rel="noreferrer">
+          {p.text}
+        </a>
+      ) : (
+        <span>{p.text}</span>
+      )}
+      {extra.map((r, i) => (
+        <a
+          key={i}
+          className="cited-sup"
+          href={r.url}
+          target="_blank"
+          rel="noreferrer"
+          title={r.source}
+        >
+          {i + 2}
         </a>
       ))}
     </span>
@@ -27,20 +45,18 @@ function SourceChips({ refs }: { refs: CitedPoint['refs'] }) {
 
 function CitedList({ items }: { items: CitedPoint[] }) {
   return (
-    <div className="cited-list">
+    <ul className="cited-list">
       {items.map((p, i) => (
-        <div className="cited-row" key={i}>
-          <p>
-            {p.text}
-            <SourceChips refs={p.refs} />
-          </p>
-        </div>
+        <li key={i}>
+          <CitedText p={p} />
+        </li>
       ))}
-    </div>
+    </ul>
   )
 }
 
-// 「看·相关资讯」：一个板块一眼看全——现状一句话 + 要点（带来源）+ 时间线 + 社媒热度。
+// 「看·相关资讯」：一个板块一眼看全——现状一句话 + 要点 + 时间线 + 社媒热度。
+// 傻瓜式：全部自动加载/生成，只有一个「刷新」按钮重抓+重生成。
 export default function StockNews({ symbol }: { symbol: string }) {
   const brief = useStockNewsBrief(symbol)
   const social = useStockSocialHeat(symbol)
@@ -62,14 +78,25 @@ export default function StockNews({ symbol }: { symbol: string }) {
     heat?.summary || heat?.bull_points.length || heat?.bear_points.length || heat?.watch.length,
   )
 
+  // 傻瓜式：时间线没生成过就自动生成一次（本会话每只股只试一次，cached 后直接读库）
+  const genRef = useRef(genNar.mutate)
+  genRef.current = genNar.mutate
+  useEffect(() => {
+    if (nar.isLoading || genNar.isPending) return
+    if (!narr && !_autoNar.has(symbol)) {
+      _autoNar.add(symbol)
+      genRef.current(symbol)
+    }
+  }, [symbol, narr, nar.isLoading, genNar.isPending])
+
   const runRefresh = (e: MouseEvent) => {
     e.stopPropagation()
+    _autoNar.add(symbol) // 手动刷新即重生成，关掉自动那次
     refresh.mutate(symbol)
-  }
-  const runGenNar = (e: MouseEvent) => {
-    e.stopPropagation()
     genNar.mutate(symbol)
   }
+
+  const busy = refresh.isPending || genNar.isPending
 
   return (
     <section className="stock-news">
@@ -77,8 +104,8 @@ export default function StockNews({ symbol }: { symbol: string }) {
         <h3>相关资讯</h3>
         {n > 0 && <span className="feed-count">{n} 源</span>}
         {enabledSources > 0 && <span className="feed-count stock-src-n">专属 {enabledSources}</span>}
-        <button className="btn btn-ghost jsm stock-news-refresh" onClick={runRefresh} disabled={refresh.isPending}>
-          {refresh.isPending ? '刷新中…' : '刷新'}
+        <button className="btn btn-ghost jsm stock-news-refresh" onClick={runRefresh} disabled={busy}>
+          {busy ? '更新中…' : '刷新'}
         </button>
       </div>
 
@@ -87,8 +114,6 @@ export default function StockNews({ symbol }: { symbol: string }) {
           {/* 现状 + 要点 */}
           {brief.isLoading ? (
             <div className="fin-empty">加载…</div>
-          ) : brief.isError ? (
-            <div className="srn-empty">暂无摘要</div>
           ) : hasBrief ? (
             <div className="srn-block">
               {data?.summary && <p className="srn-summary">{data.summary}</p>}
@@ -101,54 +126,50 @@ export default function StockNews({ symbol }: { symbol: string }) {
               ) : null}
             </div>
           ) : (
-            <div className="srn-empty">暂无摘要</div>
+            <div className="srn-empty faint">暂无摘要</div>
           )}
 
-          {/* 时间线 */}
-          <div className="srn-block">
-            <div className="srn-head">
+          {/* 时间线（自动生成）*/}
+          {narr && narr.timeline.length > 0 && (
+            <div className="srn-block">
               <span className="srn-sub">时间线</span>
-              {narr?.item_count ? <span className="srn-n">{narr.item_count} 条</span> : null}
-              <button className="srn-link" onClick={runGenNar} disabled={genNar.isPending}>
-                {genNar.isPending ? '融合中…' : narr ? '重新生成' : '生成时间线'}
-              </button>
-            </div>
-            {genNar.isError ? (
-              <div className="srn-empty">{(genNar.error as Error).message}</div>
-            ) : narr ? (
               <NarrativeBody data={narr} />
-            ) : genNar.isPending ? (
+            </div>
+          )}
+          {!narr && genNar.isPending && (
+            <div className="srn-block">
+              <span className="srn-sub">时间线</span>
               <div className="fin-empty">融合中…</div>
-            ) : (
-              <div className="srn-empty faint">点「生成时间线」把近况捋成带日期的主线</div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* 社媒热度 */}
-          <div className="srn-block">
-            <div className="srn-head">
+          {/* 社媒热度（卡片式）*/}
+          <div className="srn-social">
+            <div className="srn-social-head">
               <span className="srn-sub">社媒热度</span>
-              {heat?.source_count ? <span className="srn-n">{heat.source_count} 条</span> : null}
               <span className={`social-pill heat-${heatTone}`}>{heat?.heat ?? '低'}</span>
               <span className="social-pill">{heat?.sentiment ?? '不明'}</span>
+              {heat?.source_count ? <span className="srn-n">{heat.source_count} 条</span> : null}
             </div>
             {social.isLoading ? (
               <div className="fin-empty">加载…</div>
             ) : hasSocial ? (
               <>
-                {heat?.summary && <p className="srn-summary">{heat.summary}</p>}
+                {heat?.summary && <p className="srn-social-sum">{heat.summary}</p>}
+                <div className="srn-social-cols">
+                  <SocialCol label="偏多" tone="bull" items={heat?.bull_points ?? []} />
+                  <SocialCol label="反方" tone="bear" items={heat?.bear_points ?? []} />
+                  <SocialCol label="观察" tone="watch" items={heat?.watch ?? []} />
+                </div>
                 {platformEntries.length ? (
-                  <div className="social-platforms">
+                  <div className="srn-social-plat">
                     {platformEntries.map(([name, count]) => (
                       <span key={name}>
-                        {name} {count}
+                        {name} <b>{count}</b>
                       </span>
                     ))}
                   </div>
                 ) : null}
-                <SocialGroup label="偏多" items={heat?.bull_points ?? []} />
-                <SocialGroup label="反方" items={heat?.bear_points ?? []} />
-                <SocialGroup label="观察" items={heat?.watch ?? []} />
               </>
             ) : (
               <div className="srn-empty faint">{heat?.status || '暂无社媒信号'}</div>
@@ -160,12 +181,18 @@ export default function StockNews({ symbol }: { symbol: string }) {
   )
 }
 
-function SocialGroup({ label, items }: { label: string; items: CitedPoint[] }) {
+function SocialCol({ label, tone, items }: { label: string; tone: string; items: CitedPoint[] }) {
   if (!items.length) return null
   return (
-    <div className="srn-sg">
-      <span className="srn-sg-l">{label}</span>
-      <CitedList items={items} />
+    <div className={`srn-sc srn-sc-${tone}`}>
+      <span className="srn-sc-l">{label}</span>
+      <ul className="cited-list">
+        {items.map((p, i) => (
+          <li key={i}>
+            <CitedText p={p} />
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
