@@ -1373,6 +1373,57 @@ export function useDeleteTemplate() {
   })
 }
 
+// ───────────────────────── 「寻」· 发现候选标的（第 4 支柱）─────────────────────────
+const discoveryEvidenceSchema = z.object({
+  news_id: z.number(),
+  title: z.string().default(''),
+  source: z.string().default(''),
+  url: z.string().default(''),
+  date: z.string().default(''),
+})
+const candidateSchema = z.object({
+  symbol: z.string(),
+  name: z.string().default(''),
+  market: z.string().default(''),
+  mention_count: z.number().default(0),
+  day_span: z.number().default(0),
+  first_seen_at: z.string().nullable().default(null),
+  last_seen_at: z.string().nullable().default(null),
+  evidence: z.array(discoveryEvidenceSchema).default([]),
+  status: z.string().default('new'),
+})
+export type Candidate = z.infer<typeof candidateSchema>
+
+export function useDiscovery(status = 'new') {
+  return useQuery({
+    queryKey: ['discovery', status],
+    queryFn: async () =>
+      z.array(candidateSchema).parse(await getJSON(`/discovery?status=${status}`)),
+  })
+}
+
+export function useRefreshDiscovery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => send('/discovery/refresh', 'POST'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['discovery'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useSetCandidateStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    // symbol=MARKET:CODE 拆成路径段避免冒号转义
+    mutationFn: async (v: { symbol: string; status: string }) => {
+      const [market, code] = v.symbol.split(':')
+      return send(`/discovery/${market}/${code}`, 'PATCH', { status: v.status })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['discovery'] }),
+    onError: onMutErr,
+  })
+}
+
 // ── 数据信源「测试」（轻量真实探活）──
 export type SourceTestResult = {
   ok: boolean

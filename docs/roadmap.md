@@ -13,6 +13,7 @@ The product is organized around four surfaces:
 - **View**: inspect price, fundamentals, financial trends, related information, and decision journal markers.
 - **Research**: generate or import single-stock research reports with citations and personal comments.
 - **Know**: ingest, clean, cluster, translate, and summarize daily market information into decision-grade briefs, opportunities, risks, and stock narratives.
+- **Discover (寻)**: surface non-watchlist tickers that recur in the Know stream, ranked by mention count and day span, with author triage (add to watchlist / dismiss).
 - **Note**: keep free-form Markdown notes that are not tied to a ticker.
 
 ## Current Capabilities
@@ -42,6 +43,11 @@ The product is organized around four surfaces:
 - **Available**: daily snapshots, market briefs, clustered key points, opportunity cards, risk/counter-evidence framing, and stock chips that jump to View or Research.
 - **Available**: single-stock narrative timelines and stock-specific source tracking for enabled X accounts, Reddit communities, and RSS/Atom feeds.
 - **In progress**: broader QA for TikHub-backed sources, stronger source verification, and more first-party company/regulatory feeds.
+
+### Discover (寻)
+
+- **Available**: candidate pool aggregated from non-watchlist LLM stock tags in the Know stream, with cross-language/share-class alias dedup, mention-count and day-span ranking, evidence links, and a `new`/`dismissed`/`promoted` triage state machine. Zero extra LLM cost. See [ADR-0015](decisions/0015-discovery-pillar.md).
+- **Planned**: second ranking key (independent-source count), unresolved-entity candidates, opportunity-card cross-feed, and Skills-based candidate generators.
 
 ### Note
 

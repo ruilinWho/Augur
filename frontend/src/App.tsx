@@ -39,11 +39,13 @@ import { useNews } from './features/news/store'
 import StockNews from './features/news/StockNews'
 import StockNarrativeCard from './features/news/StockNarrativeCard'
 import ResearchView from './features/research/ResearchView'
+import DiscoveryView from './features/discovery/DiscoveryView'
 
 const TABS: { v: View; label: string }[] = [
   { v: 'kan', label: '看' },
   { v: 'yan', label: '研' },
   { v: 'zhi', label: '知' },
+  { v: 'xun', label: '寻' },
   { v: 'ji', label: '记' },
 ]
 
@@ -252,7 +254,9 @@ export default function App() {
       ? `layout know-${newsCols}`
       : view === 'kan' || view === 'yan'
         ? 'layout kan'
-        : 'layout'
+        : view === 'xun'
+          ? 'layout full'
+          : 'layout'
 
   useEffect(() => {
     const el = document.documentElement
@@ -321,12 +325,12 @@ export default function App() {
               <NotesNav />
               <ResizeHandle />
             </>
-          ) : (
+          ) : view === 'set' ? (
             <>
               <SettingsNav />
               <ResizeHandle />
             </>
-          )}
+          ) : null /* 寻：全宽单栏，无左栏 */}
 
           <main className="stage">
             {/* 视图切换：keyed motion.div 只做进场动画。刻意不用 AnimatePresence——
@@ -347,6 +351,7 @@ export default function App() {
               )}
               {view === 'yan' && <ResearchView />}
               {view === 'zhi' && <KnowView />}
+              {view === 'xun' && <DiscoveryView />}
               {view === 'ji' && <NotesView />}
               {view === 'set' && <SettingsView />}
             </motion.div>

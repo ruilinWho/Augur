@@ -187,6 +187,23 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(pinned DESC, updated_at DESC);
 
+-- 「寻」候选标的（M4）：从新闻流 LLM 标股(matched_by='llm')里聚合**不在自选**、反复出现的票，
+-- 跨天累积 + 证据引用 + 作者拍板状态机。喂料零新增 LLM 成本（复用 news_item_symbols）。
+-- 区别于 news_opportunities（当日事件论点卡、每日覆盖）——这是标的轴、跨天累积的候选池。
+CREATE TABLE IF NOT EXISTS discovery_candidates (
+    symbol        TEXT    PRIMARY KEY,                -- 归一化 MARKET:CODE
+    name          TEXT    NOT NULL DEFAULT '',
+    mention_count INTEGER NOT NULL DEFAULT 0,          -- 被 LLM 标到的次数（同名双重上市已并）
+    day_span      INTEGER NOT NULL DEFAULT 0,          -- 出现的不同天数（信号持续度）
+    first_seen_at TEXT,                                -- 最早出现日（按新闻 published_at）
+    last_seen_at  TEXT,                                -- 最近出现日
+    evidence      TEXT    NOT NULL DEFAULT '[]',       -- JSON：[{news_id,title,source,url,date}]
+    status        TEXT    NOT NULL DEFAULT 'new',       -- new待看/dismissed忽略/promoted已入自选
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_discovery_status ON discovery_candidates(status, mention_count DESC);
+
 -- Prompt 模板（「研」）：作者自存的 Deep Research 提示词模板。占位符 {STOCK}/{NAME}/
 -- {MARKET}/{SYMBOL} 由前端按当前标的填充后复制——用于粘到外部网页 Deep Research。
 CREATE TABLE IF NOT EXISTS prompt_templates (

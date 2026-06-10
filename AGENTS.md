@@ -9,12 +9,13 @@
 
 ## 1. Augur 是什么 —— 以及不是什么
 
-四根支柱 / four pillars：
+五根支柱 / five pillars：
 
 1. **看 · View** —— 美股 / 港股 / A股 / 韩股的 K 线，以**极致美观**的方式渲染。
 2. **研 · Research** —— 用 LLM + Deep Research 对单支股票做详尽、可用于主动决策的分析。
 3. **知 · Know** —— 每天聚合全球顶级信源与社媒/论坛弱信号，由 LLM 蒸馏成**决策级日报 / 要事 / 机会 / 风险反证**，让作者在天级别与世界信息流同步并形成动作判断。
-4. **记 · Note** —— **与个股无关的自由长文笔记**（市场随想 / 方法论 / 复盘思考），markdown 长文、置顶、防抖自动保存。区别于绑定个股的「判断日记」「导入研报」。
+4. **寻 · Discover** —— 从「知」的信息流里发现**自选之外**反复出现的标的：聚合 LLM 标股（不限自选）、跨天累积提及次数与证据、作者拍板（加入自选 / 忽略）。区别于「机会」（当日事件论点卡）——这是标的轴、跨天累积的候选池（见 [ADR-0015](docs/decisions/0015-discovery-pillar.md)）。
+5. **记 · Note** —— **与个股无关的自由长文笔记**（市场随想 / 方法论 / 复盘思考），markdown 长文、置顶、防抖自动保存。区别于绑定个股的「判断日记」「导入研报」。
 
 贯穿四者的基础设施：
 
@@ -231,11 +232,12 @@ cd frontend && npm run dev
 
 ## 12. 当前状态与下一步
 
-Augur 当前已形成完整的本地研究工作台：**看 / 研 / 知 / 记** 四个表面都可用，底层包含两级自选分区、四市场行情、动态 LLM 网关、新闻/社媒摄取、SQLite/Parquet 本地存储、运行时设置、信源健康度和调度任务。完整产品状态见 [docs/roadmap.md](docs/roadmap.md)。
+Augur 当前已形成完整的本地研究工作台：**看 / 研 / 知 / 寻 / 记** 五个表面都可用，底层包含两级自选分区、四市场行情、动态 LLM 网关、新闻/社媒摄取、SQLite/Parquet 本地存储、运行时设置、信源健康度和调度任务。完整产品状态见 [docs/roadmap.md](docs/roadmap.md)。
 
 - **看：** 四市场 K 线、报价头部、52 周位置、基本面、财报趋势、AI 相关资讯摘要、社媒热度摘要、**叙事时间线**（复用「知」的 `/news/narrative`，只读+可就地生成）、判断日记 marker。个股头部只展示决策相关字段，不暴露内部适配器名。ticker 新闻保留雅虎上游摘要、brief 喂正文加厚（见 [view-stock-info-hierarchy](docs/memory/view-stock-info-hierarchy.md)）。
 - **研：** 单股研究走 `research.gather(symbol)` 收集本地确定性上下文，再由 `deep_research` 角色流式生成带引用 Markdown；支持导入外部研报、排序、编辑和写个人评论。官方 Deep Research job 化接入是当前优先方向，详见 [ADR-0011](docs/decisions/0011-research-deep-research-api-strategy.md)。**Prompt 模板**（`templates/` 域，SQLite）：设置·模板页管理，`{STOCK}/{NAME}/{MARKET}/{SYMBOL}` 占位符，研页头部「复制 Prompt」按当前标的填充进剪贴板——服务外部网页 Deep Research（ChatGPT/Claude 订阅版无 API），见 [ADR-0014](docs/decisions/0014-prompt-templates.md)。
 - **知：** `feed` lane 聚合 RSS/API/X/Reddit/TikHub 等全局信源；`ticker` lane 服务自选股定向新闻和每股专属信源。刷新链路为摄取 → 翻译 → relevance → 确定性挂钩 → LLM 标股 → grounding。日报、要事、机会、决策页、个股叙事和某日快照都围绕可追溯引用与反证条件。
+- **寻：** `discovery/` 域聚合 `news_item_symbols` 里 `matched_by='llm'` 的**自选外**挂钩，跨天累计提及次数/出现天数/证据，经 `search` top-2 做自选别名归并（跨语言/股份类/双重上市），落 `discovery_candidates`（状态机 new/dismissed/promoted，作者拍板保留）。零新增 LLM 成本。见 [ADR-0015](docs/decisions/0015-discovery-pillar.md)。
 - **记：** `notes/` 提供与个股无关的 Markdown 长文、置顶、预览/编辑和 700ms 防抖自动保存；共享 Markdown 渲染器供研报、导入研报、笔记复用。
 - **设置与基础设施：** 设置页管理 LLM 连接、角色指派、信源 key/config、源测试、全部体检、自动刷新、蒸馏深度和 token 用量。后端已做 SQLite WAL/busy_timeout、SSE 错误收尾、源健康度、毒批跳过、批量 LLM 并行化和本地端口 CORS。
 - **当前优先级：** 研究任务 job 化；OpenAI/Gemini Deep Research 正式 API 接入；ChatGPT/Claude/Gemini 网页 Research 结果回流 Augur；Prompt 模板与未来 Skills；每股专属信源验证；分区级情报；反思/复盘闭环；Tauri 桌面打包。

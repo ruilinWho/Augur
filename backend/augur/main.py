@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import runtime_config
+from .discovery import router as discovery_router
 from .journal import router as journal_router
 from .llm import router as llm_router
 from .market import listings
@@ -64,6 +65,7 @@ app.include_router(news_router)
 app.include_router(research_router)
 app.include_router(notes_router)
 app.include_router(templates_router)
+app.include_router(discovery_router)
 app.include_router(settings_router)
 
 

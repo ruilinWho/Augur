@@ -211,6 +211,9 @@ button {
   min-height: 0;
   position: relative;
 }
+.layout.full {
+  grid-template-columns: 1fr;
+}
 /* 「知」两列纵向导航：rail（一级）+ 条件二级卡 + 主舞台 */
 .layout.know-2 {
   grid-template-columns: 92px 1fr;
@@ -5021,4 +5024,131 @@ a.opp-ev-item:hover {
 }
 .tpl-pop button:hover {
   background: var(--surface-2);
+}
+
+/* ───────────────────────── 「寻」· 发现候选标的 ───────────────────────── */
+.discovery {
+  max-width: 920px;
+  margin: 0 auto;
+  width: 100%;
+}
+.disc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.disc-id {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.disc-id h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.disc-n {
+  color: var(--text-faint);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+.cand-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cand-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 16px 18px;
+}
+.cand-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.cand-id {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.cand-id h3 {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 600;
+}
+.cand-sym {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+.cand-metrics {
+  display: flex;
+  gap: 14px;
+  flex: none;
+}
+.cand-metric {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.cand-metric b {
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cand-ev {
+  margin: 12px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cand-ev-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  border-bottom: 1px solid transparent;
+}
+.cand-ev-row:hover {
+  color: var(--text);
+}
+.cand-ev-date {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  width: 2.6em;
+}
+.cand-ev-src {
+  flex: none;
+  font-size: 0.74rem;
+  color: var(--accent);
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cand-ev-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cand-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cand-dismiss {
+  margin-left: auto;
 }
