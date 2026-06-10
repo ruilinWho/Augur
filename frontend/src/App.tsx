@@ -91,6 +91,16 @@ const SETTINGS_NAV: { id: SettingsPage; label: string; icon: ReactNode }[] = [
     ),
   },
   {
+    id: 'templates',
+    label: '模板',
+    icon: (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="4" y="3.5" width="12" height="13" rx="1.5" />
+        <path d="M7 7.5h6M7 10.5h6M7 13.5h3.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     id: 'schedule',
     label: '自动',
     icon: (

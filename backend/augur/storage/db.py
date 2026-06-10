@@ -187,6 +187,17 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(pinned DESC, updated_at DESC);
 
+-- Prompt 模板（「研」）：作者自存的 Deep Research 提示词模板。占位符 {STOCK}/{NAME}/
+-- {MARKET}/{SYMBOL} 由前端按当前标的填充后复制——用于粘到外部网页 Deep Research。
+CREATE TABLE IF NOT EXISTS prompt_templates (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL DEFAULT '',
+    body        TEXT    NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
 CREATE TABLE IF NOT EXISTS research_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,

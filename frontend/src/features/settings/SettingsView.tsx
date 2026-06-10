@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -26,8 +27,12 @@ import { CSS } from '@dnd-kit/utilities'
 import { useUI } from '../../store'
 import GripDots from '../../components/GripDots'
 import {
+  useCreateTemplate,
   useDeleteConnection,
+  useDeleteTemplate,
   useLlmUsage,
+  useTemplates,
+  useUpdateTemplate,
   useReorderConnections,
   useRunSettingsAudit,
   useSchedule,
@@ -43,6 +48,7 @@ import {
   useUpsertConnection,
   type ApiAuditItem,
   type Connection,
+  type PromptTemplate,
   type RoleTarget,
   type Schedule,
   type SourceHealthRow,
@@ -1077,6 +1083,90 @@ function SourcesPage({ sources, groups }: { sources: SourceStatus[]; groups: Sou
 }
 
 // 页面由左栏导航（App.tsx）经 store.settingsPage 选择；本组件只渲染选中页的内容。
+// ───────────────────────── Prompt 模板 ─────────────────────────
+function TemplateCard({ t }: { t: PromptTemplate }) {
+  const update = useUpdateTemplate()
+  const del = useDeleteTemplate()
+  const [name, setName] = useState(t.name)
+  const [body, setBody] = useState(t.body)
+  const [confirmDel, setConfirmDel] = useState(false)
+  // 700ms 防抖自动保存（与「记」一致）；首渲不保存
+  const first = useRef(true)
+  const mutateRef = useRef(update.mutate)
+  mutateRef.current = update.mutate
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    const id = window.setTimeout(() => mutateRef.current({ id: t.id, name, body }), 700)
+    return () => window.clearTimeout(id)
+  }, [t.id, name, body])
+  return (
+    <div className="tpl-card">
+      <div className="tpl-head">
+        <input
+          className="imp-title"
+          value={name}
+          placeholder="模板名"
+          onChange={(e) => setName(e.target.value)}
+        />
+        {update.isPending && <span className="tpl-save">保存中…</span>}
+        <button
+          className="tpl-del"
+          onClick={() => (confirmDel ? del.mutate(t.id) : setConfirmDel(true))}
+          onBlur={() => setConfirmDel(false)}
+        >
+          {confirmDel ? '确认删除' : '删除'}
+        </button>
+      </div>
+      <textarea
+        className="tpl-body"
+        value={body}
+        placeholder="提示词正文"
+        onChange={(e) => setBody(e.target.value)}
+      />
+    </div>
+  )
+}
+
+function TemplatesPage() {
+  const list = useTemplates()
+  const create = useCreateTemplate()
+  const items = list.data ?? []
+  return (
+    <Section
+      title="Prompt 模板"
+      action={
+        <button
+          className="btn btn-primary jsm"
+          disabled={create.isPending}
+          onClick={() => create.mutate({})}
+        >
+          添加
+        </button>
+      }
+    >
+      <div className="tpl-hint">
+        {'{STOCK}'} 代码 · {'{NAME}'} 名称 · {'{MARKET}'} 市场 · {'{SYMBOL}'} 市场:代码
+      </div>
+      {list.isLoading ? (
+        <div className="report-card faint">加载…</div>
+      ) : items.length === 0 ? (
+        <div className="know-empty">
+          <div className="ke-title">暂无模板</div>
+        </div>
+      ) : (
+        <div className="tpl-list">
+          {items.map((t) => (
+            <TemplateCard key={t.id} t={t} />
+          ))}
+        </div>
+      )}
+    </Section>
+  )
+}
+
 export default function SettingsView() {
   const page = useUI((s) => s.settingsPage)
   const cfg = useSettingsConfig()
@@ -1086,6 +1176,7 @@ export default function SettingsView() {
     <div className="set2-body">
       {page === 'appearance' && <AppearancePage />}
       {page === 'schedule' && <SchedulePage />}
+      {page === 'templates' && <TemplatesPage />}
       {needsCfg && cfg.isLoading && !cfg.data ? (
         <div className="report-card faint">加载配置…</div>
       ) : needsCfg && cfg.isError ? (

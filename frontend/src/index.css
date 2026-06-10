@@ -4916,3 +4916,109 @@ a.opp-ev-item:hover {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* ───────────────────────── Prompt 模板（设置·模板 + 研页复制入口）───────────────────────── */
+.tpl-hint {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-top: 10px;
+  letter-spacing: 0.01em;
+}
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+.tpl-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px 14px 14px;
+}
+.tpl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.tpl-save {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.tpl-del {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.tpl-del:hover {
+  color: var(--down);
+}
+.tpl-body {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.tpl-body::placeholder {
+  color: var(--text-faint);
+}
+.tpl-body:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.rh-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.tpl-copy {
+  position: relative;
+}
+.tpl-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+}
+.tpl-pop button {
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tpl-pop button:hover {
+  background: var(--surface-2);
+}

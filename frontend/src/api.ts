@@ -1308,6 +1308,71 @@ export function useDeleteNote() {
   })
 }
 
+// ───────────────────────── Prompt 模板（「研」一键复制 Deep Research 提示词）─────────────────────────
+const templateSchema = z.object({
+  id: z.number(),
+  name: z.string().default(''),
+  body: z.string().default(''),
+  sort_order: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+  updated_at: z.string().nullable().default(null),
+})
+export type PromptTemplate = z.infer<typeof templateSchema>
+
+// 占位符填充：{STOCK} 代码 · {NAME} 名称 · {MARKET} 市场 · {SYMBOL} 市场:代码。
+// 纯前端渲染——模板用于复制到外部网页 Deep Research，不进本地 LLM 调用链。
+const MARKET_LABEL: Record<string, string> = { US: '美股', HK: '港股', CN: 'A股', KR: '韩股' }
+export function fillTemplate(body: string, symbol: string, name?: string | null): string {
+  const i = symbol.indexOf(':')
+  const market = i > 0 ? symbol.slice(0, i) : ''
+  const code = i > 0 ? symbol.slice(i + 1) : symbol
+  return body
+    .replaceAll('{SYMBOL}', symbol)
+    .replaceAll('{STOCK}', code)
+    .replaceAll('{MARKET}', MARKET_LABEL[market] ?? market)
+    .replaceAll('{NAME}', name || code)
+}
+
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: async () => z.array(templateSchema).parse(await getJSON('/templates')),
+  })
+}
+
+export function useCreateTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { name?: string; body?: string }) =>
+      templateSchema.parse(
+        await send('/templates', 'POST', { name: v.name ?? '', body: v.body ?? '' }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useUpdateTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; name?: string; body?: string }) =>
+      templateSchema.parse(
+        await send(`/templates/${v.id}`, 'PATCH', { name: v.name, body: v.body }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onError: onMutErr,
+  })
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => send(`/templates/${id}`, 'DELETE'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onError: onMutErr,
+  })
+}
+
 // ── 数据信源「测试」（轻量真实探活）──
 export type SourceTestResult = {
   ok: boolean

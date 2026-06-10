@@ -1,9 +1,17 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { streamResearch, useQuote, useResearchReport } from '../../api'
+import {
+  fillTemplate,
+  streamResearch,
+  useQuote,
+  useResearchReport,
+  useTemplates,
+  type PromptTemplate,
+} from '../../api'
 import { useUI } from '../../store'
 import Markdown from '../../components/Markdown'
+import { useToast } from '../../components/Toast'
 import { EASE } from '../../theme/motion'
 import ImportedReports from './ImportedReports'
 
@@ -27,6 +35,31 @@ export default function ResearchView() {
   const abortRef = useRef<AbortController | null>(null)
 
   const name = report.data?.name || quote.data?.name || ''
+
+  // 「复制 Prompt」：模板按当前标的填充占位符后进剪贴板（粘到外部网页 Deep Research）
+  const templates = useTemplates()
+  const tpls = templates.data ?? []
+  const [tplOpen, setTplOpen] = useState(false)
+  const tplRef = useRef<HTMLDivElement | null>(null)
+  const toast = useToast((s) => s.push)
+  useEffect(() => {
+    if (!tplOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (tplRef.current && !tplRef.current.contains(e.target as Node)) setTplOpen(false)
+    }
+    window.addEventListener('pointerdown', onDown)
+    return () => window.removeEventListener('pointerdown', onDown)
+  }, [tplOpen])
+  const copyTpl = async (t: PromptTemplate) => {
+    if (!symbol) return
+    setTplOpen(false)
+    try {
+      await navigator.clipboard.writeText(fillTemplate(t.body, symbol, name))
+      toast('已复制 Prompt')
+    } catch {
+      toast('复制失败', 'error')
+    }
+  }
 
   const runGenerate = async () => {
     if (!symbol) return
@@ -74,9 +107,30 @@ export default function ResearchView() {
             <span className="rh-when faint">{fmtWhen(data.created_at)} 生成</span>
           )}
         </div>
-        <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
-          {streaming ? '研究中…' : data ? '重新生成' : '生成深度研究'}
-        </button>
+        <div className="rh-actions">
+          {tpls.length > 0 && (
+            <div className="tpl-copy" ref={tplRef}>
+              <button
+                className="btn jsm"
+                onClick={() => (tpls.length === 1 ? copyTpl(tpls[0]) : setTplOpen((v) => !v))}
+              >
+                复制 Prompt
+              </button>
+              {tplOpen && tpls.length > 1 && (
+                <div className="tpl-pop">
+                  {tpls.map((t) => (
+                    <button key={t.id} onClick={() => copyTpl(t)}>
+                      {t.name || `模板 ${t.id}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <button className="btn btn-primary jsm" disabled={streaming} onClick={runGenerate}>
+            {streaming ? '研究中…' : data ? '重新生成' : '生成深度研究'}
+          </button>
+        </div>
       </div>
 
       {streaming || genState === 'error' ? (

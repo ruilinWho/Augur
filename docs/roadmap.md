@@ -31,6 +31,7 @@ The product is organized around four surfaces:
 - **Available**: single-stock report generation from Augur's deterministic local context plus the configured `deep_research` LLM role.
 - **Available**: streaming Markdown output, saved reports, clickable sources, and a permanent decision-boundary notice.
 - **Available**: imported external research reports, sorting, editing, and personal comments.
+- **Available**: prompt templates with `{STOCK}/{NAME}/{MARKET}/{SYMBOL}` placeholders, managed in Settings, filled per stock and copied from the Research surface for external web Deep Research. See [ADR-0014](decisions/0014-prompt-templates.md).
 - **In progress**: official Deep Research job architecture. See [ADR-0011](decisions/0011-research-deep-research-api-strategy.md).
 
 ### Know

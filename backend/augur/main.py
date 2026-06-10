@@ -24,6 +24,7 @@ from .notes import router as notes_router
 from .research import router as research_router
 from .settings_router import router as settings_router
 from .storage import init_db
+from .templates import router as templates_router
 from .watchlist import router as watchlist_router
 
 
@@ -62,6 +63,7 @@ app.include_router(journal_router)
 app.include_router(news_router)
 app.include_router(research_router)
 app.include_router(notes_router)
+app.include_router(templates_router)
 app.include_router(settings_router)
 
 
