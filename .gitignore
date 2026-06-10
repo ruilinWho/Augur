@@ -81,3 +81,7 @@ Icon?
 
 # ── Claude Code 本地工具配置（preview launch.json 等）──
 .claude/
+
+# ── 工作区参考素材（作者拖进来给 LLM 看的，非项目资产，别误入库）──
+resources/*.zip
+resources/template.txt

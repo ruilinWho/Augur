@@ -48,8 +48,15 @@ export default function CopyPromptButton({
   }
   const copySkill = async (sk: SkillMeta) => {
     setOpen(false)
+    let prompt: string
     try {
-      await navigator.clipboard.writeText(await renderSkill(sk.slug, symbol))
+      prompt = await renderSkill(sk.slug, symbol)
+    } catch {
+      toast('生成技能 Prompt 失败', 'error')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(prompt)
       toast(`已复制技能 · ${sk.name}`)
     } catch {
       toast('复制失败', 'error')
