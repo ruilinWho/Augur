@@ -104,6 +104,8 @@ function SectionsSub() {
 export default function NewsNav() {
   const primary = useNews((s) => s.primary)
   const setPrimary = useNews((s) => s.setPrimary)
+  const navCollapsed = useNews((s) => s.navCollapsed)
+  const toggleNav = useNews((s) => s.toggleNav)
   const refresh = useRefreshNews()
 
   return (
@@ -123,6 +125,13 @@ export default function NewsNav() {
             </button>
           ))}
         </div>
+        <button
+          className="nrail-collapse"
+          onClick={toggleNav}
+          title={navCollapsed ? '展开 日期 / 板块' : '收起 日期 / 板块'}
+        >
+          {navCollapsed ? '›' : '‹'}
+        </button>
         <button className="nrail-refresh" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
           {refresh.isPending ? '刷新中…' : '↻ 刷新'}
         </button>
@@ -133,13 +142,13 @@ export default function NewsNav() {
         )}
       </aside>
 
-      {primary === 'stocks' && (
+      {!navCollapsed && primary === 'stocks' && (
         <aside className="panel news-sub">
           <div className="lbl">标的</div>
           <StocksSub />
         </aside>
       )}
-      {primary === 'info' && (
+      {!navCollapsed && primary === 'info' && (
         <>
           <aside className="panel news-sub">
             <div className="lbl">日期</div>

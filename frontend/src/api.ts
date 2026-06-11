@@ -357,6 +357,8 @@ const scheduleSchema = z.object({
   end_hour: z.number().default(23),
   cluster_input_max: z.number().default(1000), // 要事/机会喂 LLM 的当日条数上限（0=不限）
   brief_top_n: z.number().default(5), // 今日要事显示条数
+  social_pulse_n: z.number().default(4), // 社媒热度每平台条数
+  discovery_news_n: z.number().default(6), // 寻·每候选证据条数
 })
 export type Schedule = z.infer<typeof scheduleSchema>
 
@@ -1487,6 +1489,7 @@ const candidateSchema = z.object({
   last_seen_at: z.string().nullable().default(null),
   evidence: z.array(discoveryEvidenceSchema).default([]),
   theme: z.string().default(''),
+  reason: z.string().default(''),
   status: z.string().default('new'),
 })
 export type Candidate = z.infer<typeof candidateSchema>
@@ -1545,6 +1548,57 @@ export function useMuteTheme() {
       qc.invalidateQueries({ queryKey: ['discovery-themes'] })
     },
     onError: onMutErr,
+  })
+}
+
+const marketCountSchema = z.object({
+  market: z.string(),
+  label: z.string().default(''),
+  count: z.number().default(0),
+  muted: z.boolean().default(false),
+})
+export type MarketCount = z.infer<typeof marketCountSchema>
+
+export function useDiscoveryMarkets() {
+  return useQuery({
+    queryKey: ['discovery-markets'],
+    queryFn: async () => z.array(marketCountSchema).parse(await getJSON('/discovery/markets')),
+  })
+}
+
+export function useMuteMarket() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { market: string; muted: boolean }) =>
+      send('/discovery/markets/mute', 'POST', v),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['discovery'] })
+      qc.invalidateQueries({ queryKey: ['discovery-markets'] })
+    },
+    onError: onMutErr,
+  })
+}
+
+// ── API 配置一键导出/导入（分享给 contributor）──
+export async function exportApiConfig(): Promise<Record<string, unknown>> {
+  return (await getJSON('/settings/api-config/export')) as Record<string, unknown>
+}
+export async function importApiConfig(
+  payload: unknown,
+): Promise<{ connections: number; secrets: number }> {
+  return (await send('/settings/api-config/import', 'POST', payload)) as {
+    connections: number
+    secrets: number
+  }
+}
+
+// 「寻」候选的近月大涨+放量信号 {symbol: {ret_pct, vol_ratio}}（懒加载、与列表解耦）
+export type DiscoverySignal = { ret_pct: number; vol_ratio: number }
+export function useDiscoverySignals() {
+  return useQuery({
+    queryKey: ['discovery-signals'],
+    queryFn: async () => (await getJSON('/discovery/signals')) as Record<string, DiscoverySignal>,
+    staleTime: 60_000,
   })
 }
 

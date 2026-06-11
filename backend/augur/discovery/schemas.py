@@ -23,6 +23,7 @@ class Candidate(BaseModel):
     last_seen_at: str | None = None
     evidence: list[DiscoveryEvidence] = []
     theme: str = ""
+    reason: str = ""
     status: str = "new"
 
 
@@ -38,4 +39,16 @@ class ThemeCount(BaseModel):
 
 class MutePatch(BaseModel):
     theme: str
+    muted: bool
+
+
+class MarketCount(BaseModel):
+    market: str
+    label: str = ""
+    count: int = 0
+    muted: bool = False
+
+
+class MarketMutePatch(BaseModel):
+    market: str
     muted: bool

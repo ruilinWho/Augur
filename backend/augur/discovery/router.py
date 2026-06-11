@@ -6,7 +6,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
 
 from . import service
-from .schemas import Candidate, MutePatch, StatusPatch, ThemeCount
+from .schemas import (
+    Candidate,
+    MarketCount,
+    MarketMutePatch,
+    MutePatch,
+    StatusPatch,
+    ThemeCount,
+)
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 
@@ -37,6 +44,28 @@ async def mute_theme(body: MutePatch) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"muted_themes": muted}
+
+
+@router.get("/signals")
+async def signals() -> dict:
+    """「关注中」候选里近月大涨且放量的关键信号 {symbol: {ret_pct, vol_ratio}}（懒加载、缓存）。"""
+    return await run_in_threadpool(service.signals)
+
+
+@router.get("/markets", response_model=list[MarketCount])
+async def market_counts() -> list[dict]:
+    """四市场的 new 候选数 + 是否被屏蔽（供「偏好」面板按市场屏蔽，如韩股）。"""
+    return await run_in_threadpool(service.market_counts)
+
+
+@router.post("/markets/mute")
+async def mute_market(body: MarketMutePatch) -> dict:
+    """屏蔽/取消屏蔽某市场——被屏蔽市场的候选不再出现在「关注中」。"""
+    try:
+        muted = await run_in_threadpool(service.set_market_muted, body.market, body.muted)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"muted_markets": muted}
 
 
 @router.patch("/{market}/{code}", response_model=Candidate)

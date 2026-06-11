@@ -13,9 +13,11 @@ export const IMP: Record<string, { label: string; cls: string }> = {
 export function NarrativeBody({
   data,
   hideSummary = false,
+  hideRefs = false,
 }: {
   data: StockNarrative
   hideSummary?: boolean
+  hideRefs?: boolean
 }) {
   return (
     <>
@@ -30,7 +32,7 @@ export function NarrativeBody({
                 {ev.date && <span className="narr-date">{ev.date}</span>}
                 <span className="narr-ev-title">{ev.title}</span>
               </div>
-              {ev.refs.length > 0 && (
+              {!hideRefs && ev.refs.length > 0 && (
                 <div className="narr-refs">
                   {ev.refs.map((r, j) => (
                     <a key={j} className="narr-ref" href={r.url} target="_blank" rel="noreferrer">

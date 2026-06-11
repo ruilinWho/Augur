@@ -895,6 +895,39 @@ def search_threads(
     )
 
 
+def search_reddit(
+    query: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
+) -> list[dict]:
+    """某股的 Reddit 关键词讨论（经 TikHub——Reddit 直连公共 JSON 已被 403 封）。失败抛 Tikhub*。
+
+    直连 reddit.com 在本环境被按 IP 封（连 /r/<sub>/new.json 都 403），所以每股「最丰富的 Reddit
+    相关讨论」改走 TikHub 的 Reddit 关键词搜索，用股名/ticker 当查询词。
+    """
+    q = _norm_query(query)
+    if not q:
+        return []
+    return _fetch_queries_limited(
+        [q],
+        limit=limit,
+        path="/api/v1/reddit/app/fetch_dynamic_search",
+        base_params={
+            "search_type": "post",
+            "sort": "NEW",
+            "time_range": "month",
+            "safe_search": "unset",
+            "allow_nsfw": "0",
+            "after": "",
+            "need_format": "false",
+        },
+        param_name="query",
+        source_prefix="Reddit·",
+        platform="reddit",
+        lang="en",
+        category="forum",
+        cutoff=cutoff,
+    )
+
+
 def user_tweets(
     screen_name: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
 ) -> list[dict]:

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import UTC, datetime
+from urllib.parse import quote_plus
 
 from .. import runtime_config
 from . import classify
@@ -118,4 +119,40 @@ def fetch_subreddits(raw_subreddits: list[str], cutoff: datetime | None = None) 
             out.extend(_fetch_subreddit(sub, cutoff))
         except Exception:
             continue
+    return out
+
+
+def search_subreddit(query: str, limit: int = 8) -> list[dict]:
+    """搜 Reddit 子版（用于自动解析某股「专属子板块」）。
+
+    返回 [{name, subscribers, title, over18}]（按 Reddit 相关性）；限流/失败 → []（调用方降级）。
+    """
+    q = (query or "").strip()
+    if not q:
+        return []
+    try:
+        resp = http_get(
+            f"https://www.reddit.com/subreddits/search.json?q={quote_plus(q)}"
+            f"&limit={int(limit)}&raw_json=1",
+            timeout=12,
+            retries=1,
+        )
+        data = json.loads(resp.text or "{}")
+    except Exception:  # noqa: BLE001 — Reddit 限流/失败 → 空，自动解析优雅降级
+        return []
+    children = ((data.get("data") or {}).get("children") or []) if isinstance(data, dict) else []
+    out: list[dict] = []
+    for child in children:
+        d = (child or {}).get("data") or {}
+        name = str(d.get("display_name") or "").strip()
+        if not _SUB_RE.match(name):
+            continue
+        out.append(
+            {
+                "name": name,
+                "subscribers": int(d.get("subscribers") or 0),
+                "title": str(d.get("title") or "")[:120],
+                "over18": bool(d.get("over18")),
+            }
+        )
     return out

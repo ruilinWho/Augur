@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS discovery_candidates (
     last_seen_at  TEXT,                                -- 最近出现日
     evidence      TEXT    NOT NULL DEFAULT '[]',       -- JSON：[{news_id,title,source,url,date}]
     theme         TEXT    NOT NULL DEFAULT '',          -- 主导主题（从证据新闻推断，供主题级屏蔽）
+    reason        TEXT    NOT NULL DEFAULT '',          -- LLM 一句话：为什么值得关注（寻·筛选+理由）
     status        TEXT    NOT NULL DEFAULT 'new',       -- new待看/dismissed忽略/promoted已入自选
     created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -269,6 +270,8 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("imported_reports", "source_url", "TEXT NOT NULL DEFAULT ''"),  # 原始会话/分享链接
     # 「寻」候选主导主题（从证据新闻 theme 推断）——供主题级屏蔽/偏好
     ("discovery_candidates", "theme", "TEXT NOT NULL DEFAULT ''"),
+    # 「寻」候选 LLM 理由（为什么值得关注）——配合 worth 筛选
+    ("discovery_candidates", "reason", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 
