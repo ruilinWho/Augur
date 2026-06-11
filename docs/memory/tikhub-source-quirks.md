@@ -2,6 +2,17 @@
 
 记录：2026-06-06。
 
+## 【2026-06-11】TikHub 升为唯一推特源（twtapi 退役）
+
+作者要求「删除推特1（twtapi）、把推特2（TikHub）作为唯一推特源」。改动：
+- **source prefix `X2·` → `X·`**（TikHub 现是唯一推特源，用规范前缀）；`_SOCIAL_LANES`/`_SOCIAL_PREFIXES`/
+  `_platform_counts` 同步；前端删 `twitter2` lane（SourceLaneId/SOURCE_LANES/INFO_SECTIONS/store）。
+- **`ingest._ADAPTERS` 删 `X(Twitter)→twtapi.fetch_all`**，`Twitter 第二源→tikhub.fetch_twitter` 改名
+  `推特`；`source_registry` 删 twtapi 条目、`tikhub_twitter` 改名「推特」；`source_test`/`_HEALTH_SOURCE_IDS`
+  同步；prune 豁免去掉 `twtapi.source_names()` → 老 twtapi `X·<handle>` 数据下次 ingest 自动清。
+- **数据迁移**（一次性）：删老 twtapi `X·<handle>` 行、`X2·*` → `X·*`。
+- `twtapi.py` **保留**：每股专属信源（`official_x`/`influencer_x`）仍按账号拉、twtapi 失败回退 TikHub。
+
 ## Provider 口径
 
 - 统一 key：`TIKHUB_KEY`。五个 Augur 源共用这一份 key，不要拆成多个 secret。

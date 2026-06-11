@@ -5,7 +5,7 @@ offer convenient public research APIs. All entries are normalized into `news_ite
 through Augur's relevance, translation, linker, and stock-tag pipeline.
 
 Configured sources:
-- Twitter 第二源: accounts and keyword search, source prefix `X2·`
+- Twitter 第二源: accounts and keyword search, source prefix `X·`
 - 小红书: note keyword search, source prefix `小红书·`
 - Threads: top-content keyword search, source prefix `Threads·`
 - Reddit · TikHub: keyword search, source prefix `Reddit·TikHub·`
@@ -244,9 +244,9 @@ def wechat_keywords() -> list[str]:
 def source_names() -> set[str]:
     names: set[str] = set()
     for a in twitter_accounts():
-        names.add(f"X2·@{a['screen_name']}")
+        names.add(f"X·@{a['screen_name']}")
     for q in twitter_keywords():
-        names.add(f"X2·搜索·{q}")
+        names.add(f"X·搜索·{q}")
     for q in xiaohongshu_keywords():
         names.add(f"小红书·{q}")
     for q in threads_keywords():
@@ -699,7 +699,7 @@ def fetch_twitter(cutoff: datetime | None = None) -> list[dict]:
         got = _fetch_search(
             "/api/v1/twitter/web/fetch_user_post_tweet",
             params={"screen_name": a["screen_name"], "cursor": "undefined"},
-            source=f"X2·@{a['screen_name']}",
+            source=f"X·@{a['screen_name']}",
             platform="twitter",
             lang="en",
             category=a.get("category") or "tech",
@@ -713,7 +713,7 @@ def fetch_twitter(cutoff: datetime | None = None) -> list[dict]:
             # search_type 必须 'Top'；'Latest'/cursor='undefined' 都会 400（实测 2026-06-11）
             base_params={"search_type": "Top"},
             param_name="keyword",
-            source_prefix="X2·搜索·",
+            source_prefix="X·搜索·",
             platform="twitter",
             lang="en",
             category="markets",
@@ -803,7 +803,7 @@ def ping_source(source_id: str) -> int:
             _fetch_search(
                 "/api/v1/twitter/web/fetch_search_timeline",
                 params={"keyword": _PROBE_QUERY, "search_type": "Top"},
-                source="X2·测试",
+                source="X·测试",
                 platform="twitter",
                 lang="en",
                 category="markets",
@@ -942,7 +942,7 @@ def user_tweets(
     got = _fetch_search(
         "/api/v1/twitter/web/fetch_user_post_tweet",
         params={"screen_name": handle, "cursor": "undefined"},
-        source=f"X2·@{handle}",
+        source=f"X·@{handle}",
         platform="twitter",
         lang="en",
         category="stock",
@@ -975,7 +975,7 @@ def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) ->
             "path": "/api/v1/twitter/web/fetch_search_timeline",
             "base_params": {"search_type": "Top"},  # 'Latest'/cursor 会 400（见 fetch_twitter）
             "param_name": "keyword",
-            "source_prefix": "X2·搜索·",
+            "source_prefix": "X·搜索·",
             "platform": "twitter",
             "lang": "en",
             "category": "markets",
