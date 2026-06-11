@@ -15,16 +15,16 @@ export type SourceLaneId =
   | 'xiaohongshu'
   | 'threads'
 
-// 资讯第三层：某天的「总结」（综合日报 + 今日机会）+ 构成它的原始信源各 lane。
-// （原「决策」与「总结」内容重复，已合并入「总结」——机会/相关标的引导回到总结页底部。）
-export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
-  { id: 'summary', label: '总结' },
-  { id: 'news', label: '新闻' },
-  { id: 'blogs', label: '博客' },
-  { id: 'twitter', label: '推特' },
-  { id: 'reddit', label: 'Reddit' },
-  { id: 'xiaohongshu', label: '小红书' },
-  { id: 'threads', label: 'Threads' },
+// 资讯第三层：分三组（导航里用细线分隔）——① 总结（综合日报+今日机会，决策已并入）；
+// ② 原始信源 lane（新闻+各社媒）；③ 博客（长文阅读卡，独立一类）。
+export const INFO_SECTIONS: { id: InfoSection; label: string; group: string }[] = [
+  { id: 'summary', label: '总结', group: 'digest' },
+  { id: 'news', label: '新闻', group: 'sources' },
+  { id: 'twitter', label: '推特', group: 'sources' },
+  { id: 'reddit', label: 'Reddit', group: 'sources' },
+  { id: 'xiaohongshu', label: '小红书', group: 'sources' },
+  { id: 'threads', label: 'Threads', group: 'sources' },
+  { id: 'blogs', label: '博客', group: 'blog' },
 ]
 
 // 新闻二级：主题。key='' = 全部。与后端 classify 主题键一致。

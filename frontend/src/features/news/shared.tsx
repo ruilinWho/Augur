@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { NewsItem } from '../../api'
+import type { CitedPoint, NewsItem, RelatedSymbol } from '../../api'
 import { useUI } from '../../store'
 import Markdown from '../../components/Markdown'
 
@@ -36,6 +36,76 @@ export function ago(iso: string | null): string {
 // "没渲染出 markdown"；现统一掉。日报正文不带 [n] 编号引用（prompt 用圆括号标来源），故不传 sources。
 export function Digest({ body }: { body: string }) {
   return <Markdown body={body} />
+}
+
+// ── 带原始链接的要点：文字本身即可点链接（hover 出下划线），多来源附极小上标。资讯/日报/个股共用。──
+export function CitedText({ p }: { p: CitedPoint }) {
+  const primary = p.refs[0]?.url
+  const extra = p.refs.slice(1)
+  return (
+    <span className="cited-text">
+      {primary ? (
+        <a className="cited-link" href={primary} target="_blank" rel="noreferrer">
+          {p.text}
+        </a>
+      ) : (
+        <span>{p.text}</span>
+      )}
+      {extra.map((r, i) => (
+        <a
+          key={i}
+          className="cited-sup"
+          href={r.url}
+          target="_blank"
+          rel="noreferrer"
+          title={r.source}
+        >
+          {i + 2}
+        </a>
+      ))}
+    </span>
+  )
+}
+
+export function CitedList({ items }: { items: CitedPoint[] }) {
+  return (
+    <ul className="cited-list">
+      {items.map((p, i) => (
+        <li key={i}>
+          <CitedText p={p} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// ── 关联标的 chip：已解析→「名字→看 K 线 · 研→深度研究」；已关注→陶土描边+圆点；未解析→灰。──
+// 机会卡、日报主题卡共用（作者：个股挂钩按钮是提高 UI/UX 的重要工具，单一真相避免漂移）。
+export function RelatedChip({ r }: { r: RelatedSymbol }) {
+  const select = useUI((s) => s.select)
+  const research = useUI((s) => s.research)
+  if (!r.resolved || !r.symbol) {
+    return (
+      <span className="opp-chip unresolved" title="未能解析到具体上市公司代码">
+        {r.name}
+      </span>
+    )
+  }
+  const sym = r.symbol
+  return (
+    <span
+      className={`opp-chip2 ${r.in_watchlist ? 'watched' : ''}`}
+      title={r.in_watchlist ? `已关注 · ${r.sections.join(' / ')}` : sym}
+    >
+      <button className="oc-nm" onClick={() => select(sym)} title="在「看」里查看 K 线">
+        {r.in_watchlist && <span className="wdot" />}
+        {r.name}
+      </button>
+      <button className="oc-go" onClick={() => research(sym)} title="深度研究这只股">
+        研
+      </button>
+    </span>
+  )
 }
 
 // ── 单条要闻（含挂钩的自选股 ticker chip，点击跳「看」）──
@@ -136,7 +206,6 @@ export function BlogList({ items, empty }: { items: NewsItem[]; empty?: string }
             <a className="blog-title" href={it.url} target="_blank" rel="noreferrer">
               {title}
             </a>
-            {it.summary && <p className="blog-excerpt">{it.summary}</p>}
             {it.symbols.length > 0 && (
               <div className="blog-syms">
                 {it.symbols.map((s) => (

@@ -12,7 +12,6 @@ import logging
 import re
 import threading
 import time
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -798,8 +797,36 @@ def stock_official(symbol: str, limit: int = 15) -> list[dict]:
     return edgar.filings_for(symbol, limit)
 
 
+def _report_out(row: dict) -> dict:
+    """落库行 → 对外结构化日报形状。body 为结构化 JSON 则解析；旧 markdown 报告进 markdown 兜底。"""
+    body = row.get("body") or ""
+    out = {
+        "report_date": row["report_date"],
+        "verdict": "",
+        "sections": [],
+        "risks": [],
+        "watch": [],
+        "markdown": "",
+        "model": row.get("model") or "",
+        "item_count": row.get("item_count") or 0,
+        "created_at": row.get("created_at"),
+    }
+    try:
+        obj = json.loads(body)
+    except (json.JSONDecodeError, TypeError):
+        obj = None
+    if isinstance(obj, dict) and ("sections" in obj or "verdict" in obj):
+        out["verdict"] = obj.get("verdict") or ""
+        out["sections"] = obj.get("sections") or []
+        out["risks"] = obj.get("risks") or []
+        out["watch"] = obj.get("watch") or []
+    else:
+        out["markdown"] = body  # 旧 markdown 报告：前端回退 <Markdown> 渲染
+    return out
+
+
 def get_report(report_date: str | None = None) -> dict | None:
-    """取某日（默认最新一份）日报全文。"""
+    """取某日（默认最新一份）结构化日报。"""
     conn = get_conn()
     try:
         if report_date:
@@ -810,22 +837,34 @@ def get_report(report_date: str | None = None) -> dict | None:
             row = conn.execute(
                 "SELECT * FROM news_reports ORDER BY report_date DESC LIMIT 1"
             ).fetchone()
-        return dict(row) if row else None
+        return _report_out(dict(row)) if row else None
     finally:
         conn.close()
 
 
 def list_reports(limit: int = 30) -> list[dict]:
-    """日报列表（含 160 字预览，不含全文）。"""
+    """日报列表（含预览，不含全文）。预览取总判断（结构化）或正文首段（旧 markdown）。"""
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT report_date, item_count, model, created_at, "
-            "substr(body, 1, 160) AS preview "
+            "SELECT report_date, item_count, model, created_at, body "
             "FROM news_reports ORDER BY report_date DESC LIMIT ?",
             (limit,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        out: list[dict] = []
+        for r in rows:
+            d = dict(r)
+            body = d.pop("body", "") or ""
+            preview = ""
+            try:
+                obj = json.loads(body)
+                if isinstance(obj, dict):
+                    preview = obj.get("verdict") or ""
+            except (json.JSONDecodeError, TypeError):
+                preview = ""
+            d["preview"] = (preview or body)[:160]
+            out.append(d)
+        return out
     finally:
         conn.close()
 
@@ -849,31 +888,6 @@ def _source_lane_label(source: str) -> str:
     return "新闻"
 
 
-def _headline_line(it: dict) -> str:
-    source = str(it.get("source") or "")
-    lane = _source_lane_label(source)
-    title = (it.get("title_zh") or it.get("title") or "").strip()
-    summary = (it.get("summary") or "").strip()
-    if summary and summary != title:
-        summary = f"｜{summary[:180]}"
-    return f"- [{lane}｜{source}] {title}{summary}"
-
-
-def _headlines_block(items: list[dict]) -> str:
-    """按主题分组喂给 LLM；每条保留来源类型，便于新闻/社媒/博客在一篇日报里融合。"""
-    by_theme: dict[str, list[dict]] = {}
-    for it in items:
-        by_theme.setdefault(it.get("theme") or "other", []).append(it)
-    lines: list[str] = []
-    for th in THEME_ORDER:
-        group = by_theme.get(th)
-        if not group:
-            continue
-        lines.append(f"\n## {THEME_LABEL.get(th, th)}")
-        lines.extend(_headline_line(it) for it in group)
-    return "\n".join(lines).strip()
-
-
 def _save_report(report_date: str, body: str, model: str, item_count: int) -> None:
     conn = get_conn()
     try:
@@ -890,30 +904,119 @@ def _save_report(report_date: str, body: str, model: str, item_count: int) -> No
         conn.close()
 
 
-def generate_report_stream(
-    report_date: str | None = None, role: str = "summarize"
-) -> Iterator[str]:
-    """生成当日趋势日报：流式产出文本增量；完成后落库（覆盖当天）。
+def _digest_items_block(items: list[dict]) -> tuple[str, dict[int, dict]]:
+    """带 [n] 编号、按主题分组、标来源类型的条目块 + 序号→item 回查表（喂结构化日报，便于
+    分点引用 refs[n] 与公司接地）。"""
+    by_theme: dict[str, list[dict]] = {}
+    for it in items:
+        by_theme.setdefault(it.get("theme") or "other", []).append(it)
+    lines: list[str] = []
+    by_n: dict[int, dict] = {}
+    n = 0
+    for th in THEME_ORDER:
+        group = by_theme.get(th)
+        if not group:
+            continue
+        lines.append(f"\n## {THEME_LABEL.get(th, th)}")
+        for it in group:
+            n += 1
+            by_n[n] = it
+            lane = _source_lane_label(str(it.get("source") or ""))
+            title = (it.get("title_zh") or it.get("title") or "").strip()
+            summ = (it.get("summary") or "").strip()
+            tail = f"｜{summ[:160]}" if summ and summ != title else ""
+            lines.append(f"[{n}] [{lane}｜{it.get('source', '')}] {title}{tail}")
+    return "\n".join(lines).strip(), by_n
 
-    无新闻条目 → ValueError（前端提示先刷新）。
+
+def _ground_related(companies: object, watched: dict, cap: int = 5) -> list[dict]:
+    """LLM 给的公司名 → 确定性接地 MARKET:CODE（防编造，只信本地目录∪东财命中）+ 交叉自选，
+    产出「看/研」chip 数据。与 generate_opportunities 同口径。"""
+    out: list[dict] = []
+    seen: set[str] = set()
+    if not isinstance(companies, list):
+        return out
+    for c in companies:
+        if not isinstance(c, dict):
+            continue
+        sym, disp, resolved = grounding.resolve_company(
+            c.get("name", ""), c.get("market", ""), c.get("code_guess", "")
+        )
+        key = sym or disp
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        secs = watched.get(sym, []) if sym else []
+        out.append(
+            {
+                "symbol": sym,
+                "name": disp,
+                "market": (c.get("market") or "").upper(),
+                "resolved": resolved,
+                "in_watchlist": bool(secs),
+                "sections": secs,
+            }
+        )
+        if len(out) >= cap:
+            break
+    return out
+
+
+def _assemble_report(data: dict, by_n: dict[int, dict]) -> dict:
+    """LLM 结构化输出 → 接地公司 + 解析引用后的日报 dict（落库即此形状）。
+
+    sections 按重要性稳定排序（同级保留 LLM 顺序）。headline 必填，空段丢弃。
+    """
+    watched = _watched()
+    sections: list[dict] = []
+    for s in (data.get("sections") or [])[:10]:
+        if not isinstance(s, dict):
+            continue
+        headline = _strip_inline_refs(str(s.get("headline") or "")).strip()
+        if not headline:
+            continue
+        imp = s.get("importance", "med")
+        sections.append(
+            {
+                "headline": headline[:200],
+                "importance": imp if imp in _IMP_ORDER else "med",
+                "why": _strip_inline_refs(str(s.get("why") or "")).strip()[:220],
+                "points": _cited_points(s.get("points"), by_n, 6),
+                "related": _ground_related(s.get("companies"), watched),
+            }
+        )
+    sections.sort(key=lambda s: _IMP_ORDER.get(s["importance"], 2))  # 稳定：同级保 LLM 顺序
+    return {
+        "verdict": _strip_inline_refs(str(data.get("verdict") or "")).strip()[:600],
+        "sections": sections,
+        "risks": _cited_points(data.get("risks"), by_n, 8),
+        "watch": _cited_points(data.get("watch"), by_n, 8),
+    }
+
+
+def generate_report(report_date: str | None = None, role: str = "summarize") -> dict:
+    """生成**结构化**综合日报：一次结构化 LLM 调用 → 接地公司 → 落库覆盖当天，返回结构化报告。
+
+    分层分点、个股「看/研」可点——取代旧的 markdown 长文（作者：太长无法专注）。无新闻 → ValueError。
     """
     rd = report_date or _today()
-    items = digest_items_for_day(rd)  # 喂当天全部来源：新闻/RSS/博客/社媒
+    items = _cap_items(digest_items_for_day(rd), "digest")  # 当天全部来源：新闻/RSS/博客/社媒
     if not items:
         raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
-    prompt = (
-        _load_prompt("news_digest")
-        .replace("{{DATE}}", rd)
-        .replace("{{HEADLINES}}", _headlines_block(items))
-    )
+    block, by_n = _digest_items_block(items)
+    prompt = _load_prompt("news_digest").replace("{{DATE}}", rd).replace("{{ITEMS}}", block)
     _, model = gateway.resolve_role(role)
-    buf: list[str] = []
-    for delta in gateway.stream_chat([{"role": "user", "content": prompt}], role):
-        buf.append(delta)
-        yield delta
-    body = "".join(buf).strip()
-    if body:
-        _save_report(rd, body, model, len(items))
+    data = _complete_json(prompt, role, "sections")  # 解析空/缺 sections 则重试
+    report = _assemble_report(data, by_n)
+    _save_report(rd, json.dumps(report, ensure_ascii=False), model, len(items))
+    return get_report(rd) or {
+        "report_date": rd,
+        **report,
+        "markdown": "",
+        "model": model,
+        "item_count": len(items),
+        "created_at": None,
+    }
 
 
 # ───────────────────────── 今日投资机会（抽取 + 接地）─────────────────────────
@@ -1520,8 +1623,7 @@ def generate_all(
     steps = out["steps"]
 
     def _digest() -> None:
-        for _ in generate_report_stream(rd, role):  # 消费流以触发落库
-            pass
+        generate_report(rd, role)  # 结构化日报：落库覆盖当天
 
     # 各生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
     # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。

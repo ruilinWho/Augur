@@ -664,13 +664,6 @@ const newsItemSchema = z.object({
     )
     .default([]),
 })
-const newsReportSchema = z.object({
-  report_date: z.string(),
-  body: z.string(),
-  model: z.string().default(''),
-  item_count: z.number().default(0),
-  created_at: z.string().nullable().default(null),
-})
 const reportMetaSchema = z.object({
   report_date: z.string(),
   item_count: z.number().default(0),
@@ -697,7 +690,6 @@ const filingSchema = z.object({
   filed_at: z.string().nullable().default(null),
 })
 export type NewsItem = z.infer<typeof newsItemSchema>
-export type NewsReport = z.infer<typeof newsReportSchema>
 export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
 export type NewsReadState = z.infer<typeof newsReadStateSchema>
@@ -892,6 +884,28 @@ const opportunitiesSchema = z.object({
 export type RelatedSymbol = z.infer<typeof relatedSchema>
 export type Opportunity = z.infer<typeof opportunitySchema>
 export type OpportunitiesResp = z.infer<typeof opportunitiesSchema>
+
+// ── 结构化综合日报：总判断 + 主题卡（重要性/小标题/为什么/分点/关联标的）+ 风险 + 明天继续看 ──
+const reportSectionSchema = z.object({
+  headline: z.string().default(''),
+  importance: z.string().default('med'), // critical/high/med/low
+  why: z.string().default(''),
+  points: z.array(citedPointSchema).default([]),
+  related: z.array(relatedSchema).default([]),
+})
+const newsReportSchema = z.object({
+  report_date: z.string(),
+  verdict: z.string().default(''),
+  sections: z.array(reportSectionSchema).default([]),
+  risks: z.array(citedPointSchema).default([]),
+  watch: z.array(citedPointSchema).default([]),
+  markdown: z.string().default(''), // 旧报告兜底全文
+  model: z.string().default(''),
+  item_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+})
+export type ReportSection = z.infer<typeof reportSectionSchema>
+export type NewsReport = z.infer<typeof newsReportSchema>
 
 export function useOpportunities(date: string | null) {
   return useQuery({
@@ -1138,20 +1152,20 @@ export function useStockNews(symbol: string | null, days = 0) {
 }
 
 // 生成趋势日报（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
-export async function streamReport(
-  date: string | null,
-  onDelta: (text: string) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const r = await fetch(`/news/report/generate${date ? `?date=${date}` : ''}`, {
-    method: 'POST',
-    signal,
+// 生成结构化综合日报（阻塞 ~20–40s）：一次结构化 LLM 调用 + 公司接地，返回落库后的报告。
+export function useGenerateReport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (date?: string | null) =>
+      newsReportSchema.parse(
+        await send(`/news/report/generate${date ? `?date=${date}` : ''}`, 'POST'),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['news-report'] })
+      qc.invalidateQueries({ queryKey: ['news-reports'] })
+      qc.invalidateQueries({ queryKey: ['news-read-state'] })
+    },
   })
-  if (!r.ok) {
-    const d = (await r.json().catch(() => ({}))) as { detail?: string }
-    throw new Error(d.detail ?? `HTTP ${r.status}`)
-  }
-  await consumeSSE(r, onDelta)
 }
 
 // ───────────────────────── 研 · 单股深度研究 ─────────────────────────

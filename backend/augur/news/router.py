@@ -1,12 +1,9 @@
-"""news 域 HTTP 路由（M3「知」）：信息流 / 趋势日报（生成走 SSE 流式）。"""
+"""news 域 HTTP 路由（M3「知」）：信息流 / 结构化综合日报。"""
 
 from __future__ import annotations
 
-import json
-
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..llm import gateway
@@ -25,9 +22,6 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/news", tags=["news"])
-
-# SSE 响应头：禁缓存 + 关代理缓冲（保逐字到达）
-_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
 @router.get("/feed", response_model=list[NewsItem])
@@ -259,21 +253,17 @@ async def generate_clusters(
     )
 
 
-@router.post("/report/generate")
-async def generate(date: str | None = None) -> StreamingResponse:
-    """生成当日趋势日报：SSE 流式产出，完成后落库（覆盖当天）。"""
+@router.post("/report/generate", response_model=NewsReport)
+async def generate(date: str | None = None) -> dict:
+    """生成**结构化**综合日报：阻塞（一次结构化 LLM 调用 + 公司接地，约 20–40s），落库后返回。
+
+    分层分点、个股「看/研」可点——取代旧的 markdown 长文流（作者：长文无法专注）。
+    """
     try:
         gateway.check_ready("summarize")
     except gateway.LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
-
-    def sse():  # 同步生成器：Starlette 在 threadpool 里迭代（与 /llm/chat 一致）
-        try:
-            for delta in service.generate_report_stream(date):
-                yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
-        except Exception as e:  # noqa: BLE001 — 流中途出错也要让前端收到
-            err = json.dumps({"error": f"{type(e).__name__}: {e}"}, ensure_ascii=False)
-            yield f"data: {err}\n\n"
-        yield "data: [DONE]\n\n"  # 无论成功/出错都收尾，前端统一以 [DONE] 解除等待
-
-    return StreamingResponse(sse(), media_type="text/event-stream", headers=_SSE_HEADERS)
+    try:
+        return await run_in_threadpool(service.generate_report, date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

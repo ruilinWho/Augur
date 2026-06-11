@@ -73,14 +73,6 @@ class Filing(BaseModel):
     filed_at: str | None = None  # 'YYYY-MM-DD'
 
 
-class NewsReport(BaseModel):
-    report_date: str  # 'YYYY-MM-DD'
-    body: str
-    model: str = ""
-    item_count: int = 0
-    created_at: str | None = None
-
-
 class ReportMeta(BaseModel):
     """日报列表项（不含全文，带摘要预览）。"""
 
@@ -114,6 +106,31 @@ class RelatedSymbol(BaseModel):
     resolved: bool = False
     in_watchlist: bool = False
     sections: list[str] = []  # 若已关注，所属分区路径，如 半导体/GPU
+
+
+# ───────────────────────── 结构化综合日报（卡片化、分点、个股挂钩）─────────────────────────
+class ReportSection(BaseModel):
+    """日报的一个主题卡：重要性徽章 + 小标题 + 为什么重要 + 分点 + 关联标的（看/研 chip）。"""
+
+    headline: str
+    importance: str = "med"  # high/med/low → 非常重要/重要/留意
+    why: str = ""
+    points: list[CitedPoint] = []
+    related: list[RelatedSymbol] = []
+
+
+class NewsReport(BaseModel):
+    """结构化综合日报：总判断 + 主题卡 + 风险/反证 + 明天继续看。markdown 仅为旧报告兜底渲染。"""
+
+    report_date: str  # 'YYYY-MM-DD'
+    verdict: str = ""  # 总判断（开篇 2–4 句）
+    sections: list[ReportSection] = []
+    risks: list[CitedPoint] = []  # 风险 / 反证
+    watch: list[CitedPoint] = []  # 明天继续看
+    markdown: str = ""  # 旧版 markdown 全文（结构化缺失时前端回退渲染）
+    model: str = ""
+    item_count: int = 0
+    created_at: str | None = None
 
 
 class Evidence(BaseModel):

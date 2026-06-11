@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { useNewsReports, useQuote, useRefreshNews, useSections, type Section } from '../../api'
 import { useNews } from './store'
@@ -82,20 +82,22 @@ function DatesSub() {
   )
 }
 
-// ── 资讯三级：总结 / 决策 / 各信源 lane ──
+// ── 资讯三级：总结 ｜ 新闻/各社媒 ｜ 博客 三组（组间细线分隔，见 consts.INFO_SECTIONS.group）──
 function SectionsSub() {
   const infoSection = useNews((s) => s.infoSection)
   const setInfoSection = useNews((s) => s.setInfoSection)
   return (
     <div className="nsub-list">
-      {INFO_SECTIONS.map((sec) => (
-        <button
-          key={sec.id}
-          className={`nsub-row ${infoSection === sec.id ? 'active' : ''}`}
-          onClick={() => setInfoSection(sec.id)}
-        >
-          <span className="nsub-main">{sec.label}</span>
-        </button>
+      {INFO_SECTIONS.map((sec, i) => (
+        <Fragment key={sec.id}>
+          {i > 0 && sec.group !== INFO_SECTIONS[i - 1].group && <div className="nsub-div" />}
+          <button
+            className={`nsub-row ${infoSection === sec.id ? 'active' : ''}`}
+            onClick={() => setInfoSection(sec.id)}
+          >
+            <span className="nsub-main">{sec.label}</span>
+          </button>
+        </Fragment>
       ))}
     </div>
   )

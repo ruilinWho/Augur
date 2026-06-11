@@ -543,6 +543,12 @@ button {
   flex-direction: column;
   gap: 4px;
 }
+/* 板块三组（总结 ｜ 新闻/社媒 ｜ 博客）间的细线分隔 */
+.nsub-div {
+  height: 1px;
+  margin: 4px 10px;
+  background: color-mix(in srgb, var(--border) 85%, transparent);
+}
 .nsub-row {
   display: flex;
   align-items: baseline;
@@ -3482,6 +3488,121 @@ input:focus:not(:focus-visible) {
   color: var(--text);
 }
 
+/* ───────── 结构化综合日报：总判断 + 主题卡（徽章/加粗下划线小标题/分点/个股 chip）+ 风险/明天 ───────── */
+.rreport {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rverdict {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  padding: 16px 22px;
+}
+.rverdict-l {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 7px;
+}
+.rverdict p {
+  font-size: 0.98rem;
+  line-height: 1.74;
+  color: var(--text);
+  margin: 0;
+}
+.rsec {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 22px;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.rsec:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  box-shadow: var(--shadow);
+}
+.rsec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.rsec-imp {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.imp-critical {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+.imp-high {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+.imp-med {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.imp-low {
+  background: var(--surface-2);
+  color: var(--text-faint);
+}
+/* 小标题：加粗 + 下划线（作者明确要求双重强调） */
+.rsec-headline {
+  font-family: var(--font-display);
+  font-size: 1.04rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.rsec-why {
+  font-size: 0.86rem;
+  line-height: 1.62;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.rsec-syms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.rblock {
+  border: 1px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  padding: 14px 22px;
+}
+.rblock-risk {
+  border-left: 3px solid var(--down);
+}
+.rblock-watch {
+  border-left: 3px solid var(--accent);
+}
+.rblock-l {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
 .know-empty {
   border: 1px dashed var(--border);
   border-radius: var(--radius);
@@ -3662,7 +3783,7 @@ input:focus:not(:focus-visible) {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  padding: 16px 18px;
+  padding: 14px 18px;
   transition:
     border-color 0.14s ease,
     box-shadow 0.14s ease;
@@ -3701,17 +3822,6 @@ input:focus:not(:focus-visible) {
 }
 .blog-card:hover .blog-title {
   color: var(--accent);
-}
-.blog-excerpt {
-  margin: 8px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.66;
-  color: var(--text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 .blog-syms {
   display: flex;

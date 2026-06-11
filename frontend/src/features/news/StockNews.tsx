@@ -10,43 +10,10 @@ import {
   type CitedPoint,
 } from '../../api'
 import { NarrativeBody } from './NarrativeTimeline'
+import { CitedList } from './shared'
 
 // 已尝试过自动生成时间线的标的（本会话内，避免每次挂载重复触发 / 失败死循环）
 const _autoNar = new Set<string>()
-
-// 要点：文字本身就是可点链接（hover 出下划线），不把 url 写出来；多来源时附极小上标。
-function CitedText({ p }: { p: CitedPoint }) {
-  const primary = p.refs[0]?.url
-  const extra = p.refs.slice(1)
-  return (
-    <span className="cited-text">
-      {primary ? (
-        <a className="cited-link" href={primary} target="_blank" rel="noreferrer">
-          {p.text}
-        </a>
-      ) : (
-        <span>{p.text}</span>
-      )}
-      {extra.map((r, i) => (
-        <a key={i} className="cited-sup" href={r.url} target="_blank" rel="noreferrer" title={r.source}>
-          {i + 2}
-        </a>
-      ))}
-    </span>
-  )
-}
-
-function CitedList({ items }: { items: CitedPoint[] }) {
-  return (
-    <ul className="cited-list">
-      {items.map((p, i) => (
-        <li key={i}>
-          <CitedText p={p} />
-        </li>
-      ))}
-    </ul>
-  )
-}
 
 // 子卡片：标题行点击折叠（无三角，靠 hover+点击发现）。每个子模块独立卡片、独立折叠。
 function SubCard({
@@ -201,13 +168,7 @@ function SocialCol({ label, tone, items }: { label: string; tone: string; items:
   return (
     <div className={`srn-sc srn-sc-${tone}`}>
       <span className="srn-sc-l">{label}</span>
-      <ul className="cited-list">
-        {items.map((p, i) => (
-          <li key={i}>
-            <CitedText p={p} />
-          </li>
-        ))}
-      </ul>
+      <CitedList items={items} />
     </div>
   )
 }

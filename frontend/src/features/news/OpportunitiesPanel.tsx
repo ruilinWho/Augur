@@ -1,45 +1,12 @@
 import { useState } from 'react'
 import Collapse from '../../components/Collapse'
-import { useUI } from '../../store'
-import {
-  useGenerateOpportunities,
-  useOpportunities,
-  type Opportunity,
-  type RelatedSymbol,
-} from '../../api'
+import { useGenerateOpportunities, useOpportunities, type Opportunity } from '../../api'
+import { RelatedChip } from './shared'
 
 const CONF: Record<string, { label: string; cls: string }> = {
   high: { label: '高把握', cls: 'cf-high' },
   med: { label: '中', cls: 'cf-med' },
   low: { label: '低', cls: 'cf-low' },
-}
-
-// 关联标的 chip：已解析→拆分胶囊「名字→看 · 研→深度研究」；已关注→陶土描边+圆点；未解析→灰
-function Chip({ r }: { r: RelatedSymbol }) {
-  const select = useUI((s) => s.select)
-  const research = useUI((s) => s.research)
-  if (!r.resolved || !r.symbol) {
-    return (
-      <span className="opp-chip unresolved" title="未能解析到具体上市公司代码">
-        {r.name}
-      </span>
-    )
-  }
-  const sym = r.symbol
-  return (
-    <span
-      className={`opp-chip2 ${r.in_watchlist ? 'watched' : ''}`}
-      title={r.in_watchlist ? `已关注 · ${r.sections.join(' / ')}` : sym}
-    >
-      <button className="oc-nm" onClick={() => select(sym)} title="在「看」里查看 K 线">
-        {r.in_watchlist && <span className="wdot" />}
-        {r.name}
-      </button>
-      <button className="oc-go" onClick={() => research(sym)} title="深度研究这只股">
-        研
-      </button>
-    </span>
-  )
 }
 
 function OppCard({ o }: { o: Opportunity }) {
@@ -55,7 +22,7 @@ function OppCard({ o }: { o: Opportunity }) {
       {o.related.length > 0 && (
         <div className="opp-related">
           {o.related.map((r, i) => (
-            <Chip key={i} r={r} />
+            <RelatedChip key={i} r={r} />
           ))}
         </div>
       )}

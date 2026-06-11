@@ -3,11 +3,11 @@ import { motion } from 'motion/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUI } from '../../store'
 import {
-  streamReport,
   useClusters,
   useGenerateClusters,
   useGenerateNarrative,
   useGenerateOpportunities,
+  useGenerateReport,
   useNarrative,
   useNewsFeed,
   useNewsReadState,
@@ -22,7 +22,9 @@ import {
 import Collapse from '../../components/Collapse'
 import { useNews } from './store'
 import { SOURCE_LANES, type SourceLaneId } from './consts'
-import { BlogList, Digest, FeedGroups } from './shared'
+import { BlogList, FeedGroups } from './shared'
+import Markdown from '../../components/Markdown'
+import DigestReport from './DigestReport'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
 import { IMP, NarrativeBody } from './NarrativeTimeline'
@@ -38,28 +40,12 @@ type ClusterSym = { symbol: string; name: string; watched: boolean }
 // ── 日报块（某天 digest + 生成/重生成）；总览与「日报」视图共用 ──
 function DigestBlock({ date, showGenerate = true }: { date: string | null; showGenerate?: boolean }) {
   const report = useNewsReport(date)
-  const qc = useQueryClient()
-  const [gen, setGen] = useState('')
-  const [genState, setGenState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const genReport = useGenerateReport()
   const [open, setOpen] = useState(true)
-
-  const run = async () => {
-    setGen('')
-    setGenState('loading')
-    try {
-      await streamReport(date, (d) => setGen((p) => p + d))
-      setGenState('idle')
-      setGen('')
-      qc.invalidateQueries({ queryKey: ['news-report'] })
-      qc.invalidateQueries({ queryKey: ['news-reports'] })
-    } catch (e) {
-      setGen((e as Error).message)
-      setGenState('error')
-    }
-  }
-
   const data = report.data
-  const streaming = genState === 'loading'
+  const generating = genReport.isPending
+  const structured = Boolean(data && (data.verdict || data.sections.length > 0))
+  const hasAny = Boolean(structured || data?.markdown)
   return (
     <section className="ovsec">
       <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
@@ -67,25 +53,29 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
         {showGenerate && (
           <button
             className="btn btn-primary jsm sec-gen"
-            disabled={streaming}
+            disabled={generating}
             onClick={(e) => {
               e.stopPropagation()
               setOpen(true)
-              run()
+              genReport.mutate(date)
             }}
           >
-            {streaming ? '生成中…' : data ? '重新生成' : '生成综合日报'}
+            {generating ? '生成中…' : hasAny ? '重新生成' : '生成综合日报'}
           </button>
         )}
       </div>
       <Collapse open={open}>
-        {streaming || genState === 'error' ? (
-          <div className={`report-card ${genState === 'error' ? 'err' : ''}`}>
-            {genState === 'error' ? <p>{gen}</p> : <Digest body={gen || '…'} />}
+        {generating ? (
+          <div className="report-card faint">正在分层蒸馏综合日报…（约 20–40 秒）</div>
+        ) : genReport.isError ? (
+          <div className="report-card err">
+            <p>{(genReport.error as Error).message}</p>
           </div>
-        ) : data ? (
+        ) : structured ? (
+          <DigestReport data={data!} />
+        ) : data?.markdown ? (
           <div className="report-card">
-            <Digest body={data.body} />
+            <Markdown body={data.markdown} />
           </div>
         ) : report.isLoading ? (
           <div className="report-card faint">加载日报…</div>
@@ -113,6 +103,7 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
   const qc = useQueryClient()
   const refreshNews = useRefreshNews()
   const refreshDirected = useRefreshDirected()
+  const genReport = useGenerateReport()
   const genOpps = useGenerateOpportunities()
   const readState = useNewsReadState()
   const [fetch, setFetch] = useState<GenStep>('idle')
@@ -135,15 +126,12 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
       setFetch(r.every((x) => x.status === 'rejected') ? 'err' : 'done')
       qc.invalidateQueries({ queryKey: ['news-feed'] })
     }
-    // 机会与日报同源、彼此独立 → 刷新后**并行**生成：一键即得「日报 + 今日机会(相关标的引导)」。
-    // 机会失败不连累日报状态（前者只是总结页底部的附加引导，§11 优雅降级）。
+    // 机会与日报同源、彼此独立 → 刷新后**并行**生成：一键即得「结构化日报 + 今日机会」。
+    // 两个 mutation 各自 onSuccess 失效相关查询；机会失败不连累日报状态（§11 优雅降级）。
     const oppsP = genOpps.mutateAsync(date).catch(() => {})
     try {
-      await streamReport(date, () => {})
+      await genReport.mutateAsync(date)
       setDigest('done')
-      qc.invalidateQueries({ queryKey: ['news-report'] })
-      qc.invalidateQueries({ queryKey: ['news-reports'] })
-      qc.invalidateQueries({ queryKey: ['news-read-state'] })
     } catch {
       setDigest('err')
     }
