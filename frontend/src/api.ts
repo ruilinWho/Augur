@@ -1476,6 +1476,7 @@ const discoveryEvidenceSchema = z.object({
   news_id: z.number(),
   title: z.string().default(''),
   source: z.string().default(''),
+  sources: z.array(z.string()).default([]), // 同一事件聚合的全部报道来源（≥2 即多源覆盖）
   url: z.string().default(''),
   date: z.string().default(''),
 })

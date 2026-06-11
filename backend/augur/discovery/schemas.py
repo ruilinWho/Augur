@@ -8,7 +8,8 @@ from pydantic import BaseModel
 class DiscoveryEvidence(BaseModel):
     news_id: int
     title: str = ""
-    source: str = ""
+    source: str = ""  # 主来源（聚合后的首个）
+    sources: list[str] = []  # 同一事件聚合的全部报道来源（≥2 即多源覆盖）
     url: str = ""
     date: str = ""
 

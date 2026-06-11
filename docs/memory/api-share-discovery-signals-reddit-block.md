@@ -28,10 +28,24 @@
   US:TSLA → r/TSLALounge（「$TSLA Daily Thread」）。
 
 ## API 配置一键导出/导入（分享给 contributor）
-- `runtime_config.export_api_config()`（LLM 连接 + 角色 + 数据信源 secret，**明文**，单用户本地）/
-  `import_api_config(payload)`（覆盖连接/角色、合并 secret，立即注入 os.environ）。
+- `runtime_config.export_api_config(allowed_secrets=None)`（LLM 连接 + 角色 + 数据信源 secret，**明文**，单用户本地）/
+  `import_api_config(payload, allowed_secrets=None)`（覆盖连接/角色、合并 secret，立即注入 os.environ）。
 - 路由 `GET/POST /settings/api-config/export|import`；前端 `exportApiConfig`/`importApiConfig` +
   设置·模型页「配置分享」section（导出下载 `augur-api-config.json`、导入读文件 POST）。
+
+### 【2026-06-11】只导出/导入**在用**的 secret（退役源 key 不外泄、自动清）
+作者反馈导出里混着已退役功能的 key（雪球 等）。根因：`export_api_config` 原样 dump `config.local.json` 的
+`secrets`，把历史遗留 key 也带出去。三层修复，单一白名单 = `news/source_registry.live_secret_names()`
+（＝SOURCES 的 `key_env` ∪ 每股 twtapi 的 `TWTAPI_KEY`；当前 = `{TIKHUB_KEY, TWTAPI_KEY}`）：
+- **导出过滤**：`export_api_config(allowed)` 只导出白名单内的 secret（路由传 `live_secret_names()`）。
+- **导入过滤**：`import_api_config(payload, allowed)` 只合并白名单内的——老版本导出文件里的退役 key 不会被重新引入。
+- **启动自愈**：`runtime_config.prune_secrets(allowed)` 在 `main.lifespan` `load()` 后跑，把
+  `config.local.json` 里不在白名单的遗留 key 删掉（只动存储、不碰 os.environ/`.env`；删了会 `log.info`）。
+  **退役一个源（从 SOURCES 删）→ 它的 key 下次启动自动清**，无需手动。
+- 实测：原 7 个 secret（含 `XUEQIU_TOKEN`/`TWTAPI_MCP_KEY`/`TUSHARE_TOKEN`/`BIYING_API_LICENCE`/`ITICK_API_KEY`）
+  启动后自动剩 `TIKHUB_KEY`+`TWTAPI_KEY`；导出无泄漏；导入老配置里的 `XUEQIU_TOKEN` 被挡。
+- **加新数据源记得把 key 纳入 `live_secret_names()`**（在 SOURCES 里给 `key_env`，或并入 `_EXTRA_LIVE_SECRETS`），
+  否则它的 key 会被当退役 key 清掉/不导出。
 
 ## 知·资讯 日期/板块 选择栏可折叠
 - news store 加 `navCollapsed` + `toggleNav`；`NewsNav` 加 `.nrail-collapse`（‹/›，与自选「分区」面板同款，
@@ -45,7 +59,16 @@
 - **按市场屏蔽**：`muted_markets`/`set_market_muted`/`market_counts`（复用主题屏蔽机制）；
   路由 `GET /discovery/markets` + `POST /discovery/markets/mute`；`list_candidates` SQL 里 `symbol NOT LIKE 'KR:%'`
   过滤；前端偏好面板加「市场」组（美/港/A/韩 chip，点击屏蔽）。实测屏蔽韩股 → 候选 25→24。
-- **去重**：候选证据除 URL 去重外，加 `_norm_title` 近重标题折叠（同一事件多源/多措辞只留一条）。
+- **去重 + 多源聚合 + 翻译刷新**（2026-06-11 加强，作者反馈「寻」里同一事件多源重复，如美团「发布AI浏览器Tabbit 1.0」
+  36氪/东方财富各一条）：抽出 `_dedup_aggregate(ev, fresh)` 做三件事——① 按 `_norm_title` 归一标题把同一事件折叠成
+  一条；② 把折叠掉的来源**聚合**进 `sources: list[str]`（卡上主来源后显 `+N`、hover 列全部来源，多源覆盖反成「重要度」信号）；
+  ③ `fresh`（读时拉 news_items 最新 `title_zh/source`）覆盖存量快照标题，**接住物化之后才补的中文翻译**。幂等。
+  - 两层都用：`refresh()` 物化时 `_dedup_aggregate(...)[:ev_cap]`（收集只按 URL 去重、保留同事件不同源变体，
+    上限 `_MAX_EVIDENCE`，给聚合留余量）；`list_candidates()`/`set_status()` 读时 `_enrich_evidence(conn, cands)`
+    再跑一遍 → **自愈**：物化在去重逻辑之前的存量重复当场清掉、无需重算。
+  - **坑**：evidence 加 `sources` 字段后前端拿不到——FastAPI `response_model=list[Candidate]` 按 `DiscoveryEvidence`
+    Pydantic 模型过滤，**漏改 `discovery/schemas.py` 的 `DiscoveryEvidence` 会被静默剥字段**。service 输出 + Pydantic
+    schema + 前端 `discoveryEvidenceSchema`（zod）三处都要加。前端 `.ev-src-name`（截断）+ `.ev-src-more`（`+N`，不动标题对齐）。
 
 ## 看：去掉两处噪音
 - 社媒热度删底部「推特14 小红书14 …」平台计数行（`StockNews` 去 `.srn-social-plat`/`platformEntries`）。
@@ -61,7 +84,8 @@
 ## 相关文件
 - 后端：`runtime_config.py`（export/import_api_config + 市场/信号无关）、`settings_router.py`（api-config 路由）、
   `market/service.py`（`momentum`/`parse_symbol`）、`discovery/service.py`（`signals`/`_signal_for`/market mute/
-  `_norm_title`/证据去重）、`discovery/router.py`（signals/markets）、`discovery/schemas.py`（MarketCount/MarketMutePatch）、
+  `_norm_title`/`_dedup_aggregate`/`_enrich_evidence` 证据去重+聚合+翻译刷新）、`discovery/router.py`（signals/markets）、
+  `discovery/schemas.py`（`DiscoveryEvidence.sources`/MarketCount/MarketMutePatch）、
   `news/reddit.py`（`search_subreddit`，被封返空）、`news/tikhub.py`（`search_reddit`）、`news/stock_sources.py`
   （`ensure_auto_reddit`/`_resolve_subreddit`/TikHub 兜底）。
 - 前端：`api.ts`（export/importApiConfig、useDiscoverySignals/Markets、useMuteMarket）、`settings/SettingsView.tsx`

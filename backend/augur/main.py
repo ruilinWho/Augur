@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -21,6 +22,7 @@ from .market import router as market_router
 from .market import search as search_mod
 from .news import router as news_router
 from .news import scheduler as news_scheduler
+from .news import source_registry
 from .notes import router as notes_router
 from .research import router as research_router
 from .settings_router import router as settings_router
@@ -37,9 +39,17 @@ def _warm_listings() -> None:
     search_mod.build_index()  # 用新数据重建索引
 
 
+log = logging.getLogger("augur")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runtime_config.load()  # 把 UI 存的 API key 注入 os.environ（gateway/适配器即时可见）
+    # 自愈：清掉退役信源（雪球/Tushare/必盈/iTick 等）在 config.local.json 里的遗留 key——
+    # 它们已无任何代码引用，留着只会污染「配置分享」导出。退役一个源即自动清，无需手动。
+    pruned = runtime_config.prune_secrets(source_registry.live_secret_names())
+    if pruned:
+        log.info("已清理退役信源遗留 secret：%s", ", ".join(sorted(pruned)))
     init_db()
     threading.Thread(target=_warm_listings, name="warm-listings", daemon=True).start()
     news_scheduler.start()  # 每日抓取 +（若 LLM 就绪）生成趋势日报

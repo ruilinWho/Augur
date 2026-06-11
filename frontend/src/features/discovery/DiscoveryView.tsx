@@ -68,7 +68,13 @@ function CandidateCard({ c, signal }: { c: Candidate; signal?: DiscoverySignal }
           {c.evidence.map((e) => (
             <a key={e.news_id} className="cand-ev-row" href={e.url} target="_blank" rel="noreferrer">
               <span className="cand-ev-date">{e.date ? e.date.slice(5) : '—'}</span>
-              <span className="cand-ev-src">{e.source}</span>
+              <span
+                className="cand-ev-src"
+                title={e.sources.length > 1 ? e.sources.join(' · ') : undefined}
+              >
+                <span className="ev-src-name">{e.source}</span>
+                {e.sources.length > 1 && <i className="ev-src-more">+{e.sources.length - 1}</i>}
+              </span>
               <span className="cand-ev-title">{e.title}</span>
             </a>
           ))}

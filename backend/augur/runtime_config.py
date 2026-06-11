@@ -155,25 +155,34 @@ def get_secret(name: str) -> str:
 
 
 # ───────────────────────── API 配置一键导出/导入（分享给 contributor）─────────────────────────
-def export_api_config() -> dict:
+def export_api_config(allowed_secrets: set[str] | None = None) -> dict:
     """导出全部 API 配置（LLM 连接 + 角色路由 + 数据信源 secret）为可分享 JSON。
 
     单用户本地工具：**明文**导出（作者明确「只有我自己用」），用于把整套配置发给 contributor
     一键导入、快速迭代。护栏不变：永不打日志、永不入 git。
+
+    `allowed_secrets`（信源层传入活 key 白名单）非空时**只导出在用的 secret**——退役源（雪球/
+    Tushare/必盈/iTick 等）的遗留 key 不外泄、不污染分享出去的配置。
     """
     data = _read()
+    secrets = data.get("secrets") or {}
+    if allowed_secrets is not None:
+        secrets = {k: v for k, v in secrets.items() if k in allowed_secrets}
     return {
         "_augur_config": "api-keys-v1",
         "llm_connections": data.get("llm_connections") or [],
         "llm_roles": data.get("llm_roles") or {},
-        "secrets": data.get("secrets") or {},
+        "secrets": secrets,
     }
 
 
-def import_api_config(payload: dict) -> dict:
+def import_api_config(payload: dict, allowed_secrets: set[str] | None = None) -> dict:
     """从导出 JSON 导入：覆盖 LLM 连接/角色路由、合并数据信源 secret，其余本地设置保留。
 
     导入后立即把 secret 注入 os.environ（各适配器即时可用）。返回 {connections, secrets} 计数。
+
+    `allowed_secrets` 非空时**只合并在用的 secret**——老版本导出的文件可能带退役源遗留 key，
+    过滤掉避免它们被重新引入。
     """
     if not isinstance(payload, dict):
         raise ValueError("配置文件格式不对（应为 JSON 对象）")
@@ -191,7 +200,9 @@ def import_api_config(payload: dict) -> dict:
             data["llm_roles"] = payload["llm_roles"]
         if isinstance(payload.get("secrets"), dict):
             merged = data.get("secrets") or {}
-            merged.update({k: str(v) for k, v in payload["secrets"].items() if v})
+            for k, v in payload["secrets"].items():
+                if v and (allowed_secrets is None or k in allowed_secrets):
+                    merged[k] = str(v)
             data["secrets"] = merged
         _write(data)
         for k, v in (data.get("secrets") or {}).items():
@@ -201,6 +212,24 @@ def import_api_config(payload: dict) -> dict:
             "connections": len(data.get("llm_connections") or []),
             "secrets": len(data.get("secrets") or {}),
         }
+
+
+def prune_secrets(allowed_secrets: set[str]) -> list[str]:
+    """删除 config.local.json 里不在 `allowed_secrets` 的数据信源 secret（退役源遗留 key）。
+
+    返回被删的名字（供日志计数，**不返回值**）。只动存储里的 secrets 字典——不碰 os.environ
+    （死 key 无副作用，下次启动 load() 自然不再注入），也不碰 `.env` 提供的环境变量。
+    """
+    with _lock:
+        data = _read()
+        secrets = data.get("secrets") or {}
+        dead = [k for k in secrets if k not in allowed_secrets]
+        if dead:
+            for k in dead:
+                secrets.pop(k, None)
+            data["secrets"] = secrets
+            _write(data)
+        return dead
 
 
 # ───────────────────────── LLM 连接（动态列表）─────────────────────────

@@ -132,6 +132,71 @@ def _norm_title(s: str) -> str:
     return re.sub(r"[\s\W_]+", "", (s or "").lower())[:48]
 
 
+def _dedup_aggregate(ev: list[dict], fresh: dict[int, dict]) -> list[dict]:
+    """证据去重 + 多源聚合 + 翻译刷新：按归一标题把同一事件折叠成一条，合并报道来源。
+
+    `fresh`（可空）= {news_id: {title, title_zh, source, url, pub}}：读时用最新译文/来源覆盖
+    存量快照（接住物化之后才补上的中文翻译）。保持首次出现顺序（输入为新→旧）。幂等。
+    """
+    groups: dict[str, dict] = {}
+    order: list[str] = []
+    for e in ev:
+        nid = e.get("news_id")
+        f = (fresh.get(nid) if nid is not None else None) or {}
+        title = (f.get("title_zh") or f.get("title") or e.get("title") or "").strip()
+        source = (f.get("source") or e.get("source") or "").strip()
+        url = (e.get("url") or f.get("url") or "").strip()
+        date = (e.get("date") or (f.get("pub") or "")[:10] or "").strip()
+        srcs = [s for s in (e.get("sources") or []) if s]
+        if source and source not in srcs:
+            srcs.insert(0, source)
+        key = _norm_title(title) or url or str(nid)
+        g = groups.get(key)
+        if g is None:
+            groups[key] = {
+                "news_id": nid,
+                "title": title[:200],
+                "source": srcs[0] if srcs else source,
+                "sources": list(dict.fromkeys(srcs)),
+                "url": url,
+                "date": date,
+            }
+            order.append(key)
+        else:
+            for s in srcs:
+                if s not in g["sources"]:
+                    g["sources"].append(s)
+    return [groups[k] for k in order]
+
+
+def _enrich_evidence(conn, cands: list[dict]) -> None:
+    """读时清洗候选证据：批量拉最新 title_zh/来源，再 _dedup_aggregate（翻译跟进 + 去重 + 聚合）。
+
+    自愈：把物化在 _dedup_aggregate 之前、仍带重复标题的存量证据当场清掉，无需重算。
+    """
+    ids = list(
+        {e["news_id"] for c in cands for e in c.get("evidence", []) if e.get("news_id") is not None}
+    )
+    fresh: dict[int, dict] = {}
+    for i in range(0, len(ids), 400):  # 避开 SQLite 变量上限
+        chunk = ids[i : i + 400]
+        qs = ",".join("?" * len(chunk))
+        for r in conn.execute(
+            f"SELECT id, title, title_zh, source, url, published_at AS pub "
+            f"FROM news_items WHERE id IN ({qs})",
+            tuple(chunk),
+        ).fetchall():
+            fresh[r["id"]] = {
+                "title": r["title"],
+                "title_zh": r["title_zh"],
+                "source": r["source"],
+                "url": r["url"],
+                "pub": r["pub"],
+            }
+    for c in cands:
+        c["evidence"] = _dedup_aggregate(c.get("evidence", []), fresh)
+
+
 def _market(symbol: str) -> str:
     return symbol.partition(":")[0]
 
@@ -185,7 +250,6 @@ def refresh() -> dict:
                     "days": set(),
                     "evidence": [],
                     "ev_urls": set(),
-                    "ev_titles": set(),
                     "sym_counts": {},
                     "themes": {},
                 }
@@ -199,17 +263,10 @@ def refresh() -> dict:
                 g["days"].add(day)
             url = (r["url"] or "").strip()
             title = (r["title_zh"] or r["title"] or "").strip()
-            tkey = _norm_title(title)
-            # 去重：URL 去重 + 近重标题折叠（同一事件多源/多措辞只留一条），再封顶
-            if (
-                url
-                and url not in g["ev_urls"]
-                and (not tkey or tkey not in g["ev_titles"])
-                and len(g["evidence"]) < ev_cap
-            ):
+            # 只按 URL 去重收集（保留同事件不同来源的变体，供稍后聚合来源）；标题级去重 +
+            # 多源聚合统一在 _dedup_aggregate 里做。多收一些给聚合留余量，封顶到 _MAX_EVIDENCE。
+            if url and url not in g["ev_urls"] and len(g["evidence"]) < _MAX_EVIDENCE:
                 g["ev_urls"].add(url)
-                if tkey:
-                    g["ev_titles"].add(tkey)
                 g["evidence"].append(
                     {
                         "news_id": r["nid"],
@@ -228,6 +285,8 @@ def refresh() -> dict:
             # 主 symbol = 组内提及最多者（双列里取信号更强的那一边）
             symbol = max(g["sym_counts"].items(), key=lambda kv: kv[1])[0]
             theme = max(g["themes"].items(), key=lambda kv: kv[1])[0] if g["themes"] else ""
+            # 去重 + 多源聚合 + 封顶：同一事件多源折叠成一条、合并报道来源
+            evidence = _dedup_aggregate(g["evidence"], {})[:ev_cap]
             candidates.append(
                 {
                     "symbol": symbol,
@@ -235,7 +294,7 @@ def refresh() -> dict:
                     "count": g["count"],
                     "days": sorted(g["days"]),
                     "theme": theme,
-                    "evidence": g["evidence"],
+                    "evidence": evidence,
                 }
             )
         # 只对信号最强的前 _JUDGE_MAX 个跑 LLM 判定（提及多/出现天数多优先）；其余弱信号长尾
@@ -422,7 +481,9 @@ def list_candidates(status: str = "new", limit: int = 100) -> list[dict]:
     conn = get_conn()
     try:
         rows = conn.execute(sql, tuple(args)).fetchall()
-        return [_out(r) for r in rows]
+        cands = [_out(r) for r in rows]
+        _enrich_evidence(conn, cands)  # 读时去重 + 多源聚合 + 翻译跟进（自愈存量重复）
+        return cands
     finally:
         conn.close()
 
@@ -463,7 +524,9 @@ def set_status(symbol: str, status: str) -> dict:
         row = conn.execute(
             "SELECT * FROM discovery_candidates WHERE symbol = ?", (symbol,)
         ).fetchone()
-        return _out(row)
+        out = _out(row)
+        _enrich_evidence(conn, [out])
+        return out
     finally:
         conn.close()
 

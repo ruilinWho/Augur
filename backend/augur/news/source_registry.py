@@ -244,6 +244,19 @@ def sanitize_config(ftype: str, value) -> list:
     return []
 
 
+# 每股专属 X 源用 twtapi（失败回退 TikHub），它不在 SOURCES 注册表里、但 key 仍在用 → 算「活」。
+_EXTRA_LIVE_SECRETS = {"TWTAPI_KEY"}
+
+
+def live_secret_names() -> set[str]:
+    """当前代码真正在用的数据信源 secret env 名集合（导出/导入/清理的白名单）。
+
+    ＝ SOURCES 的 key_env ∪ 每股 twtapi。退役源（雪球/Tushare/必盈/iTick、twtapi_mcp 等）的遗留
+    key 不在此集——会被导出过滤掉、并由启动清理从 config.local.json 剔除（见 settings_router/main）。
+    """
+    return {s["key_env"] for s in SOURCES if s.get("key_env")} | _EXTRA_LIVE_SECRETS
+
+
 def status_list() -> list[dict]:
     """每条信源 + 计算后的状态（供前端按 group 分组、显徽标）。"""
     rss_n = len(sources.load_feeds())

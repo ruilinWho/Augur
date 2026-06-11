@@ -5306,11 +5306,22 @@ a.opp-ev-item:hover {
 .cand-ev-src {
   flex: none;
   width: 8.5em;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   font-size: 0.74rem;
   color: var(--accent);
+}
+.cand-ev-src .ev-src-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.cand-ev-src .ev-src-more {
+  flex: none;
+  font-style: normal;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
 }
 .cand-ev-title {
   flex: 1;

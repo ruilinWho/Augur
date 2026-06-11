@@ -335,15 +335,23 @@ async def export_api_config() -> dict:
     """导出全部 API 配置（LLM 连接 + 角色 + 数据信源 key）为可分享 JSON。
 
     本地单用户工具：**明文**导出（作者明确「只有我自己用」），发给 contributor 一键导入快速迭代。
+    只导出**在用**的数据信源 key——退役源（雪球/Tushare 等）遗留 key 不外泄。
     """
-    return await run_in_threadpool(runtime_config.export_api_config)
+    return await run_in_threadpool(
+        runtime_config.export_api_config, source_registry.live_secret_names()
+    )
 
 
 @router.post("/api-config/import")
 async def import_api_config(payload: dict) -> dict:
-    """导入 API 配置 JSON：覆盖 LLM 连接/角色、合并数据信源 key，其余本地设置保留。即时生效。"""
+    """导入 API 配置 JSON：覆盖 LLM 连接/角色、合并数据信源 key，其余本地设置保留。即时生效。
+
+    只合并**在用**的 key——老版本导出文件里的退役源遗留 key 被过滤，不会重新引入。
+    """
     try:
-        return await run_in_threadpool(runtime_config.import_api_config, payload)
+        return await run_in_threadpool(
+            runtime_config.import_api_config, payload, source_registry.live_secret_names()
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
