@@ -22,7 +22,7 @@ from .. import runtime_config
 from ..llm import gateway
 from ..market import search
 from ..storage import get_conn
-from . import classify, ingest, reddit, tikhub, twtapi
+from . import classify, ingest, tikhub, twtapi
 from .service import _load_prompt, _parse_json_lenient
 
 # kind 抓取支持矩阵：X(twtapi→TikHub 回退) / Reddit(public JSON) / RSS·官网·IR·财经站(feedparser)
@@ -277,18 +277,22 @@ def _fetch_one(s: dict, cutoff: datetime) -> tuple[dict, list[dict], str]:
             return s, [], f"Threads 抓取失败：{e}"
         return s, items, "" if items else "Threads 近一周无匹配帖子"
     if kind == "reddit":
+        # 子版名 → 抓该子版 feed（专属子板块，经 TikHub，reddit.com 直连已被 IP 封）
         sub = _subreddit(ref)
-        items = reddit.fetch_subreddits([sub], cutoff) if sub else []
-        if items:
-            return s, items, ""  # 直连 Reddit 子版仍可用（目前多被 403 封，少见）
-        # 直连被封/无果 → 退 TikHub 按股名搜 Reddit，取该股最相关讨论
-        q = search.display_name(s["symbol"]) or _keyword(ref) or sub
+        if sub:
+            try:
+                items = tikhub.fetch_subreddit_feed(sub, cutoff)
+            except Exception as e:  # noqa: BLE001
+                return s, [], f"子版 r/{sub} 抓取失败：{e}"
+            return s, items, "" if items else f"子版 r/{sub} 近期无新帖"
+        # ref 非子版名（旧的关键词源/解析不到子版）→ TikHub 按股名关键词搜 Reddit
+        q = _keyword(ref) or search.display_name(s["symbol"])
         if not q:
             return s, [], "无法解析 Reddit 源"
         try:
             items = tikhub.search_reddit(q, cutoff)
         except Exception as e:  # noqa: BLE001
-            return s, [], f"Reddit 直连被封、TikHub 兜底失败：{e}"
+            return s, [], f"Reddit 关键词搜索失败：{e}"
         return s, items, "" if items else "Reddit 近一月无该股相关讨论"
     url = _feed_url(ref)
     if url:
@@ -393,38 +397,32 @@ _GENERIC_SUBS = {
 
 
 def _resolve_subreddit(symbol: str) -> str:
-    """搜该股「专属子板块」：按 ticker/公司名匹配，挑名字最贴合、订阅最多的非通用子版。
-
-    无好结果 → ''（不硬塞通用子版，免噪音）。Reddit 限流/失败也返回 ''。
+    """解析该股「专属子板块」：用 TikHub Reddit 自动补全（reddit.com 直连搜索已被 IP 封 403）找候选，
+    取第一个名字含 ticker/公司名、非通用的子版（typeahead 已按相关性排序）。无好结果 → ''。
     """
+    if not runtime_config.has_secret("TIKHUB_KEY"):
+        return ""
     _, _, code = symbol.partition(":")
     ticker = code.upper()
     name = search.display_name(symbol)
-    cands: list[dict] = []
+    cands: list[str] = []
     seen: set[str] = set()
     for q in (ticker, name):
         if not q:
             continue
-        for c in reddit.search_subreddit(q):
-            key = c["name"].lower()
-            if key not in seen:
-                seen.add(key)
-                cands.append(c)
+        for sub in tikhub.search_subreddit_typeahead(q):
+            if sub.lower() not in seen:
+                seen.add(sub.lower())
+                cands.append(sub)
     tok = ticker.lower()
     name_tok = re.sub(r"[^a-z0-9]", "", (name or "").lower())[:14]
-    best, best_score = "", -1
-    for c in cands:
-        n = c["name"].lower()
-        if n in _GENERIC_SUBS or c.get("over18"):
+    for sub in cands:  # typeahead 已按相关性排序，取第一个贴合且非通用的
+        n = sub.lower()
+        if n in _GENERIC_SUBS:
             continue
-        ticker_match = bool(tok) and len(tok) >= 2 and tok in n
-        name_match = bool(name_tok) and len(name_tok) >= 4 and name_tok in n
-        if not (ticker_match or name_match):
-            continue
-        score = c["subscribers"] + (200000 if ticker_match else 0)  # ticker 命中优先
-        if score > best_score:
-            best, best_score = c["name"], score
-    return best
+        if (len(tok) >= 2 and tok in n) or (len(name_tok) >= 4 and name_tok in n):
+            return sub
+    return ""
 
 
 def _add_auto(symbol: str, kind: str, name: str, ref: str, note: str = "") -> None:
@@ -444,21 +442,21 @@ def ensure_auto_reddit(symbol: str) -> str:
     """若该股还没有 Reddit 专属信源，自动加一个**已启用**的 Reddit 源（added_by='auto'），让每股
     「最丰富的 Reddit 相关讨论」开箱即用——作者要的「精髓」，不必手动 discover+启用。
 
-    优先解析其真实「专属子板块」（直连 Reddit，若可用）；直连被 403 封时退而用 TikHub 按股名搜
-    Reddit（需 TIKHUB_KEY）。只在没有任何 Reddit 源时尝试；都不可用 → 跳过、不加噪音。返回源标识。
+    优先解析其**专属子板块**（TikHub Reddit 自动补全 → 抓该子版 feed，reddit.com 直连已被封）；
+    解析不到则退而用 TikHub 按股名搜 Reddit。需 TIKHUB_KEY；都不可用 → 跳过。返回源标识。
     """
     if any(s["kind"] == "reddit" for s in list_sources(symbol)):
         return ""
-    sub = _resolve_subreddit(symbol)  # 直连可用时解析真实子板块（目前多被封 → ''）
+    sub = _resolve_subreddit(symbol)  # TikHub typeahead 解析专属子板块
     if sub:
-        _add_auto(symbol, "reddit", f"r/{sub}", sub, note="自动解析的专属子板块")
+        _add_auto(symbol, "reddit", f"r/{sub}", sub, note="自动解析的专属子板块（经 TikHub）")
         return sub
     if not runtime_config.has_secret("TIKHUB_KEY"):
-        return ""  # 直连被封又没 TikHub → 无从取 Reddit，跳过
+        return ""
     name = search.display_name(symbol)
     if not name:
         return ""
-    _add_auto(symbol, "reddit", f"Reddit · {name}", name, note="经 TikHub 搜 Reddit（直连被封）")
+    _add_auto(symbol, "reddit", f"Reddit · {name}", name, note="经 TikHub 关键词搜 Reddit")
     return name
 
 

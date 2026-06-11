@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 import feedparser
 
 from ..storage import get_conn
-from . import classify, cls, eastmoney_news, reddit, sources, tikhub
+from . import classify, cls, eastmoney_news, sources, tikhub
 from . import filter as noise_filter
 from ._http import get as http_get
 
@@ -26,10 +26,9 @@ _ADAPTERS = {
     "财联社": cls.fetch_cls,
     "东方财富": eastmoney_news.fetch_eastmoney,
     "推特": tikhub.fetch_twitter,  # 唯一推特源（TikHub）；twtapi 桥已退役，仅每股专属信源仍用
-    "Reddit": reddit.fetch_reddit,
     "小红书": tikhub.fetch_xiaohongshu,
     "Threads": tikhub.fetch_threads,
-    "Reddit · TikHub": tikhub.fetch_reddit,
+    "Reddit · TikHub": tikhub.fetch_reddit,  # 唯一 Reddit 源（TikHub）；reddit.com 直连已被 IP 封
 }
 
 _TIMEOUT = 12.0
@@ -41,7 +40,6 @@ _WS_RE = re.compile(r"\s+")
 _HEALTH_SOURCE_IDS = {
     "财联社": "cls",
     "东方财富": "eastmoney_news",
-    "Reddit": "reddit",
     "推特": "tikhub_twitter",
     "小红书": "xiaohongshu",
     "Threads": "tikhub_threads",
@@ -202,10 +200,7 @@ def ingest_all() -> dict:
     # prune 时豁免专用适配器 source（含 TikHub 推特/Reddit 的每查询/账号名），否则其条目
     # （不在 feeds.yaml）会被当"已移除源"删掉。退役的 twtapi X·<handle> 不再豁免 → 被清理
     _prune_removed_sources(
-        {f["name"] for f in feeds}
-        | set(_ADAPTERS)
-        | reddit.source_names()
-        | tikhub.source_names()
+        {f["name"] for f in feeds} | set(_ADAPTERS) | tikhub.source_names()
     )
     cutoff = datetime.now(UTC) - timedelta(days=_RECENCY_DAYS)
     all_items: list[dict] = []

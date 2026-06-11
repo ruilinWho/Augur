@@ -15,7 +15,7 @@ Reddit 搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还
 from __future__ import annotations
 
 from .. import runtime_config
-from . import eastmoney_news, reddit, sources, tikhub
+from . import eastmoney_news, sources, tikhub
 
 # access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
 # group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
@@ -106,21 +106,7 @@ SOURCES: list[dict] = [
         ],
     },
     # ──────────── 论坛 · 社媒 / 社区情绪 ────────────
-    {
-        "id": "reddit",
-        "name": "Reddit",
-        "group": "forum",
-        "access": "free_api",
-        "active": True,
-        "payment": "免费",
-        "note": "Subreddit 讨论",
-        "docs_url": "https://developers.reddit.com/docs/capabilities/server/reddit-api",
-        "official_url": "https://developers.reddit.com/new",
-        "setup": "当前 public JSON 无需 key；重度抓取、写入或私有能力再走官方 Devvit/OAuth。",
-        "best_use": "追踪 subreddit 新帖、个股子版、WSB/ValueInvesting 等弱信号。",
-        "boundary": "轻量只读可用；放大抓取规模前要走官方路径并尊重限流。",
-        "config": [{"field": "subreddits", "type": "tags", "label": "Subreddits"}],
-    },
+    # 注：reddit.com 直连 public JSON 已被按 IP 封 403，直连源已删除；Reddit 全走 TikHub（下）。
     {
         "id": "tikhub_reddit",
         "name": "Reddit · TikHub",
@@ -195,7 +181,6 @@ _CONFIG_VALUE = {
         "bloomberg", "channels", ["科技", "Markets"]
     ),
     ("eastmoney_news", "keywords"): eastmoney_news.keywords,
-    ("reddit", "subreddits"): reddit.subreddits,
     ("tikhub_reddit", "keywords"): tikhub.reddit_keywords,
     ("xiaohongshu", "keywords"): tikhub.xiaohongshu_keywords,
     ("tikhub_threads", "keywords"): tikhub.threads_keywords,

@@ -928,6 +928,123 @@ def search_reddit(
     )
 
 
+_SUBREDDIT_RE = re.compile(r"^[A-Za-z0-9_]{2,40}$")
+
+
+def search_subreddit_typeahead(query: str, limit: int = 10) -> list[str]:
+    """TikHub Reddit 自动补全 → 子版名列表（去 `r/` 前缀，按相关性）。用于解析某股专属子板块。
+
+    替代 reddit.com 直连搜索（已被 403 封）。失败/无结果 → []。
+    """
+    q = _norm_query(query)
+    if not q:
+        return []
+    try:
+        data = _request("/api/v1/reddit/app/fetch_search_typeahead", {"query": q})
+    except TikhubError:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for d in _iter_dicts(data.get("data", data)):
+        for k in ("name", "prefixedName", "display_name"):
+            v = d.get(k)
+            if not isinstance(v, str) or not v:
+                continue
+            name = v.strip().removeprefix("/r/").removeprefix("r/").strip("/")
+            if _SUBREDDIT_RE.match(name) and name.lower() not in seen:
+                seen.add(name.lower())
+                out.append(name)
+        if len(out) >= limit:
+            break
+    return out[:limit]
+
+
+def _subreddit_feed_items(
+    data: dict, *, sub: str, lang: str, category: str, cutoff: datetime | None, limit: int
+) -> list[dict]:
+    """从子版 feed 的 GraphQL（结构按子版/排序略有差异）里抽帖子。
+
+    **只认帖子节点本身**：dict 直接带 `title` + (`permalink` 或 `createdAt`)，不用递归的 `_best_*`
+    （那会把同一帖在容器/子节点里反复抽出、还混进 gif/头像等资源 url）。按归一标题去重。
+    """
+    source = f"Reddit·r/{sub}"
+    items: list[dict] = []
+    seen: set[str] = set()
+    for d in _iter_dicts(data.get("data", data)):
+        title = d.get("title")
+        if not isinstance(title, str):
+            continue
+        title = _clean(title)
+        if not title or len(title) < 6 or is_noise(title):
+            continue
+        permalink = d.get("permalink") if isinstance(d.get("permalink"), str) else ""
+        created = d.get("createdAt") or d.get("created_utc") or d.get("created")
+        pid = d.get("id") if isinstance(d.get("id"), str) else ""
+        if not (permalink or created or pid):
+            continue  # 不是帖子节点（容器/资源节点没有直接的 permalink/时间/id）
+        tkey = _WS_RE.sub("", title.lower())[:60]
+        if tkey in seen:
+            continue
+        dt = _parse_dt(created)
+        if cutoff is not None and dt is not None and dt < cutoff:
+            continue
+        seen.add(tkey)
+        if permalink.startswith("/"):
+            url = f"https://www.reddit.com{permalink}"
+        elif permalink.startswith("http"):
+            url = permalink
+        else:
+            url = f"https://www.reddit.com/r/{sub}"
+        author = ""
+        ai = d.get("authorInfo")
+        if isinstance(ai, dict):
+            author = _clean(ai.get("name") or "", max_len=80)
+        if not author and isinstance(d.get("author"), str):
+            author = _clean(d.get("author"), max_len=80)
+        body = _clean(d.get("selftext") or d.get("body") or "", max_len=400)
+        summary = " · ".join(x for x in (author, body) if x)
+        theme, topics = classify.classify_rule(title, summary, category)
+        items.append(
+            {
+                "source": source,
+                "title": title[:500],
+                "url": url,
+                "summary": summary[:700],
+                "lang": lang,
+                "category": category,
+                "published_at": dt.isoformat() if dt else None,
+                "theme": theme,
+                "topics": json.dumps(topics, ensure_ascii=False),
+                "classified_by": "rule",
+            }
+        )
+        if len(items) >= limit:
+            break
+    return items
+
+
+def fetch_subreddit_feed(
+    subreddit_name: str,
+    cutoff: datetime | None = None,
+    limit: int = _STOCK_SOURCE_LIMIT,
+    sort: str = "HOT",
+) -> list[dict]:
+    """抓某个子版（专属子板块）的帖子流——TikHub 代理 Reddit（reddit.com 直连已被 IP 封 403）。
+
+    sort: BEST/HOT/NEW/TOP/CONTROVERSIAL/RISING。失败抛 Tikhub*；子版名非法 → []。
+    """
+    sub = (subreddit_name or "").strip().removeprefix("r/").strip("/")
+    if not _SUBREDDIT_RE.match(sub):
+        return []
+    data = _request(
+        "/api/v1/reddit/app/fetch_subreddit_feed",
+        {"subreddit_name": sub, "sort": sort, "need_format": "false"},
+    )
+    return _subreddit_feed_items(
+        data, sub=sub, lang="en", category="forum", cutoff=cutoff, limit=limit
+    )
+
+
 def user_tweets(
     screen_name: str, cutoff: datetime | None = None, limit: int = _STOCK_SOURCE_LIMIT
 ) -> list[dict]:
