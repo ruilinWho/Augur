@@ -3782,6 +3782,253 @@ input:focus:not(:focus-visible) {
   color: var(--text-muted);
 }
 
+/* ───────── 反证雷达：立论（看多/看空）+ 证伪条件 + 反证/印证告警 ───────── */
+.theses {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.thesis {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 20px;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.thesis:hover {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  box-shadow: var(--shadow);
+}
+.thesis.challenged {
+  border-left: 3px solid var(--down); /* 被反证：用「下跌/坏」色描边提醒 */
+}
+.thesis-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+/* 立场徽章：看多=上涨色 / 看空=下跌色 / 观望=中性（随作者涨跌色习惯一致） */
+.tstance {
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.st-bull {
+  background: color-mix(in srgb, var(--up) 15%, transparent);
+  color: var(--up);
+}
+.st-bear {
+  background: color-mix(in srgb, var(--down) 15%, transparent);
+  color: var(--down);
+}
+.st-watch {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.thesis-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+.thesis-name:hover {
+  color: var(--accent);
+}
+.thesis-name .wdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+.thesis-mkt {
+  font-size: 0.66rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.5;
+}
+.thesis-flag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--down);
+}
+.thesis-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+}
+.tbtn {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  padding: 2px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.tbtn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.tdel:hover {
+  color: var(--down);
+}
+.thesis-line {
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 8px 0 0;
+}
+.tconds {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.tcond {
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.tcond-text {
+  color: var(--text-muted);
+}
+.tcond-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+.tcond-empty {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+}
+/* 告警：反证（下跌/坏色）/ 印证（上涨/好色）。summary 本身即可点链接回原文。 */
+.talert {
+  margin: 7px 0 0 24px;
+  padding: 7px 11px;
+  border-radius: 7px;
+  border-left: 2px solid var(--border);
+  background: var(--surface-2);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.talert.refute {
+  border-left-color: var(--down);
+  background: color-mix(in srgb, var(--down) 7%, var(--surface-2));
+}
+.talert.support {
+  border-left-color: var(--up);
+  background: color-mix(in srgb, var(--up) 7%, var(--surface-2));
+}
+.talert-tag {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.talert.refute .talert-tag {
+  background: color-mix(in srgb, var(--down) 18%, transparent);
+  color: var(--down);
+}
+.talert.support .talert-tag {
+  background: color-mix(in srgb, var(--up) 18%, transparent);
+  color: var(--up);
+}
+/* 立论编辑器（陶土淡描边，区别于只读卡） */
+.teditor {
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.teditor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.teditor-pick {
+  width: auto;
+  min-width: 132px;
+}
+.teditor-sym {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text);
+}
+.teditor-sym .wdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.teditor-draft {
+  margin-left: auto;
+}
+.tconds-input {
+  resize: vertical;
+  line-height: 1.6;
+  font-family: inherit;
+}
+.teditor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* 分区日报 mover 上的 ⚡反证 inline 徽章（跨功能缝合，点击跳雷达） */
+.smover-radar {
+  border: 1px solid color-mix(in srgb, var(--down) 40%, var(--border));
+  background: color-mix(in srgb, var(--down) 10%, transparent);
+  color: var(--down);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.smover-radar:hover {
+  background: color-mix(in srgb, var(--down) 18%, transparent);
+}
+
 .know-empty {
   border: 1px dashed var(--border);
   border-radius: var(--radius);

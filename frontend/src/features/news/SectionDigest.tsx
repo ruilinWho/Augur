@@ -7,10 +7,12 @@ import {
   useRefreshDirected,
   useRefreshNews,
   useSectionReports,
+  useThesisFlags,
   type SectionBoard,
   type SectionMover,
 } from '../../api'
 import { CitedList } from './shared'
+import { useNews } from './store'
 
 const fmtDate = (d: string) => {
   const [, m, day] = d.split('-')
@@ -30,10 +32,11 @@ const IMPORTANCE: Record<string, { label: string; cls: string }> = {
 }
 const MKT_BADGE: Record<string, string> = { US: '美', HK: '港', CN: 'A', KR: '韩' }
 
-// 逐股异动：重要性徽章 · 名字→看 · 市场/二级板块 · 今日涨跌（仅今天）· 研 · 一句话发生了什么 · 分点。
-function Mover({ m, isToday }: { m: SectionMover; isToday: boolean }) {
+// 逐股异动：重要性徽章 · 名字→看 · 反证雷达徽章 · 市场/二级板块 · 今日涨跌（仅今天）· 研 · 分点。
+function Mover({ m, isToday, flag }: { m: SectionMover; isToday: boolean; flag?: string }) {
   const select = useUI((s) => s.select)
   const research = useUI((s) => s.research)
+  const setInfoSection = useNews((s) => s.setInfoSection)
   // 历史日不取实时报价（报价只反映"现在"，挂到过去某天会误导）——传 null 即禁用查询
   const q = useQuote(isToday ? m.symbol : null)
   const imp = IMPORTANCE[m.importance] ?? IMPORTANCE.med
@@ -47,6 +50,15 @@ function Mover({ m, isToday }: { m: SectionMover; isToday: boolean }) {
           <span className="wdot" />
           {m.name}
         </button>
+        {flag === 'refute' && (
+          <button
+            className="smover-radar"
+            onClick={() => setInfoSection('radar')}
+            title="反证雷达：这只票的立论被新信息挑战"
+          >
+            ⚡反证
+          </button>
+        )}
         {m.market && <span className="smover-mkt">{MKT_BADGE[m.market] ?? m.market}</span>}
         {m.sub && <span className="smover-sub">{m.sub}</span>}
         {isToday && chg && (
@@ -66,7 +78,15 @@ function Mover({ m, isToday }: { m: SectionMover; isToday: boolean }) {
 }
 
 // 一个一级分区的板块卡：分区名 + 异动数 + 板块脉搏 + 逐股异动 + 其余安静的票。
-function BoardCard({ b, isToday }: { b: SectionBoard; isToday: boolean }) {
+function BoardCard({
+  b,
+  isToday,
+  flags,
+}: {
+  b: SectionBoard
+  isToday: boolean
+  flags: Record<string, string>
+}) {
   return (
     <section className="sboard">
       <div className="sboard-head">
@@ -76,7 +96,7 @@ function BoardCard({ b, isToday }: { b: SectionBoard; isToday: boolean }) {
       {b.pulse && <p className="sboard-pulse">{b.pulse}</p>}
       <div className="sboard-movers">
         {b.movers.map((m) => (
-          <Mover key={m.symbol} m={m} isToday={isToday} />
+          <Mover key={m.symbol} m={m} isToday={isToday} flag={flags[m.symbol]} />
         ))}
       </div>
       {b.quiet.length > 0 && (
@@ -125,6 +145,7 @@ function SectionReportsView({ date }: { date: string }) {
     }
   }
 
+  const flags = useThesisFlags().data ?? {}
   const boards = reports.data?.boards ?? []
   const active = boards.filter((b) => b.movers.length > 0)
   const quiet = boards.filter((b) => b.movers.length === 0)
@@ -156,7 +177,7 @@ function SectionReportsView({ date }: { date: string }) {
         <>
           <div className="sboards">
             {active.map((b) => (
-              <BoardCard key={b.section_id} b={b} isToday={isToday} />
+              <BoardCard key={b.section_id} b={b} isToday={isToday} flags={flags} />
             ))}
           </div>
           {quiet.length > 0 && (

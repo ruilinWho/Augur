@@ -20,6 +20,7 @@ export type SourceLaneId =
 export const INFO_SECTIONS: { id: InfoSection; label: string; group: string }[] = [
   { id: 'summary', label: '总结', group: 'digest' },
   { id: 'sectors', label: '分区', group: 'digest' },
+  { id: 'radar', label: '雷达', group: 'digest' },
   { id: 'news', label: '新闻', group: 'sources' },
   { id: 'twitter', label: '推特', group: 'sources' },
   { id: 'reddit', label: 'Reddit', group: 'sources' },

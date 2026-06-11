@@ -14,6 +14,7 @@ export default defineConfig({
       '/watchlist': backend,
       '/llm': backend,
       '/journal': backend,
+      '/theses': backend,
       '/news': backend,
       '/research': backend,
       '/notes': backend,

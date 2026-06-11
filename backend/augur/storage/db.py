@@ -50,6 +50,23 @@ CREATE TABLE IF NOT EXISTS journal_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_symbol ON journal_entries(symbol, entry_date DESC);
 
+-- 反证雷达（M3「知」/ §1「决策级·反证条件」）：对某标的的立论（看多/看空/观望）+ 证伪条件，
+-- 系统按每天挂钩新闻判定每条证伪条件是否被「触发反证」或「印证」。区别于 journal（自由判断笔记）：
+-- 这是结构化、可监控的判断。conditions 由作者授权（可 AI 起草）；alerts 由扫描滚动重算覆盖。
+CREATE TABLE IF NOT EXISTS theses (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol          TEXT    NOT NULL,                  -- 归一化 MARKET:CODE
+    stance          TEXT    NOT NULL DEFAULT 'bull',   -- bull看多/bear看空/watch观望
+    thesis          TEXT    NOT NULL DEFAULT '',       -- 一句话立论
+    conditions      TEXT    NOT NULL DEFAULT '[]',     -- JSON：[{id,text}] 证伪条件（作者）
+    alerts          TEXT    NOT NULL DEFAULT '[]',     -- JSON：扫描重算的反证/印证告警
+    status          TEXT    NOT NULL DEFAULT 'active', -- active/closed
+    last_scanned_at TEXT,                              -- 最近扫描时间
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_theses_symbol ON theses(symbol, status);
+
 -- 新闻摄取（AGENTS.md §1「知」/ M3）：从 RSS/API 拉来的条目，按 url 去重
 CREATE TABLE IF NOT EXISTS news_items (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,

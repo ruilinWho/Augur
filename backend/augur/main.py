@@ -29,6 +29,7 @@ from .settings_router import router as settings_router
 from .skills import router as skills_router
 from .storage import init_db
 from .templates import router as templates_router
+from .theses import router as theses_router
 from .watchlist import router as watchlist_router
 
 
@@ -72,6 +73,7 @@ app.include_router(market_router)
 app.include_router(watchlist_router)
 app.include_router(llm_router)
 app.include_router(journal_router)
+app.include_router(theses_router)
 app.include_router(news_router)
 app.include_router(research_router)
 app.include_router(notes_router)

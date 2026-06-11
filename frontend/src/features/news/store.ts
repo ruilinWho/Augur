@@ -10,6 +10,7 @@ export type NewsPrimary = 'info' | 'stocks'
 export type InfoSection =
   | 'summary'
   | 'sectors'
+  | 'radar'
   | 'news'
   | 'blogs'
   | 'twitter'

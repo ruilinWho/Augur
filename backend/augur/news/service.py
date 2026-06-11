@@ -1906,6 +1906,13 @@ def generate_all(
     def _digest() -> None:
         generate_report(rd, role)  # 结构化日报：落库覆盖当天
 
+    def _thesis_scan() -> None:
+        # 反证雷达：滚动重算每个 active 立论的反证/印证告警（cheap 角色）。
+        # 懒导入避免循环——theses 模块顶层 import news.service。
+        from ..theses import service as theses_service
+
+        theses_service.scan_all()
+
     # 各生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
     # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。
     # 社媒 lane（推特/小红书/Reddit/Threads）此前从不预生成 → 要点常年空；这里补齐，
@@ -1917,6 +1924,8 @@ def generate_all(
         "opportunities": lambda: generate_opportunities(rd, role),
         # 分区级日报：内部再按一级分区并行；嵌套线程池纯 I/O、安全（作者：尽量并行）
         "section_reports": lambda: generate_section_reports(rd, role),
+        # 反证雷达：滚动重算各立论的反证/印证告警（cheap；无立论则秒回）
+        "thesis_scan": _thesis_scan,
     }
     for name, prefix in {**_SOCIAL_LANES, **_SOURCE_LANES}.items():
         tasks[name] = (lambda p: lambda: generate_clusters(None, p, None, 1, role, rd))(prefix)

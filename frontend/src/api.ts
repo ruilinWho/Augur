@@ -963,6 +963,123 @@ export function useGenerateSectionReports() {
   })
 }
 
+// ───────────────────────── 反证雷达（立论 + 证伪条件 + 反证/印证告警）─────────────────────────
+const thesisConditionSchema = z.object({ id: z.number(), text: z.string().default('') })
+const thesisAlertSchema = z.object({
+  condition_id: z.number(),
+  polarity: z.string().default('refute'), // refute 反证 / support 印证
+  summary: z.string().default(''),
+  refs: z.array(sourceRefSchema).default([]),
+})
+const thesisSchema = z.object({
+  id: z.number(),
+  symbol: z.string(),
+  name: z.string().default(''),
+  market: z.string().default(''),
+  stance: z.string().default('bull'), // bull看多 / bear看空 / watch观望
+  thesis: z.string().default(''),
+  conditions: z.array(thesisConditionSchema).default([]),
+  alerts: z.array(thesisAlertSchema).default([]),
+  status: z.string().default('active'),
+  last_scanned_at: z.string().nullable().default(null),
+  created_at: z.string(),
+  updated_at: z.string(),
+})
+const thesisDraftSchema = z.object({
+  stance: z.string().default('bull'),
+  thesis: z.string().default(''),
+  conditions: z.array(z.string()).default([]),
+})
+export type Thesis = z.infer<typeof thesisSchema>
+export type ThesisAlert = z.infer<typeof thesisAlertSchema>
+export type ThesisCondition = z.infer<typeof thesisConditionSchema>
+export type ThesisDraft = z.infer<typeof thesisDraftSchema>
+export type ThesisInput = { symbol: string; stance: string; thesis: string; conditions: string[] }
+
+export function useTheses(symbol?: string | null, status = 'active') {
+  return useQuery({
+    queryKey: ['theses', symbol ?? 'all', status],
+    queryFn: async () =>
+      z
+        .array(thesisSchema)
+        .parse(
+          await getJSON(
+            `/theses?status=${status}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}`,
+          ),
+        ),
+  })
+}
+
+// symbol → 最严重告警极性（refute/support）。供分区/看 inline 徽章，轻量、独立缓存。
+export function useThesisFlags() {
+  return useQuery({
+    queryKey: ['thesis-flags'],
+    queryFn: async () => z.record(z.string(), z.string()).parse(await getJSON('/theses/flags')),
+    staleTime: 60_000,
+  })
+}
+
+function useInvalidateTheses() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['theses'] })
+    qc.invalidateQueries({ queryKey: ['thesis-flags'] })
+  }
+}
+
+export function useCreateThesis() {
+  const invalidate = useInvalidateTheses()
+  return useMutation({
+    mutationFn: async (body: ThesisInput) => thesisSchema.parse(await send('/theses', 'POST', body)),
+    onSuccess: invalidate,
+    onError: onMutErr,
+  })
+}
+
+export function useUpdateThesis() {
+  const invalidate = useInvalidateTheses()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...patch
+    }: {
+      id: number
+      stance?: string
+      thesis?: string
+      conditions?: string[]
+      status?: string
+    }) => thesisSchema.parse(await send(`/theses/${id}`, 'PATCH', patch)),
+    onSuccess: invalidate,
+    onError: onMutErr,
+  })
+}
+
+export function useDeleteThesis() {
+  const invalidate = useInvalidateTheses()
+  return useMutation({
+    mutationFn: (id: number) => send(`/theses/${id}`, 'DELETE'),
+    onSuccess: invalidate,
+    onError: onMutErr,
+  })
+}
+
+// AI 起草 stance/thesis/证伪条件（不落库；作者审阅后再 create）。
+export function useDraftThesis() {
+  return useMutation({
+    mutationFn: async (symbol: string) =>
+      thesisDraftSchema.parse(await send(`/theses/draft?symbol=${encodeURIComponent(symbol)}`, 'POST')),
+  })
+}
+
+// 立即扫描全部 active 立论（每个并行判反证/印证，~20–60s），返回更新后的列表。
+export function useScanTheses() {
+  const invalidate = useInvalidateTheses()
+  return useMutation({
+    mutationFn: async () => z.array(thesisSchema).parse(await send('/theses/scan', 'POST')),
+    onSuccess: invalidate,
+  })
+}
+
 export function useOpportunities(date: string | null) {
   return useQuery({
     queryKey: ['news-opps', date ?? 'today'],

@@ -27,6 +27,7 @@ from augur.news import (
 from augur.news.grounding import simplify as _simplify
 from augur.news.service import _norm_url, _parse_json_lenient
 from augur.settings_router import _llm_key_url
+from augur.theses import service as theses_service
 
 
 # ───────────────────────── symbols ─────────────────────────
@@ -446,3 +447,30 @@ def test_assemble_section_report_rejects_unknown_symbols_and_sorts():
     assert nvda["sub"] == "GPU" and nvda["market"] == "US"
     assert nvda["headline"] == "英伟达放量"  # 标题里泄漏的 [2] 被剥掉
     assert nvda["points"][0]["refs"][0]["url"] == "https://b.test/2"  # refs 映射回原始链接
+
+
+# ───────────────────────── 反证雷达纯助手 ─────────────────────────
+def test_thesis_conditions_assign_stable_ids_strip_and_cap():
+    conds = theses_service._conditions_from_texts(["  失去大客户  ", "", "毛利率连续下滑", "   "])
+    assert conds == [{"id": 1, "text": "失去大客户"}, {"id": 2, "text": "毛利率连续下滑"}]
+    many = theses_service._conditions_from_texts([f"条件{i}" for i in range(20)])
+    assert len(many) == theses_service._MAX_CONDITIONS  # 封顶
+    assert [c["id"] for c in many] == list(range(1, theses_service._MAX_CONDITIONS + 1))
+    assert theses_service._conditions_from_texts("not a list") == []
+
+
+def test_thesis_map_refs_resolves_dedups_and_skips_invalid():
+    by_n = {
+        1: {"source": "Reuters", "url": "https://r.test/1"},
+        2: {"source": "Bloomberg", "url": "https://b.test/2"},
+        3: {"source": "NoUrl", "url": ""},
+    }
+    # 编号→source/url；容忍字符串数字；去重；跳过无 url / 越界 / 非数字
+    refs = theses_service._map_refs([1, "2", 2, 3, 99, "x"], by_n)
+    assert refs == [
+        {"source": "Reuters", "url": "https://r.test/1"},
+        {"source": "Bloomberg", "url": "https://b.test/2"},
+    ]
+    assert theses_service._map_refs(None, by_n) == []
+    big = {i: {"source": f"s{i}", "url": f"https://x/{i}"} for i in range(1, 10)}
+    assert len(theses_service._map_refs(list(range(1, 10)), big, cap=3)) == 3  # 封顶
