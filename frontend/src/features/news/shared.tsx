@@ -1,6 +1,7 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo } from 'react'
 import type { NewsItem } from '../../api'
 import { useUI } from '../../store'
+import Markdown from '../../components/Markdown'
 
 // ── 今日要闻按天归类的日期标签 ──
 export function dayLabel(iso: string | null): string {
@@ -30,77 +31,11 @@ export function ago(iso: string | null): string {
   return `${Math.round(h / 24)}天前`
 }
 
-// ── 极简内联：**加粗** → <strong> ──
-function inline(text: string): ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
-    p.startsWith('**') && p.endsWith('**') ? (
-      <strong key={i}>{p.slice(2, -2)}</strong>
-    ) : (
-      <span key={i}>{p}</span>
-    ),
-  )
-}
-
-// ## 小标题 / - 列表 / > 引用 / --- 分隔 / 段落 —— 轻量 Markdown 渲染（无依赖）
+// 综合日报正文：复用 components/Markdown 这份**单一真相**渲染器（#–#### 标题/有序无序列表/
+// 表格/斜体/代码/裸链接全支持）。此前这里另有一份简化解析，不认 ###/有序列表 → 日报偶发
+// "没渲染出 markdown"；现统一掉。日报正文不带 [n] 编号引用（prompt 用圆括号标来源），故不传 sources。
 export function Digest({ body }: { body: string }) {
-  const blocks: ReactNode[] = []
-  let list: string[] = []
-  let quote: string[] = []
-  const flushList = () => {
-    if (list.length) {
-      const items = list
-      blocks.push(
-        <ul key={`u${blocks.length}`}>
-          {items.map((t, i) => (
-            <li key={i}>{inline(t)}</li>
-          ))}
-        </ul>,
-      )
-      list = []
-    }
-  }
-  const flushQuote = () => {
-    if (quote.length) {
-      const items = quote
-      blocks.push(
-        <blockquote key={`q${blocks.length}`}>
-          {items.map((t, i) => (
-            <p key={i}>{inline(t)}</p>
-          ))}
-        </blockquote>,
-      )
-      quote = []
-    }
-  }
-  const flush = () => {
-    flushList()
-    flushQuote()
-  }
-  body.split('\n').forEach((raw, i) => {
-    const line = raw.trim()
-    if (!line) return flush()
-    if (line === '---' || line === '***') {
-      flush()
-      blocks.push(<hr key={`h${i}`} />)
-    } else if (line.startsWith('## ')) {
-      flush()
-      blocks.push(<h4 key={`t${i}`}>{line.replace(/^##\s+/, '')}</h4>)
-    } else if (line.startsWith('# ')) {
-      flush()
-      blocks.push(<h4 key={`t${i}`}>{line.replace(/^#\s+/, '')}</h4>)
-    } else if (line.startsWith('> ') || line === '>') {
-      flushList()
-      quote.push(line.replace(/^>\s?/, ''))
-    } else if (/^[-*]\s+/.test(line)) {
-      flushQuote()
-      list.push(line.replace(/^[-*]\s+/, ''))
-    } else {
-      flush()
-      blocks.push(<p key={`p${i}`}>{inline(line)}</p>)
-    }
-  })
-  flush()
-  return <div className="digest">{blocks}</div>
+  return <Markdown body={body} />
 }
 
 // ── 单条要闻（含挂钩的自选股 ticker chip，点击跳「看」）──
@@ -170,6 +105,56 @@ export function FeedGroups({ items, empty }: { items: NewsItem[]; empty?: string
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── 博客阅读卡：博客是长文（公众号深度分析等），不套新闻的标题行，而是给署名 + 标题 + 摘要节选，
+//    像一份"待读清单"。标题里的 `[公众号名]` 前缀抽成署名，正文摘要节选 3 行。──
+export function BlogList({ items, empty }: { items: NewsItem[]; empty?: string }) {
+  const select = useUI((s) => s.select)
+  if (!items.length) {
+    return (
+      <div className="faint" style={{ padding: '14px 2px' }}>
+        {empty ?? '暂无博客'}
+      </div>
+    )
+  }
+  return (
+    <div className="blog-list">
+      {items.map((it) => {
+        const raw = it.title_zh || it.title
+        const m = raw.match(/^\[([^\]]+)\]\s*(.*)$/)
+        const byline = m ? m[1] : it.source.replace(/^博客·/, '')
+        const title = m ? m[2] : raw
+        return (
+          <article key={it.id} className="blog-card">
+            <div className="blog-card-top">
+              <span className="blog-src">{byline}</span>
+              {ago(it.published_at) && <span className="blog-ago">{ago(it.published_at)}</span>}
+            </div>
+            <a className="blog-title" href={it.url} target="_blank" rel="noreferrer">
+              {title}
+            </a>
+            {it.summary && <p className="blog-excerpt">{it.summary}</p>}
+            {it.symbols.length > 0 && (
+              <div className="blog-syms">
+                {it.symbols.map((s) => (
+                  <button
+                    key={s.symbol}
+                    className={`hl-sym ${s.in_watchlist ? 'watched' : ''}`}
+                    title={s.in_watchlist ? `${s.symbol} · 已自选` : `${s.symbol} · 看 K 线`}
+                    onClick={() => select(s.symbol)}
+                  >
+                    {s.in_watchlist && <span className="wdot" />}
+                    {s.name || s.symbol.split(':')[1]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+        )
+      })}
     </div>
   )
 }

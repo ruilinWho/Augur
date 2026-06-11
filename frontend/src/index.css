@@ -639,83 +639,7 @@ button {
   background: var(--border);
 }
 
-/* 知 · 决策工作台 */
-.decision-score {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.decision-score span {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  color: var(--text-faint);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-}
-.decision-score b {
-  color: var(--text);
-  font-size: 0.92rem;
-}
-.decision-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.decision-panel {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  padding: 17px;
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--surface) 65%, transparent);
-}
-.decision-panel.accent {
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
-}
-.decision-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.decision-list.compact .cl-card {
-  box-shadow: none;
-}
-.decision-item {
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-}
-.decision-item:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-.di-title {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.45;
-}
-.di-body {
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 0.84rem;
-  line-height: 1.65;
-}
-.di-chips,
-.decision-symbols {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 9px;
-}
-.di-chip,
+/* 资讯 · 要点卡关联标的 chip */
 .dsym {
   display: inline-flex;
   align-items: center;
@@ -724,12 +648,10 @@ button {
   border-radius: 999px;
   background: var(--surface);
 }
-.di-chip.watched,
 .dsym.watched {
   border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
   background: var(--accent-weak);
 }
-.di-chip button,
 .dsym button {
   border: 0;
   background: transparent;
@@ -739,11 +661,9 @@ button {
   padding: 3px 8px;
   cursor: pointer;
 }
-.di-chip button:hover,
 .dsym button:hover {
   color: var(--accent);
 }
-.di-chip button + button,
 .dsym button + button {
   border-left: 1px solid var(--border);
 }
@@ -753,12 +673,6 @@ button {
   font-size: 0.68rem;
   color: var(--text-faint);
   padding: 0 2px;
-}
-
-@media (max-width: 1180px) {
-  .decision-grid {
-    grid-template-columns: 1fr;
-  }
 }
 .narr-ev {
   position: relative;
@@ -3503,6 +3417,70 @@ input:focus:not(:focus-visible) {
   border-top: 1px solid var(--border);
   margin: 18px 0;
 }
+/* # 顶级标题（比 ## 段落标题更大） */
+.digest h3 {
+  font-family: var(--font-display);
+  font-size: 1.16rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 26px 0 10px;
+}
+/* ## 段落标题：加一道细分隔线，给日报"报刊版块"般的结构感与 solid 感 */
+.digest h4 {
+  padding-bottom: 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+/* ### / #### 次级小标题 */
+.digest h5 {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 16px 0 6px;
+}
+.digest h6 {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 14px 0 4px;
+}
+.digest > :first-child {
+  margin-top: 0;
+}
+/* 1. 有序列表：用数字（陶土色 marker），不套无序列表的圆点 */
+.digest ol {
+  margin: 10px 0;
+  padding-left: 24px;
+  list-style: decimal;
+}
+.digest ol li {
+  font-size: 0.9rem;
+  line-height: 1.72;
+  color: var(--text-muted);
+  padding-left: 4px;
+  margin: 6px 0;
+}
+.digest ol li::before {
+  content: none;
+}
+.digest ol li::marker {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.86em;
+}
+.digest em {
+  font-style: italic;
+  color: var(--text);
+}
+.digest code {
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text);
+}
 
 .know-empty {
   border: 1px dashed var(--border);
@@ -3674,6 +3652,74 @@ input:focus:not(:focus-visible) {
   justify-content: center;
   white-space: nowrap;
 }
+/* 博客阅读卡：长文（公众号深度分析）待读清单——署名 + 标题 + 摘要节选 + 关联标的 */
+.blog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.blog-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 18px;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.blog-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow: var(--shadow);
+}
+.blog-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.blog-src {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+}
+.blog-ago {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.blog-title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+.blog-card:hover .blog-title {
+  color: var(--accent);
+}
+.blog-excerpt {
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.66;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.blog-syms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
 .hl {
   display: flex;
   align-items: baseline;
@@ -3960,7 +4006,7 @@ input:focus:not(:focus-visible) {
 /* 总览/某天快照：段头生成按钮一律右对齐；相邻段统一间距（根治日报段与上段重叠/挤压） */
 .sec-gen {
   margin-left: auto;
-  min-width: 108px; /* 总览三个生成按钮等宽（晨读/机会/日报）*/
+  min-width: 108px;
   text-align: center;
   justify-content: center;
 }
@@ -3978,12 +4024,35 @@ input:focus:not(:focus-visible) {
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
 }
+.sum-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
 .sum-title {
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
+}
+.since-pill {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-faint);
+  padding: 3px 9px;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+.since-pill.hot {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: var(--accent-weak);
+  color: var(--accent);
 }
 .sum-gen {
   display: flex;
@@ -3999,125 +4068,6 @@ input:focus:not(:focus-visible) {
   min-width: 96px;
   text-align: center;
   justify-content: center;
-}
-
-/* 资讯 · 晨读 / 今日要事（可展开来源卡片）*/
-.brief-list {
-  list-style: none;
-  margin: 13px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.brief-item {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  overflow: hidden;
-  transition: border-color 0.14s ease, background 0.14s ease;
-}
-.brief-item:hover,
-.brief-item.open {
-  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
-  background: color-mix(in srgb, var(--surface-2) 36%, var(--surface));
-}
-.brief-card-head {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  padding: 13px 14px;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  cursor: pointer;
-}
-.brief-n {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  margin-top: 1px;
-  border-radius: 50%;
-  background: var(--accent-weak);
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.brief-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-.brief-line {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.brief-head {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text);
-  line-height: 1.5;
-}
-.brief-src-n {
-  flex: none;
-  font-size: 0.72rem;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-.brief-why {
-  margin-top: 3px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  line-height: 1.55;
-}
-.brief-members {
-  margin: 0 14px 13px 48px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.brief-member {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 7px;
-  border-radius: 6px;
-  text-decoration: none;
-}
-.brief-member:hover {
-  background: var(--surface-2);
-}
-.brief-msrc {
-  flex: none;
-  min-width: 82px;
-  max-width: 140px;
-  color: var(--accent);
-  font-size: 0.72rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.brief-mtitle {
-  color: var(--text-muted);
-  font-size: 0.84rem;
-  line-height: 1.48;
-}
-.brief-empty-src {
-  color: var(--text-faint);
-  font-size: 0.8rem;
-  padding: 6px 7px;
 }
 
 /* 看 · 加入自选（未自选股的「＋ 自选」下拉选分区）*/
@@ -4527,32 +4477,6 @@ input:focus:not(:focus-visible) {
   min-width: 0;
 }
 
-/* 总览 · 自上次以来（段间距由 .know > section + section 统一接管）*/
-.since-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 9px 12px;
-  background: var(--surface-2);
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  font-size: 0.84rem;
-}
-.since-n {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 0.72rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
 .opp-body {
   padding-top: 11px;
 }
@@ -5599,98 +5523,10 @@ a.opp-ev-item:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* ───────────────────────── 社媒脉搏（资讯·总结/决策 接入所有信源）───────────────────────── */
-.social-pulse {
-  margin-top: 16px;
-}
-.sp-list {
-  display: flex;
-  flex-direction: column;
-}
-.sp-row {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  padding: 9px 0;
-  border-top: 1px solid var(--border);
-  text-decoration: none;
-  color: inherit;
-}
-.sp-list .sp-row:first-child {
-  border-top: 0;
-}
-.sp-plat-tag {
-  flex: none;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  white-space: nowrap;
-}
-.sp-row:hover .sp-plat-tag {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  color: var(--accent);
-}
-.sp-body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.sp-head {
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: var(--text);
-}
-.sp-row:hover .sp-head {
-  text-decoration: underline;
-  text-decoration-color: var(--accent);
-  text-underline-offset: 3px;
-}
-.sp-why {
-  font-size: 0.78rem;
-  line-height: 1.55;
-  color: var(--text-muted);
-}
-/* 总结 · 社媒热度（按平台分组）——flex 让平台卡片伸缩铺满整列宽（auto-fill 会留空轨道、不铺满）*/
-.social-pulse-sec .sp-lanes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-.social-pulse-sec .sp-lane {
-  flex: 1 1 240px;
-}
-/* 决策 · 要事/反证/催化 卡片下就近挂的关联标的 chip */
+/* 资讯 · 要点卡下就近挂的关联标的 chip */
 .cl-syms {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
-}
-.sp-lane {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  padding: 12px 14px;
-}
-.sp-lane-h {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-.sp-lane-h .sp-plat-tag {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--text);
-}
-.sp-lane .sp-row {
-  gap: 8px;
 }

@@ -39,9 +39,10 @@ Everything in this section is implemented and in daily use.
 
 - Ingestion of curated RSS/API sources, Bloomberg RSS, Eastmoney, Cailian Press, and ticker-directed Yahoo news.
 - **All social/forum sources flow through TikHub** (one shared `TIKHUB_KEY`): X, Xiaohongshu, Threads, and Reddit — keyword search plus per-stock dedicated subreddit feeds.
+- Private WeChat-public-account RSS can be configured from Settings as a separate **Blog** lane in Info sections; the tokenized URL lives only in ignored runtime config and feeds `source_prefix="博客·"`.
 - Pipeline: translation, relevance filtering, deterministic stock linking, LLM stock tagging, and grounding, with a global `feed` lane and a per-stock `ticker` lane.
-- Daily snapshots, market briefs, clustered key points (with citations), opportunity cards, risk/counter-evidence framing, and stock chips that jump to View or Research.
-- Social pulse: 总结/决策 read already-distilled per-lane social clusters at zero extra LLM cost.
+- Daily snapshots and a single integrated daily report that combines news, blogs, and all social/forum lanes into one card for Summary and Decision, with opportunities, risks, counter-evidence, and follow-up questions in the same narrative.
+- Summary/Decision show a title-line “since last refresh” freshness chip; manual refresh, one-click refresh+generate, and scheduled auto refresh automatically advance the read baseline. The older social-pulse endpoint remains only as a compatibility/debug read API.
 - Single-stock narrative timelines, and per-stock source tracking: X accounts (twtapi with TikHub fallback), Xiaohongshu/Threads keyword sources (TikHub), Reddit communities (TikHub, dedicated subreddit auto-resolved on first refresh), and RSS/Atom feeds.
 - Source health tracking, source testing, runtime source configuration, and Chinese diagnostics for credential/quota/adapter failures.
 

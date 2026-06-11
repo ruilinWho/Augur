@@ -349,9 +349,11 @@ async def import_api_config(payload: dict) -> dict:
     只合并**在用**的 key——老版本导出文件里的退役源遗留 key 被过滤，不会重新引入。
     """
     try:
-        return await run_in_threadpool(
+        result = await run_in_threadpool(
             runtime_config.import_api_config, payload, source_registry.live_secret_names()
         )
+        sources.load_feeds.cache_clear()
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -451,6 +453,8 @@ async def set_secret(body: SecretIn) -> dict:
     if not (_NAME_OK.match(name) or name in _allowed_names()):
         raise HTTPException(status_code=400, detail=f"不允许的配置项名：{name!r}")
     runtime_config.set_secret(name, body.value)
+    if name == sources.BLOG_RSS_SECRET:
+        sources.load_feeds.cache_clear()
     return {
         "name": name,
         "configured": runtime_config.has_secret(name),

@@ -349,6 +349,19 @@ def set_pref(key: str, value) -> None:
         _write(data)
 
 
+def get_news_read_at() -> str | None:
+    """读「知」信息流已读基准。由刷新任务自动推进，供前端显示新增计数。"""
+    v = get_pref("news_read_at")
+    return v if isinstance(v, str) and v.strip() else None
+
+
+def set_news_read_at(value: str) -> str:
+    """设置「知」信息流已读基准。value 使用 SQLite 友好的 UTC datetime 字符串。"""
+    v = (value or "").strip()
+    set_pref("news_read_at", v)
+    return v
+
+
 # 白天自动「全部生成」（刷新+蒸馏）的调度配置。作者可在「设置 · 自动」里改。
 # 默认：开启、11:00–23:00 每个整点跑一次（作者指定）。end 含端点。
 _AUTO_REFRESH_DEFAULT = {"enabled": True, "start_hour": 11, "end_hour": 23}

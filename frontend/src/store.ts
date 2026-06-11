@@ -47,7 +47,6 @@ interface UIState {
   kanOrder: string[] // 「看」页 K 线下方模块顺序（可拖拽），持久化
   kanModuleOpen: Record<KanModuleId, boolean> // 「看」页下方模块展开状态，换股不重置
   settingsPage: SettingsPage // 「设置」当前页（左栏导航选择，瞬时不持久化）
-  lastSeenNewsAt: string | null // 「知」上次查看时间（ISO，持久化）——用于「自上次以来」增量
 
   setView: (v: View) => void
   select: (s: string) => void
@@ -68,7 +67,6 @@ interface UIState {
   setKanModuleOpen: (id: KanModuleId, open: boolean) => void
   resetLayout: () => void
   setSettingsPage: (p: SettingsPage) => void
-  markNewsSeen: () => void // 把「自上次以来」基准推到此刻
 }
 
 export const useUI = create<UIState>()(
@@ -90,7 +88,6 @@ export const useUI = create<UIState>()(
       kanOrder: [...KAN_MODULES],
       kanModuleOpen: { ...DEFAULT_KAN_MODULE_OPEN },
       settingsPage: 'all',
-      lastSeenNewsAt: null,
 
       setView: (view) => set({ view }),
       select: (selectedSymbol) => set({ selectedSymbol, view: 'kan' }),
@@ -135,7 +132,6 @@ export const useUI = create<UIState>()(
           kanModuleOpen: { ...DEFAULT_KAN_MODULE_OPEN },
         }),
       setSettingsPage: (settingsPage) => set({ settingsPage }),
-      markNewsSeen: () => set({ lastSeenNewsAt: new Date().toISOString() }),
     }),
     {
       name: 'augur-ui',
@@ -153,7 +149,6 @@ export const useUI = create<UIState>()(
         kanColClosed: s.kanColClosed,
         kanOrder: s.kanOrder,
         kanModuleOpen: s.kanModuleOpen,
-        lastSeenNewsAt: s.lastSeenNewsAt,
       }),
     },
   ),

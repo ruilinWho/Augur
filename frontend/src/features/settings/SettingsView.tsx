@@ -232,22 +232,17 @@ function SchedulePage() {
 }
 
 const CAP_PRESETS = [200, 500, 1000, 2000, 3000, 5000]
-const BRIEF_PRESETS = [3, 5, 8, 10, 15]
 
-// 蒸馏深度：要事/机会喂 LLM 的当日条数上限（日报不受限）。同属「知·生成」配置，放「自动」页。
+// 蒸馏深度：板块要点/机会喂 LLM 的当日条数上限（综合日报不受限）。同属「知·生成」配置，放「自动」页。
 function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof useSetSchedule> }) {
   const cap = cur.cluster_input_max
   const list = cap > 0 && !CAP_PRESETS.includes(cap) ? [...CAP_PRESETS, cap].sort((a, b) => a - b) : CAP_PRESETS
-  const briefList = BRIEF_PRESETS.includes(cur.brief_top_n)
-    ? BRIEF_PRESETS
-    : [...BRIEF_PRESETS, cur.brief_top_n].sort((a, b) => a - b)
   const withCur = (presets: number[], v: number) =>
     presets.includes(v) ? presets : [...presets, v].sort((a, b) => a - b)
-  const pulseList = withCur([3, 4, 5, 6, 8], cur.social_pulse_n)
   const discList = withCur([4, 6, 8, 10, 15], cur.discovery_news_n)
   return (
     <Section title="生成 · 蒸馏深度">
-      <Row label="要事 / 机会 输入上限">
+      <Row label="板块要点 / 机会 输入上限">
         <select
           className="cfg-input"
           value={cap}
@@ -259,32 +254,6 @@ function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof u
             </option>
           ))}
           <option value={0}>不限</option>
-        </select>
-      </Row>
-      <Row label="今日要事 条数">
-        <select
-          className="cfg-input"
-          value={cur.brief_top_n}
-          onChange={(e) => set.mutate({ brief_top_n: +e.target.value })}
-        >
-          {briefList.map((n) => (
-            <option key={n} value={n}>
-              {n} 条
-            </option>
-          ))}
-        </select>
-      </Row>
-      <Row label="社媒热度 每平台条数">
-        <select
-          className="cfg-input"
-          value={cur.social_pulse_n}
-          onChange={(e) => set.mutate({ social_pulse_n: +e.target.value })}
-        >
-          {pulseList.map((n) => (
-            <option key={n} value={n}>
-              {n} 条
-            </option>
-          ))}
         </select>
       </Row>
       <Row label="寻 每候选证据条数">
@@ -731,7 +700,7 @@ function preflightIssues(conns: Connection[], sources: SourceStatus[]): IssueLit
       name: s.name,
       state: 'missing_key',
       status: '未配置',
-      detail: s.cred === 'token' ? '需要登录 token。' : '需要 API key。',
+      detail: s.cred === 'token' ? '需要登录 token。' : s.cred === 'url' ? '需要 RSS URL。' : '需要 API key。',
       key_url: s.key_url,
       docs_url: s.docs_url,
       official_url: s.official_url,

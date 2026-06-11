@@ -15,6 +15,7 @@ from .schemas import (
     ClustersResponse,
     Filing,
     NewsItem,
+    NewsReadState,
     NewsReport,
     OpportunitiesResponse,
     RefreshResult,
@@ -48,6 +49,12 @@ async def feed(
 async def refresh() -> dict:
     """手动抓取所有信源并落库（容忍单源失败）。"""
     return await run_in_threadpool(service.refresh)
+
+
+@router.get("/read-state", response_model=NewsReadState)
+async def read_state() -> dict:
+    """信息流已读基准与新增计数。刷新任务会自动推进基准。"""
+    return await run_in_threadpool(service.news_read_state)
 
 
 @router.get("/source-health")

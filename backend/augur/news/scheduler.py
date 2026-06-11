@@ -15,7 +15,6 @@ from apscheduler.triggers.cron import CronTrigger
 
 from .. import runtime_config
 from ..config import get_settings
-from ..llm import gateway
 from . import service
 
 log = logging.getLogger("augur.news")
@@ -23,37 +22,17 @@ _scheduler: BackgroundScheduler | None = None
 
 
 def _daily_job() -> None:
+    """晨间 07:30 / 归档 23:30：刷新信源 + 蒸馏当天全套（日报/要点/机会/各社媒 lane）。
+
+    复用 service.generate_all（**单一真相**，与每小时自动任务一致）：内部把 digest/要点/机会/社媒
+    lane 各步**并发**跑、单步失败降级——比旧的串行 digest→clusters→opportunities 既快（晨间数据
+    更早就绪）又全（旧版漏掉社媒 lane 要点）。LLM 未配置 → generate_all 内部只刷新、静默跳过蒸馏。
+    """
     try:
-        res = service.refresh()
-        log.info("news ingest: %s", res)
+        res = service.generate_all(refresh_first=True)
+        log.info("news daily generate-all: %s", res.get("steps"))
     except Exception:  # noqa: BLE001
-        log.exception("news ingest failed")
-    try:
-        dres = service.refresh_directed()  # 自选股定向抓取（按 ticker 直取，喂个股叙事）
-        log.info("directed fetch: %s", dres)
-    except Exception:  # noqa: BLE001
-        log.exception("directed fetch failed")
-    # 仅当 summarize 角色就绪时才生成日报（未配置 LLM → 静默跳过，不报错）
-    try:
-        gateway.check_ready("summarize")
-    except gateway.LLMNotConfigured:
-        return
-    try:
-        for _ in service.generate_report_stream():  # 消费流以触发落库
-            pass
-        log.info("news daily report generated")
-    except Exception:  # noqa: BLE001
-        log.exception("news report generation failed")
-    try:
-        service.generate_clusters(days=1)  # 今日要点 → 总览「晨读 Top3」早晨即就绪
-        log.info("news daily clusters generated")
-    except Exception:  # noqa: BLE001
-        log.exception("news clusters generation failed")
-    try:
-        service.generate_opportunities()  # 今日机会 → 「资讯·总结」早晨即就绪（与日报/要点一致）
-        log.info("news daily opportunities generated")
-    except Exception:  # noqa: BLE001
-        log.exception("news opportunities generation failed")
+        log.exception("news daily generate-all failed")
 
 
 def _hourly_job() -> None:

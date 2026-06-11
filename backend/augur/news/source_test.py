@@ -22,6 +22,7 @@ _SOURCE_NAMES = {
     "tikhub_twitter": "推特",
     "bloomberg": "Bloomberg",
     "feeds_rss": "RSS",
+    "wechat_blogs": "微信公众号 RSS",
     "tikhub_reddit": "Reddit · TikHub",
     "xiaohongshu": "小红书",
     "tikhub_threads": "Threads",
@@ -148,6 +149,20 @@ def _test_feeds(only_bloomberg: bool) -> dict:
     return _ok(t0, len(got), f"试拉「{feeds[0].get('name', '')}」")
 
 
+def _test_wechat_blogs() -> dict:
+    """轻量测试私有微信公众号 RSS，不回显 URL/token。"""
+    from . import ingest, sources
+
+    if not runtime_config.has_secret(sources.BLOG_RSS_SECRET):
+        return _err("微信公众号 RSS：没有配置 RSS URL，请先填写后再测试。")
+    feeds = [f for f in sources.load_feeds() if f.get("name") == sources.BLOG_SOURCE_NAME]
+    if not feeds:
+        return _err("微信公众号 RSS：没有可测试的 RSS URL 配置。")
+    t0 = time.monotonic()
+    got = ingest.fetch_feed(feeds[0], _cutoff())
+    return _ok(t0, len(got), "试拉「博客·微信公众号」")
+
+
 def test_source(source_id: str) -> dict:
     """探活某信源。"""
     t0 = time.monotonic()
@@ -175,6 +190,9 @@ def test_source(source_id: str) -> dict:
 
         if source_id == "feeds_rss":
             return _test_feeds(only_bloomberg=False)
+
+        if source_id == "wechat_blogs":
+            return _test_wechat_blogs()
 
         if source_id in {
             "tikhub_twitter",

@@ -101,6 +101,11 @@ class RefreshResult(BaseModel):
     filtered: dict = {}  # 投资相关性过滤：{judged, dropped}
 
 
+class NewsReadState(BaseModel):
+    last_read_at: str | None = None
+    fresh_count: int = 0
+
+
 # ───────────────────────── 今日投资机会（接地后对外形状）─────────────────────────
 class RelatedSymbol(BaseModel):
     symbol: str | None = None  # MARKET:CODE；未解析为 None（防编造，只信本地索引命中）

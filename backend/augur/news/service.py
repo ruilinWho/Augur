@@ -30,6 +30,7 @@ from . import (
     ingest,
     linker,
     relevance,
+    sources,
     stock_tag,
     ticker_news,
     tikhub,
@@ -99,6 +100,31 @@ def _today() -> str:
 _refresh_lock = threading.Lock()
 
 
+def _utc_now_sql() -> str:
+    """SQLite datetime() 友好的 UTC 时间戳。"""
+    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def mark_news_read() -> dict:
+    """把「知」信息流已读基准推进到当前时刻。刷新任务成功跑完后自动调用。"""
+    runtime_config.set_news_read_at(_utc_now_sql())
+    return news_read_state()
+
+
+def news_read_state() -> dict:
+    """标题行的「自上次以来」状态。按 fetched_at 计数，覆盖新闻/博客/社媒/定向 lane。"""
+    last = runtime_config.get_news_read_at()
+    fresh = 0
+    if last:
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM news_items WHERE datetime(fetched_at) > datetime(?)",
+                (last,),
+            ).fetchone()
+            fresh = int(row["n"] if row else 0)
+    return {"last_read_at": last, "fresh_count": fresh}
+
+
 def refresh() -> dict:
     """抓取→翻译→投资相关性过滤（均 cheap 角色，失败降级不阻断）。
 
@@ -132,6 +158,7 @@ def refresh() -> dict:
             result["tagged"] = stock_tag.tag_pending()
         except Exception:  # noqa: BLE001
             result["tagged"] = {"tagged": 0, "pairs": 0}
+        result["read_state"] = mark_news_read()
         return result
     finally:
         _refresh_lock.release()
@@ -294,6 +321,36 @@ def items_for_day(
     return _items_between(lo, hi, theme, source_prefix, category)
 
 
+def _item_is_social(it: dict) -> bool:
+    src = str(it.get("source") or "")
+    return any(src.startswith(p) for p in _SOCIAL_PREFIXES)
+
+
+def _item_sort_time(it: dict) -> str:
+    """综合日报排序时间：社媒按抓取日，其余按发布时间（缺则抓取日）。"""
+    if _item_is_social(it):
+        return str(it.get("fetched_at") or "")
+    return str(it.get("published_at") or it.get("fetched_at") or "")
+
+
+def digest_items_for_day(day: str | None = None) -> list[dict]:
+    """综合日报输入：普通新闻/RSS/博客 + 所有社媒 lane，一篇日报里统一蒸馏。
+
+    普通新闻沿用 relevance 过滤；社媒沿用各自 lane 的规则（不套新闻 relevance、按抓取日归桶）。
+    只在日报使用，避免污染「新闻」板块的单独时间线。
+    """
+    items = list(items_for_day(day))
+    seen = {int(it["id"]) for it in items}
+    for prefix in _SOCIAL_PREFIXES:
+        for it in items_for_day(day, source_prefix=prefix):
+            iid = int(it["id"])
+            if iid not in seen:
+                seen.add(iid)
+                items.append(it)
+    items.sort(key=_item_sort_time, reverse=True)
+    return items
+
+
 def items_for_symbol(symbol: str, days: int = 0, limit: int = 60) -> list[dict]:
     """某自选股**持久化挂钩**的新闻流（定向 lane ∪ 任何挂到它的聚合条目），时间倒序。
 
@@ -330,7 +387,7 @@ def refresh_directed(symbols: list[str] | None = None) -> dict:
         _stock_clean_cache.pop(sym, None)
         _stock_brief_cache.pop(sym, None)
         _stock_social_cache.pop(sym, None)
-    return {**base, "stock_sources": custom}
+    return {**base, "stock_sources": custom, "read_state": mark_news_read()}
 
 
 def _stock_terms(symbol: str) -> list[str]:
@@ -778,8 +835,32 @@ def _load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _source_lane_label(source: str) -> str:
+    if source.startswith("X·"):
+        return "推特"
+    if source.startswith("小红书·"):
+        return "小红书"
+    if source.startswith("Threads·"):
+        return "Threads"
+    if source.startswith("Reddit·"):
+        return "Reddit"
+    if source.startswith(sources.BLOG_SOURCE_PREFIX):
+        return "博客"
+    return "新闻"
+
+
+def _headline_line(it: dict) -> str:
+    source = str(it.get("source") or "")
+    lane = _source_lane_label(source)
+    title = (it.get("title_zh") or it.get("title") or "").strip()
+    summary = (it.get("summary") or "").strip()
+    if summary and summary != title:
+        summary = f"｜{summary[:180]}"
+    return f"- [{lane}｜{source}] {title}{summary}"
+
+
 def _headlines_block(items: list[dict]) -> str:
-    """按主题分组喂给 LLM（让日报在既定主题骨架内蒸馏，更稳、更省 token）。"""
+    """按主题分组喂给 LLM；每条保留来源类型，便于新闻/社媒/博客在一篇日报里融合。"""
     by_theme: dict[str, list[dict]] = {}
     for it in items:
         by_theme.setdefault(it.get("theme") or "other", []).append(it)
@@ -789,7 +870,7 @@ def _headlines_block(items: list[dict]) -> str:
         if not group:
             continue
         lines.append(f"\n## {THEME_LABEL.get(th, th)}")
-        lines.extend(f"- [{it['source']}] {it['title']}" for it in group)
+        lines.extend(_headline_line(it) for it in group)
     return "\n".join(lines).strip()
 
 
@@ -817,7 +898,7 @@ def generate_report_stream(
     无新闻条目 → ValueError（前端提示先刷新）。
     """
     rd = report_date or _today()
-    items = items_for_day(rd)  # 喂当天全部新闻（按天，不再只取最近 N 条）
+    items = digest_items_for_day(rd)  # 喂当天全部来源：新闻/RSS/博客/社媒
     if not items:
         raise ValueError("今日暂无新闻，请先刷新（POST /news/refresh）")
     prompt = (
@@ -1354,7 +1435,12 @@ _SOCIAL_LANES = {
     "threads": "Threads·",
 }
 
-# 「资讯·总结/决策」接入所有信源用：展示名 → source 前缀（与各 lane 一致）。
+# 非社媒但需要独立「资讯·板块」与预生成要点的 source_prefix。
+_SOURCE_LANES = {
+    "blogs": sources.BLOG_SOURCE_PREFIX,
+}
+
+# 兼容旧 /news/social-pulse：展示名 → source 前缀（与各 lane 一致）。
 _PULSE_LANES = (
     ("推特", "X·"),
     ("小红书", "小红书·"),
@@ -1364,11 +1450,11 @@ _PULSE_LANES = (
 
 
 def social_pulse(date: str | None = None, per_lane: int | None = None) -> dict:
-    """各社媒 lane 已生成要点的聚合 → 供「资讯·总结/决策」接入所有信源。
+    """各社媒 lane 已生成要点的聚合。
 
-    只**读** generate_all 已落库的社媒 cluster（不触发 LLM、零成本）：每个 lane 取按重要性
-    排在前的若干条（条数可配，设置·生成「社媒热度 条数」），附代表链接（首条成员 url），让综合
-    视图把新闻外的社媒信号也纳进来。某 lane 无要点 → 自动跳过；全空 → lanes 空，前端不占位。
+    这是兼容旧 UI 的零成本读接口：只读 generate_all 已落库的社媒 cluster（不触发 LLM），
+    每个 lane 取按重要性排在前的若干条并附代表链接。当前「总结/决策」不再调用它；
+    综合日报直接通过 digest_items_for_day() 吃新闻、博客和所有社媒原始条目。
     """
     if per_lane is None:
         per_lane = runtime_config.get_social_pulse_n()
@@ -1402,7 +1488,7 @@ def social_pulse(date: str | None = None, per_lane: int | None = None) -> dict:
 def generate_all(
     date: str | None = None, refresh_first: bool = True, role: str = "summarize"
 ) -> dict:
-    """「全部生成」：刷新信源（RSS+推特+自选定向）+ 蒸馏当天 日报/要事/新闻要点/推特要点/机会。
+    """「全部生成」：刷新信源（RSS+社媒+自选定向）+ 蒸馏当天各板块要点/机会。
 
     **单一真相**——供前端「一键刷新并生成」按钮与白天每小时自动调度共用（CLAUDE.md §6/§12）。
     每步独立成败、失败不阻断其余（§11 优雅降级）；LLM 未配置 → 只刷新、静默跳过蒸馏。
@@ -1411,14 +1497,20 @@ def generate_all(
     rd = date or _today()
     out: dict = {"date": rd, "steps": {}}
     if refresh_first:
-        try:
-            out["refresh"] = refresh()  # 摄取（RSS+推特）+翻译+相关性过滤+挂钩自选+LLM 标股
-        except Exception:  # noqa: BLE001
-            out["refresh"] = {"error": True}
-        try:
-            out["directed"] = refresh_directed()  # 自选股定向抓取（按 ticker 直取）
-        except Exception:  # noqa: BLE001
-            out["directed"] = {"error": True}
+        # feed 刷新（含翻译/相关性/标股 LLM 流水线）与自选定向抓取（纯抓取、喂个股叙事）彼此
+        # 独立 → **并发**：把定向抓取的网络耗时藏进 feed 刷新的 LLM 阶段之下（前端「一键刷新并
+        # 生成」早已 Promise.allSettled 这么做，这里对齐）。两者各用独立连接写库、WAL 串行化写。
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            f_refresh = ex.submit(refresh)  # 摄取+翻译+相关性过滤+挂钩自选+LLM 标股
+            f_directed = ex.submit(refresh_directed)  # 自选股定向抓取（按 ticker 直取）
+            try:
+                out["refresh"] = f_refresh.result()
+            except Exception:  # noqa: BLE001
+                out["refresh"] = {"error": True}
+            try:
+                out["directed"] = f_directed.result()
+            except Exception:  # noqa: BLE001
+                out["directed"] = {"error": True}
     try:
         gateway.check_ready(role)
     except gateway.LLMNotConfigured:
@@ -1435,12 +1527,13 @@ def generate_all(
     # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。
     # 社媒 lane（推特/小红书/Reddit/Threads）此前从不预生成 → 要点常年空；这里补齐，
     # 无数据的 lane generate_clusters 抛 ValueError 被吞为 'err'，不影响其余（§11 优雅降级）。
+    # 博客 RSS 不是社媒，但作为独立「资讯·板块」也在这里预生成要点。
     tasks = {
         "digest": _digest,
         "clusters": lambda: generate_clusters(None, None, None, 1, role, rd),
         "opportunities": lambda: generate_opportunities(rd, role),
     }
-    for name, prefix in _SOCIAL_LANES.items():
+    for name, prefix in {**_SOCIAL_LANES, **_SOURCE_LANES}.items():
         tasks[name] = (lambda p: lambda: generate_clusters(None, p, None, 1, role, rd))(prefix)
     with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
         futs = {ex.submit(fn): name for name, fn in tasks.items()}

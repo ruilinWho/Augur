@@ -7,9 +7,10 @@
 候选源可行性调研结论见 ADR-0007/0012。Tushare/必盈/iTick 曾作为候选行情源登记，
 但作者要求从设置页移除；雪球登录 Cookie 抓取已失效、随之退役；Reddit 已用
 public JSON 接入；TikHub 作为共享 paid API provider 接 推特（唯一推特源）、小红书、Threads、
-Reddit 搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还用。微信公众文章源已删除（TikHub
-`wechat_mp/web/*` 整组服务端长期 400，见 docs/memory/tikhub-source-quirks.md）。
-普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
+Reddit 搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还用。TikHub 微信公众文章源已删除
+（`wechat_mp/web/*` 整组服务端长期 400，见 docs/memory/tikhub-source-quirks.md）。
+普通 RSS 源仍在 `feeds.yaml`；带 token 的私有 RSS URL 走 gitignored 运行时配置，避免泄露到
+`resources/`；这里只登记需 key/token/URL 或需专用适配器、或作分类总览的源。
 """
 
 from __future__ import annotations
@@ -44,6 +45,24 @@ SOURCES: list[dict] = [
         "setup": "版本化信源写在 resources/sources/feeds.yaml。",
         "best_use": "一手机构、公司 IR、官方研究博客和精英二手源的主新闻流。",
         "boundary": "RSS 源可能下线、反爬或改版；健康度会记录最近失败原因。",
+    },
+    {
+        "id": sources.BLOG_RSS_SOURCE_ID,
+        "name": "微信公众号 RSS",
+        "group": "news",
+        "access": "private_rss",
+        "key_env": sources.BLOG_RSS_SECRET,
+        "cred": "url",
+        "secret_label": "RSS URL",
+        "secret_placeholder": "https://.../api/rss/all?token=...",
+        "secret_help": "完整 URL 会写入本机 data/config.local.json，不写入 resources/ 或 git。",
+        "payment": "私有 URL",
+        "note": "博客板块",
+        "setup": "把 wechatrss 的完整 RSS URL 粘贴保存；保存后刷新「知」即可抓取。",
+        "best_use": "把微信公众号长文作为单独「博客」板块，补充新闻之外的深度观点和产业观察。",
+        "boundary": (
+            "这是第三方 RSS 桥接的公众号内容；token 失效、服务限流或源端延迟都会让板块为空。"
+        ),
     },
     {
         "id": "bloomberg",
@@ -265,16 +284,16 @@ def status_list() -> list[dict]:
         key_env = s.get("key_env")
         access = s["access"]
         cred = s.get("cred", "key")
-        if access in ("builtin", "free_rss"):
+        if key_env:
+            configured = runtime_config.has_secret(key_env)
+            status = "已配置" if configured else "待配置"
+        elif access in ("builtin", "free_rss"):
             configured, status = True, "已接入"
         elif access == "free_api" and not key_env:
             configured = bool(s.get("active"))
             status = "已接入" if configured else "免费 · 待接入"
         elif access == "unavailable":
             configured, status = False, "不可用"
-        elif key_env:  # 需凭证（key/token），免费或付费皆可
-            configured = runtime_config.has_secret(key_env)
-            status = "已配置" if configured else "待配置"
         else:
             configured, status = False, "待接入"
         name = s["name"]

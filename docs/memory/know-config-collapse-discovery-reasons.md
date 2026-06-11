@@ -2,6 +2,8 @@
 
 作者反馈一批「资讯/寻/决策」细节，集中改。
 
+> 历史说明：本文件记录的是早期「总结」由日报/今日要事/社媒热度多卡片组成时的配置与 UI 调整。当前「总结/决策」已改成单张综合日报，见 [integrated-daily-report](integrated-daily-report.md)；不要按本文的旧 `MorningBrief` / `SocialPulse` 拼卡方式继续扩展总结页。
+
 ## 资讯·总结：各 section 可折叠 + 社媒热度铺满列宽
 - **可折叠**：`DigestBlock`(趋势日报)、`MorningBrief`(今日要事)、`SocialPulse`(社媒热度) 都加 `open` 状态 +
   点 `sec-head`(role=button) 折叠 + `Collapse` 包体（`OpportunitiesPanel` 本就可折叠）。生成按钮 `stopPropagation`

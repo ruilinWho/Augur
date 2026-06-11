@@ -13,7 +13,17 @@ import pytest
 from augur.market import search
 from augur.market.fundamentals import _growth, _period_label, _yahoo_symbols
 from augur.market.symbols import cn_exchange, parse_symbol
-from augur.news import edgar, source_test, stock_sources, tikhub
+from augur.news import (
+    edgar,
+    source_registry,
+    source_test,
+    sources,
+    stock_sources,
+    tikhub,
+)
+from augur.news import (
+    service as news_service,
+)
 from augur.news.grounding import simplify as _simplify
 from augur.news.service import _norm_url, _parse_json_lenient
 from augur.settings_router import _llm_key_url
@@ -256,6 +266,83 @@ def test_tikhub_reddit_uses_documented_search_params(monkeypatch):
     assert captured["params"]["sort"] == "NEW"
     assert captured["params"]["time_range"] == "week"
     assert "keyword" not in captured["params"]
+
+
+def test_private_blog_rss_feed_loaded_from_runtime_config(monkeypatch):
+    sources.load_feeds.cache_clear()
+
+    def fake_secret(name: str) -> str:
+        return "https://example.test/rss?token=secret" if name == sources.BLOG_RSS_SECRET else ""
+
+    monkeypatch.setattr(sources.runtime_config, "get_secret", fake_secret)
+    try:
+        feeds = sources.load_feeds()
+    finally:
+        sources.load_feeds.cache_clear()
+    blog = next((f for f in feeds if f["name"] == sources.BLOG_SOURCE_NAME), None)
+    assert blog is not None
+    assert blog["url"] == "https://example.test/rss?token=secret"
+    assert blog["category"] == sources.BLOG_CATEGORY
+
+
+def test_private_blog_rss_secret_is_exportable_live_secret():
+    assert sources.BLOG_RSS_SECRET in source_registry.live_secret_names()
+
+
+def test_digest_items_include_all_social_lanes(monkeypatch):
+    calls: list[str | None] = []
+
+    def fake_items_for_day(day=None, theme=None, source_prefix=None, category=None):
+        calls.append(source_prefix)
+        if source_prefix is None:
+            return [{"id": 1, "source": "博客·微信公众号", "published_at": "2026-06-11T09:00:00"}]
+        return [
+            {
+                "id": len(calls) + 10,
+                "source": source_prefix + "样本",
+                "fetched_at": "2026-06-11T10:00:00",
+            }
+        ]
+
+    monkeypatch.setattr(news_service, "items_for_day", fake_items_for_day)
+    items = news_service.digest_items_for_day("2026-06-11")
+    assert calls == [None, "X·", "小红书·", "Threads·", "Reddit·"]
+    assert {it["source"] for it in items} == {
+        "博客·微信公众号",
+        "X·样本",
+        "小红书·样本",
+        "Threads·样本",
+        "Reddit·样本",
+    }
+
+
+def test_news_read_state_counts_by_fetched_at(monkeypatch):
+    captured: dict = {}
+
+    class FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, sql, args):
+            captured["sql"] = sql
+            captured["args"] = args
+            return self
+
+        def fetchone(self):
+            return {"n": 7}
+
+    monkeypatch.setattr(
+        news_service.runtime_config, "get_news_read_at", lambda: "2026-06-11 01:02:03"
+    )
+    monkeypatch.setattr(news_service, "get_conn", lambda: FakeConn())
+
+    state = news_service.news_read_state()
+    assert state == {"last_read_at": "2026-06-11 01:02:03", "fresh_count": 7}
+    assert "fetched_at" in captured["sql"]
+    assert captured["args"] == ("2026-06-11 01:02:03",)
 
 
 def test_tikhub_stock_social_search_keeps_working_when_one_source_fails(monkeypatch):

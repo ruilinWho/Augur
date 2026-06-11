@@ -9,16 +9,18 @@ export const PRIMARIES: { id: NewsPrimary; label: string }[] = [
 
 export type SourceLaneId =
   | 'news'
+  | 'blogs'
   | 'twitter'
   | 'reddit'
   | 'xiaohongshu'
   | 'threads'
 
-// 资讯第三层：某天的「总结 / 决策」+ 构成它的原始信源。
+// 资讯第三层：某天的「总结」（综合日报 + 今日机会）+ 构成它的原始信源各 lane。
+// （原「决策」与「总结」内容重复，已合并入「总结」——机会/相关标的引导回到总结页底部。）
 export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
   { id: 'summary', label: '总结' },
-  { id: 'decision', label: '决策' },
   { id: 'news', label: '新闻' },
+  { id: 'blogs', label: '博客' },
   { id: 'twitter', label: '推特' },
   { id: 'reddit', label: 'Reddit' },
   { id: 'xiaohongshu', label: '小红书' },
@@ -62,12 +64,14 @@ export const SOURCE_LANES: Record<
     label: string
     sourcePrefix?: string
     filters: { key: string; label: string }[]
+    filterBy: 'theme' | 'category'
     live: boolean
   }
 > = {
-  news: { label: '新闻', filters: THEMES, live: true },
-  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, live: true },
-  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, live: true },
-  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, live: true },
-  threads: { label: 'Threads', sourcePrefix: 'Threads·', filters: FORUM_CATS, live: true },
+  news: { label: '新闻', filters: THEMES, filterBy: 'theme', live: true },
+  blogs: { label: '博客', sourcePrefix: '博客·', filters: THEMES, filterBy: 'theme', live: true },
+  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, filterBy: 'category', live: true },
+  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, filterBy: 'category', live: true },
+  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, filterBy: 'category', live: true },
+  threads: { label: 'Threads', sourcePrefix: 'Threads·', filters: FORUM_CATS, filterBy: 'category', live: true },
 }

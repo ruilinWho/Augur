@@ -355,9 +355,9 @@ const scheduleSchema = z.object({
   enabled: z.boolean().default(true),
   start_hour: z.number().default(11),
   end_hour: z.number().default(23),
-  cluster_input_max: z.number().default(1000), // 要事/机会喂 LLM 的当日条数上限（0=不限）
-  brief_top_n: z.number().default(5), // 今日要事显示条数
-  social_pulse_n: z.number().default(4), // 社媒热度每平台条数
+  cluster_input_max: z.number().default(1000), // 板块要点/机会喂 LLM 的当日条数上限（0=不限）
+  brief_top_n: z.number().default(5), // 兼容旧设置：总结页已改为综合日报
+  social_pulse_n: z.number().default(4), // 兼容旧 /news/social-pulse
   discovery_news_n: z.number().default(6), // 寻·每候选证据条数
 })
 export type Schedule = z.infer<typeof scheduleSchema>
@@ -685,6 +685,10 @@ const refreshResultSchema = z.object({
   sources_failed: z.number(),
   failures: z.array(z.string()).default([]),
 })
+const newsReadStateSchema = z.object({
+  last_read_at: z.string().nullable().default(null),
+  fresh_count: z.number().default(0),
+})
 const filingSchema = z.object({
   form: z.string(),
   title: z.string(),
@@ -696,6 +700,7 @@ export type NewsItem = z.infer<typeof newsItemSchema>
 export type NewsReport = z.infer<typeof newsReportSchema>
 export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
+export type NewsReadState = z.infer<typeof newsReadStateSchema>
 export type Filing = z.infer<typeof filingSchema>
 
 export function useNewsFeed(
@@ -837,7 +842,18 @@ export function useRefreshNews() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async () => refreshResultSchema.parse(await send('/news/refresh', 'POST')),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['news-feed'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['news-feed'] })
+      qc.invalidateQueries({ queryKey: ['news-read-state'] })
+    },
+  })
+}
+
+export function useNewsReadState() {
+  return useQuery({
+    queryKey: ['news-read-state'],
+    queryFn: async () => newsReadStateSchema.parse(await getJSON('/news/read-state')),
+    staleTime: 30_000,
   })
 }
 
@@ -968,35 +984,6 @@ export function useGenerateClusters() {
   })
 }
 
-// ── 社媒脉搏：聚合各 lane 已生成要点，供「资讯·总结/决策」接入所有信源 ──
-const socialPulseItemSchema = z.object({
-  platform: z.string().default(''),
-  headline: z.string().default(''),
-  importance: z.string().default('med'),
-  why: z.string().default(''),
-  url: z.string().default(''),
-  source: z.string().default(''),
-})
-const socialPulseLaneSchema = z.object({
-  platform: z.string().default(''),
-  total: z.number().default(0),
-  items: z.array(socialPulseItemSchema).default([]),
-})
-const socialPulseSchema = z.object({
-  report_date: z.string().default(''),
-  lanes: z.array(socialPulseLaneSchema).default([]),
-  platform_count: z.number().default(0),
-})
-export type SocialPulseItem = z.infer<typeof socialPulseItemSchema>
-export type SocialPulseLane = z.infer<typeof socialPulseLaneSchema>
-export function useSocialPulse(date: string | null) {
-  return useQuery({
-    queryKey: ['social-pulse', date ?? 'today'],
-    queryFn: async () =>
-      socialPulseSchema.parse(await getJSON(`/news/social-pulse${date ? `?date=${date}` : ''}`)),
-  })
-}
-
 // ── 个股：定向抓取 lane + 标的叙事时间线（知·个股）──
 const narrativeRefSchema = z.object({
   source: z.string().default(''),
@@ -1063,6 +1050,7 @@ export function useRefreshDirected() {
       qc.invalidateQueries({ queryKey: symbol ? ['stock-news-brief', symbol] : ['stock-news-brief'] })
       qc.invalidateQueries({ queryKey: symbol ? ['stock-social-heat', symbol] : ['stock-social-heat'] })
       qc.invalidateQueries({ queryKey: symbol ? ['news-for', symbol] : ['news-for'] })
+      qc.invalidateQueries({ queryKey: ['news-read-state'] })
     },
   })
 }

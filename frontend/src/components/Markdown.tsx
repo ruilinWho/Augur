@@ -1,15 +1,25 @@
-import { useMemo, type ReactNode } from 'react'
+import { createElement, useMemo, type ReactNode } from 'react'
 
-// 共享轻量 Markdown 渲染（无依赖）：## 标题 / # 标题 / > 引用 / - 列表 / |表格| / --- 分隔 /
-// 段落，行内支持 **加粗** · 裸链接 · [n] 引用上标（给了 sources 且该 n 有 url 则可点跳来源）。
-// 研报（带编号引用）、导入研报、「记」长文笔记共用——单一真相，避免多份手写解析漂移。
+// 共享轻量 Markdown 渲染（无依赖，单一真相）：#–#### 标题 / > 引用 / -·* 无序列表 /
+// 1. 有序列表 / |表格| / --- 分隔 / 段落，行内支持 **加粗** · *斜体* · `代码` · 裸链接 ·
+// [n] 引用上标（给了 sources 且该 n 有 url 则可点跳来源）。
+// 综合日报、研报（带编号引用）、导入研报、「记」长文笔记**全部共用此一份**——避免多份手写解析漂移
+// （此前 shared.tsx 另有一份简化 Digest 不认 ###/有序列表，导致日报偶发"没渲染出 markdown"）。
 export type CiteSource = { n: number; url?: string | null }
 
+const HEADING_TAGS = ['h3', 'h4', 'h5', 'h6'] as const // # → h3 … #### → h6
+
 function inline(text: string, srcUrl: (n: number) => string | null): ReactNode[] {
-  // 先按 **加粗** / 裸 URL / [n] 切分，逐段渲染
-  const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s)]+|\[\d+\])/g)
+  // 按 **加粗** / *斜体* / `代码` / 裸 URL / [n] 切分，逐段渲染（加粗在斜体前，避免 ** 被当成单 *）
+  const parts = text.split(
+    /(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`|https?:\/\/[^\s)]+|\[\d+\])/g,
+  )
   return parts.map((p, i) => {
     if (p.startsWith('**') && p.endsWith('**')) return <strong key={i}>{p.slice(2, -2)}</strong>
+    if (p.startsWith('*') && p.endsWith('*') && p.length > 2)
+      return <em key={i}>{p.slice(1, -1)}</em>
+    if (p.startsWith('`') && p.endsWith('`') && p.length > 2)
+      return <code key={i}>{p.slice(1, -1)}</code>
     if (/^https?:\/\//.test(p))
       return (
         <a key={i} className="cite-link" href={p} target="_blank" rel="noreferrer">
@@ -49,13 +59,14 @@ export default function Markdown({
   }, [sources])
 
   const blocks: ReactNode[] = []
-  let list: string[] = []
+  let ul: string[] = []
+  let ol: string[] = []
   let quote: string[] = []
   let table: string[] = []
 
-  const flushList = () => {
-    if (!list.length) return
-    const items = list
+  const flushUL = () => {
+    if (!ul.length) return
+    const items = ul
     blocks.push(
       <ul key={`u${blocks.length}`}>
         {items.map((t, i) => (
@@ -63,7 +74,19 @@ export default function Markdown({
         ))}
       </ul>,
     )
-    list = []
+    ul = []
+  }
+  const flushOL = () => {
+    if (!ol.length) return
+    const items = ol
+    blocks.push(
+      <ol key={`o${blocks.length}`}>
+        {items.map((t, i) => (
+          <li key={i}>{inline(t, srcUrl)}</li>
+        ))}
+      </ol>,
+    )
+    ol = []
   }
   const flushQuote = () => {
     if (!quote.length) return
@@ -117,7 +140,8 @@ export default function Markdown({
     table = []
   }
   const flushAll = () => {
-    flushList()
+    flushUL()
+    flushOL()
     flushQuote()
     flushTable()
   }
@@ -126,27 +150,33 @@ export default function Markdown({
     const line = raw.trim()
     if (!line) return flushAll()
     if (line.startsWith('|') && line.includes('|', 1)) {
-      flushList()
+      flushUL()
+      flushOL()
       flushQuote()
       table.push(line)
       return
     }
     flushTable()
+    const heading = line.match(/^(#{1,4})\s+(.*)$/)
     if (line === '---' || line === '***') {
       flushAll()
       blocks.push(<hr key={`h${i}`} />)
+    } else if (heading) {
+      flushAll()
+      const tag = HEADING_TAGS[heading[1].length - 1]
+      blocks.push(createElement(tag, { key: `t${i}` }, inline(heading[2], srcUrl)))
     } else if (line.startsWith('> ') || line === '>') {
-      flushList()
+      flushUL()
+      flushOL()
       quote.push(line.replace(/^>\s?/, ''))
-    } else if (line.startsWith('## ')) {
-      flushAll()
-      blocks.push(<h4 key={`t${i}`}>{line.replace(/^##\s+/, '')}</h4>)
-    } else if (line.startsWith('# ')) {
-      flushAll()
-      blocks.push(<h3 key={`t${i}`}>{line.replace(/^#\s+/, '')}</h3>)
-    } else if (/^[-*]\s+/.test(line)) {
+    } else if (/^\d+\.\s+/.test(line)) {
+      flushUL()
       flushQuote()
-      list.push(line.replace(/^[-*]\s+/, ''))
+      ol.push(line.replace(/^\d+\.\s+/, ''))
+    } else if (/^[-*]\s+/.test(line)) {
+      flushOL()
+      flushQuote()
+      ul.push(line.replace(/^[-*]\s+/, ''))
     } else {
       flushAll()
       blocks.push(<p key={`p${i}`}>{inline(line, srcUrl)}</p>)
