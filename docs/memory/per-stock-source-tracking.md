@@ -17,7 +17,7 @@
 - `official_x`/`influencer_x`（X）：`@nvidia`、`https://x.com/nvidia` → 先 `twtapi.fetch_accounts`（需 `TWTAPI_KEY` 且额度可用），**twtapi 返回空则自动回退 `tikhub.user_tweets`（TikHub X2 通道）**——「修 X 通道」：twtapi 月额度耗尽时仍出数据（2026-06-10）。
 - `xiaohongshu`（**新**）：`ref` 填**关键词**（公司名/产品名，如「比亚迪」），走 `tikhub.search_xiaohongshu`（app_v2/search_notes，近一周、≤12 条）。不收 URL。
 - `threads`（**新**）：`ref` 填**关键词**（英文公司名/ticker），走 `tikhub.search_threads`（web/search_top）。不收 URL。
-- `reddit`：`r/NVDA_Stock` → public JSON。
+- `reddit`：`ref` 填子版名（`r/NVDA_Stock` 或 `NVDA_Stock`）→ `tikhub.fetch_subreddit_feed` 抓该**专属子板块** feed；解析不到子版则退 `tikhub.search_reddit(股名)` 关键词搜。**直连 reddit.com 已被 IP 封 403、`reddit.py` 已删，全走 TikHub**。`stock_sources.ensure_auto_reddit` 在 `refresh_symbol` 开头自动解析子版名（`search_subreddit_typeahead`）并加为已启用源 → 首次刷新即自动接入该股专属子版，无需手动 discover。
 - RSS/Atom（official/ir/fin_site/forum 的 URL）：feedparser。
 
 以上 TikHub kind 共用 `TIKHUB_KEY`，无新增 secret；失败/无 key 时 `_fetch_one` 返回 problem（计入 unsupported），不崩溃。实测（2026-06-10）三类各抓 12 条并确定性挂回该股。

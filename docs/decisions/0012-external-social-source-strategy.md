@@ -4,6 +4,8 @@
 
 后续变更：2026-06-06 通过 [ADR-0013](0013-tikhub-social-source-layer.md) 接入 TikHub，
 覆盖本文关于“小红书仍未接入”的阶段性判断；雪球退役判断不变。
+后续变更（2026-06-11）：推特全局源由 twtapi 改为**唯一走 TikHub**（twtapi 仅每股专属 X 仍用作回退）；
+**Reddit 直连公共 JSON 被 IP 封 403、`reddit.py` 已删，全 Reddit 走 TikHub**（关键词搜 + 子版 feed）；微信源已删（服务端 400）。
 
 ## 背景
 

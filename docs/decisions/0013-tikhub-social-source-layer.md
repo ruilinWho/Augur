@@ -2,6 +2,8 @@
 
 日期：2026-06-06
 
+> **后续变更（2026-06-11）**：本 ADR 列的 `tikhub_wechat`（微信公众文章）**已删除**（`wechat_mp/web/*` 整组服务端长期 400）；**Reddit 不再是「public JSON + TikHub 双通道」——直连被 IP 封、`reddit.py` 已删，全走 TikHub**（关键词搜 + 子版 feed `fetch_subreddit_feed`）；TikHub 同时成为**唯一**推特源（twtapi 退役为每股专属）。下文按当时决策保留。
+
 ## 背景
 
 作者决定使用 TikHub 作为一组外部社交/论坛信源的共享 API provider：Twitter 第二源、小红书、Threads、Reddit 关键词搜索、微信公众文章。目标不是展示原始帖子流，而是把弱信号纳入 Augur 的决策链：发现某只股票被大众如何讨论、热度是否变化、哪些观点可作为反证。

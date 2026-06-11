@@ -1,7 +1,7 @@
 # 付费信源的支付方式（中国用户视角，微信/支付宝优先）
 
 > 调研于 2026-06（5-agent workflow + 官方页核查）。口径：**A 微信/支付宝直付 > B 银联/国内卡 > C 仅国际信用卡（需虚拟卡/加密/中转）**。给 Augur 作者买 key 时按此优先级。
-> 现状：Tushare Pro、必盈 BiYing、iTick 已按作者要求从 Augur 设置页与体检注册中移除；本文件保留采购调研历史，不代表当前可配置源。
+> 现状（2026-06-11 更新）：Tushare Pro、必盈 BiYing、iTick、雪球均已从 Augur 设置页/体检移除、遗留 key 也已清；**全部社媒/论坛源现统一走 TikHub（`TIKHUB_KEY`）**，twtapi 退役为全局推特源（仅每股专属 X 仍用作回退）、微信源已删。本文件保留采购调研历史，不代表当前可配置源。
 
 ## A 层 · 微信/支付宝直付（最友好）
 
@@ -36,6 +36,6 @@
 
 ## 采购优先级（结论）
 1. **LLM**：以 **DeepSeek**（支付宝、现用）为主；**便宜角色**(summarize/cheap/翻译/相关性筛选) 路由到 **智谱/Kimi/硅基流动/MiniMax**（都支付宝可充、多送免费额度）；**前沿模型**(GPT/Claude) 走 **OpenRouter**（Stripe 支付宝，需梯子）或 **OhMyGPT 中转**（+10%，敏感内容不走）。**避免**直连 OpenAI/Anthropic 官方充值。
-2. **X 桥**：**作者选定 twtapi**（有免费试用 + 月付，免国际卡；TwitterAPI.io 要国际卡故弃）。配 `TWTAPI_KEY` 启用（ADR-0007 §5）。
+2. **社媒/论坛源**：现统一走 **TikHub**（`TIKHUB_KEY`，一份 key 覆盖推特/小红书/Threads/Reddit）。twtapi（`TWTAPI_KEY`，有免费试用 + 月付、免国际卡）退役为全局源、仅每股专属 X 仍用作回退（ADR-0007 §5 的「作者选定 twtapi」已被 TikHub 取代）。
 3. **金融数据**：吃免费层 + 既有开源栈；付费走虚拟卡/PayPal，非刚需。
 4. **中文终端**：全弃。

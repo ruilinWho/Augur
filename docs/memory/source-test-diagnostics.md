@@ -8,7 +8,7 @@
 - 不要向 UI 返回 `RuntimeError:`、`HTTPStatusError:`、`TwtapiFatal:`、第三方英文错误正文，或大段接口原始返回。
 - 优先归类为：
   - 没有配置：缺 API key / token / 账号。
-- 没有接入：小红书这类只有配置槽、抓取适配器未实现。
+- 没有接入：只有配置槽、抓取适配器未实现的源（当前 TikHub 系均已实现，此类暂无成员，保留作兜底分类）。
   - 没有额度：月度额度用完、余额/积分不足、频率限制。
   - 没有权限：key 有但套餐未开通该接口。
   - 网络问题：超时、代理/网络不可达、对方服务临时不可用。
@@ -18,7 +18,7 @@
 ## 实现位置
 
 - `backend/augur/news/source_test.py::diagnose_problem` 是统一兜底翻译层。
-- TikHub (`TIKHUB_KEY`) 五个源共用一份 key；401/403 优先翻成“凭证无效，或当前套餐没有这个接口权限”，402/余额/套餐翻成“没有接口权限/需要充值或开通”，429 翻成“额度或频率限制”。
+- TikHub (`TIKHUB_KEY`) 四个源（推特/小红书/Threads/Reddit）共用一份 key；401/403 优先翻成“凭证无效，或当前套餐没有这个接口权限”，402/余额/套餐翻成“没有接口权限/需要充值或开通”，429 翻成“额度或频率限制”。
 - `POST /settings/source/test-all` 与 `POST /settings/test-all` 复用同一套诊断结果；体检结果只返回状态/问题/key 获取链接，不回传 API key。
 - `backend/augur/news/ingest.py::source_health` 会把旧健康记录里的公共 RSS 403 读时归一成“源站拒绝访问”，并在新抓取失败时存 `last_error`。
 - 各适配器仍可抛更精确的中文问题，但不能依赖前端清洗。

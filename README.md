@@ -10,7 +10,7 @@ Augur is organized around four product surfaces:
 
 - **View**: multi-market candlestick charts for US, Hong Kong, China A-share, and Korea equities, with quotes, fundamentals, financial trends, 52-week position, related-news summaries, and decision journal markers.
 - **Research**: single-stock research reports generated from deterministic local context plus an LLM, with citations, imported reports, and personal comments.
-- **Know**: a daily market intelligence layer that ingests curated RSS/API sources, X, Reddit, TikHub-backed social sources, ticker-specific news, and stock-specific sources; it translates, filters, clusters, tags stocks, and distills decision-grade daily briefs, opportunities, risks, and narratives.
+- **Know**: a daily market intelligence layer that ingests curated RSS/API sources, TikHub-backed social/forum sources (X, Reddit, Xiaohongshu, Threads), ticker-specific news, and stock-specific sources; it translates, filters, clusters, tags stocks, and distills decision-grade daily briefs, opportunities, risks, and narratives.
 - **Note**: long-form Markdown notes for market thoughts, investing process, and retrospectives that are not tied to a single ticker.
 
 The common foundation is a two-level watchlist taxonomy, a configurable LLM gateway, local SQLite metadata, and Parquet market-data caches.

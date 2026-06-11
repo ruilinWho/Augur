@@ -13,7 +13,7 @@
 
 - `POST /settings/test-all`：LLM 连接 + 信源 API + 最近健康度的合并体检。
 - `POST /settings/source/test-all`：只批量测试登记信源；缺 key/token 的源不打外网，直接标未配置。
-- `news/source_registry.py`：登记 `key_url/docs_url/official_url`，当前含 twtapi、小红书等；Tushare Pro、必盈、iTick、雪球已按作者要求从设置页和体检注册中移除。
+- `news/source_registry.py`：登记 `key_url/docs_url/official_url`，当前主要是 TikHub 系（推特/小红书/Threads/Reddit，共用 `TIKHUB_KEY`）；twtapi、Tushare Pro、必盈、iTick、雪球、微信均已退役/移除，不在体检注册里（twtapi 仅每股专属 X 信源仍用，不登记为全局源）。
 - LLM 连接的凭证入口由 `settings_router._llm_key_url` 推断：常见厂商走控制台精确 URL；未知自定义中转退回 `base_url` 根域，避免空链接。
 - `source_health.last_error`：抓取失败时保存中文原因；`GET /news/source-health` 返回该字段。
 - 前端 `SettingsView.tsx::AllPage`：指标卡、待处理 API、健康度异常列表。
@@ -22,4 +22,4 @@
 
 - `/settings/config` 按作者要求仍会给本地 UI 回显明文 key；但 `/settings/test-all` 体检结果不返回 key。
 - 公共 RSS 的 401/403 多数不是“凭证无效”，应显示为“源站拒绝访问 / 反爬 / 下线 / UA 需更新”。
-- 小红书目前仍只有配置槽和关注用户/关键词；有 token 后仍应显示“未接入”，不能伪装可用。（雪球已于 2026-06-06 退役，从注册与体检移除。）
+- 小红书/Threads/Reddit/推特现都经 TikHub 真实接入（共用 `TIKHUB_KEY`，搜索型端点）；缺 key 显「未配置」，key 无效/额度不足按 TikHub 诊断分类。（雪球 2026-06-06 退役、微信 2026-06-11 删除，均从注册与体检移除。）
