@@ -19,6 +19,7 @@ export type SourceLaneId =
 // ② 原始信源 lane（新闻+各社媒）；③ 博客（长文阅读卡，独立一类）。
 export const INFO_SECTIONS: { id: InfoSection; label: string; group: string }[] = [
   { id: 'summary', label: '总结', group: 'digest' },
+  { id: 'sectors', label: '分区', group: 'digest' },
   { id: 'news', label: '新闻', group: 'sources' },
   { id: 'twitter', label: '推特', group: 'sources' },
   { id: 'reddit', label: 'Reddit', group: 'sources' },

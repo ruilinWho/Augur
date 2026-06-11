@@ -13,6 +13,8 @@
 - `RelatedChip`/`CitedText`/`CitedList` 抽到 `shared.tsx`，日报/机会/个股资讯共用（单一真相）。
 - 生成从 SSE 流式改为**阻塞** `POST /news/report/generate`（返回结构化报告，~20–40s；结构化 JSON 无法有意义地流式）。作者明示「宁愿多次调用 LLM」——目前一次结构化调用 + 接地够用；若某段深度不足，可拆成 outline + 每段并行细化（已有并行基建）。
 
+**同日（2026-06-12）：分区级日报**——新增「资讯·板块」的「分区」lane（紧邻「总结」），是综合日报的 **portfolio 轴姊妹**：综合日报按**主题**组织全球新闻，分区日报按作者**一级自选分区**组织、逐股呈现「我的盘子今天发生了什么」。复用同一套结构化机器（`_cited_points`/`_complete_json`/grounding 思路），但 scope 靠 `news_item_symbols` 挂钩、每个一级分区一次并行 LLM 调用、`mover.symbol` 确定性校验（必为本分区票）。落 `news_section_reports`、并入 `generate_all`。详见 [section-level-daily-report](section-level-daily-report.md)。
+
 实现边界：
 
 - `service.generate_report()` 使用 `digest_items_for_day()`，它合并：

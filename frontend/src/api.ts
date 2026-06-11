@@ -907,6 +907,62 @@ const newsReportSchema = z.object({
 export type ReportSection = z.infer<typeof reportSectionSchema>
 export type NewsReport = z.infer<typeof newsReportSchema>
 
+// ── 自选分区级日报：每个一级分区一张板块卡（脉搏 + 逐股异动，看/研 可点）──
+const sectionMoverSchema = z.object({
+  symbol: z.string(),
+  name: z.string().default(''),
+  market: z.string().default(''),
+  sub: z.string().default(''),
+  importance: z.string().default('med'), // critical/high/med/low
+  headline: z.string().default(''),
+  points: z.array(citedPointSchema).default([]),
+})
+const sectionBoardSchema = z.object({
+  section_id: z.number(),
+  section_name: z.string().default(''),
+  sort_order: z.number().default(0),
+  pulse: z.string().default(''),
+  importance: z.string().default('low'),
+  movers: z.array(sectionMoverSchema).default([]),
+  quiet: z.array(z.string()).default([]),
+  item_count: z.number().default(0),
+})
+const sectionReportsSchema = z.object({
+  report_date: z.string(),
+  boards: z.array(sectionBoardSchema).default([]),
+  model: z.string().default(''),
+  created_at: z.string().nullable().default(null),
+})
+export type SectionMover = z.infer<typeof sectionMoverSchema>
+export type SectionBoard = z.infer<typeof sectionBoardSchema>
+export type SectionReports = z.infer<typeof sectionReportsSchema>
+
+// 分区级日报读：GET 恒 200（boards 空＝当天未生成，非错误），无需 404 兜底。
+export function useSectionReports(date: string | null) {
+  return useQuery({
+    queryKey: ['news-section-reports', date ?? 'today'],
+    queryFn: async () =>
+      sectionReportsSchema.parse(
+        await getJSON(`/news/section-reports${date ? `?date=${date}` : ''}`),
+      ),
+  })
+}
+
+// 生成分区级日报（阻塞 ~30–60s，每个一级分区一次 LLM 调用、分区间并行）。
+export function useGenerateSectionReports() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (date?: string | null) =>
+      sectionReportsSchema.parse(
+        await send(`/news/section-reports/generate${date ? `?date=${date}` : ''}`, 'POST'),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['news-section-reports'] })
+      qc.invalidateQueries({ queryKey: ['news-read-state'] })
+    },
+  })
+}
+
 export function useOpportunities(date: string | null) {
   return useQuery({
     queryKey: ['news-opps', date ?? 'today'],

@@ -41,7 +41,8 @@ Everything in this section is implemented and in daily use.
 - **All social/forum sources flow through TikHub** (one shared `TIKHUB_KEY`): X, Xiaohongshu, Threads, and Reddit — keyword search plus per-stock dedicated subreddit feeds.
 - Private WeChat-public-account RSS can be configured from Settings as a separate **Blog** lane in Info sections; the tokenized URL lives only in ignored runtime config and feeds `source_prefix="博客·"`.
 - Pipeline: translation, relevance filtering, deterministic stock linking, LLM stock tagging, and grounding, with a global `feed` lane and a per-stock `ticker` lane.
-- Daily snapshots and a single integrated daily report that combines news, blogs, and all social/forum lanes into one card for Summary and Decision, with opportunities, risks, counter-evidence, and follow-up questions in the same narrative.
+- Daily snapshots and a structured integrated daily report (Summary lane) — a verdict, importance-ranked theme cards (cited points + grounded 看/研 stock chips), risks/counter-evidence, and follow-up watch items — scoped over news, blogs, and all social/forum lanes, with today's opportunities below it.
+- **Watchlist-section daily reports (分区 lane)** — a portfolio-aware brief that slices the day's news by your top-level watchlist sections: one board per section (sorted by importance) with a section pulse and per-stock movers (importance badge, headline, cited bullets, 看/研 links, sub-section tag, today-only price change); quiet stocks fold into a footer. Scoped via `news_item_symbols`, one parallel LLM call per section, persisted and kept warm by `generate_all`. See [section-level-daily-report](memory/section-level-daily-report.md).
 - Summary/Decision show a title-line “since last refresh” freshness chip; manual refresh, one-click refresh+generate, and scheduled auto refresh automatically advance the read baseline. The older social-pulse endpoint remains only as a compatibility/debug read API.
 - Single-stock narrative timelines, and per-stock source tracking: X accounts (twtapi with TikHub fallback), Xiaohongshu/Threads keyword sources (TikHub), Reddit communities (TikHub, dedicated subreddit auto-resolved on first refresh), and RSS/Atom feeds.
 - Source health tracking, source testing, runtime source configuration, and Chinese diagnostics for credential/quota/adapter failures.
@@ -78,7 +79,6 @@ The remaining work, roughly in priority order. Nothing here is shipped; "activel
 ### Later (accepted, not started)
 
 - **Decision reflection loop** — surface changed beliefs, missing counter-evidence, unreviewed decisions, and overdue follow-ups across reports, notes, journals, and generated opportunities.
-- **Section-level intelligence** — briefs, risks, and opportunities grouped by watchlist section, not only by market/theme/ticker.
 - **Catalyst calendar** — earnings dates, product launches, macro releases, regulatory dates, lockups, and user-defined events.
 - **Counter-evidence radar** — per-thesis invalidation conditions that can be triggered by new information.
 - **Source reliability scoring** — originality, repetition, error rate, title-noise rate, and historical usefulness by source.

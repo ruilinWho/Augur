@@ -3603,6 +3603,185 @@ input:focus:not(:focus-visible) {
   margin: 0 0 4px;
 }
 
+/* ───────── 自选分区级日报：每个一级分区一张板块卡（脉搏 + 逐股异动，看/研 可点）───────── */
+.sboards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sboard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 18px 22px 16px;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.sboard:hover {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  box-shadow: var(--shadow);
+}
+.sboard-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+/* 分区名：加粗 + 下划线（与全局日报小标题同一强调语言，作者偏好） */
+.sboard-name {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.sboard-n {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sboard-pulse {
+  font-size: 0.9rem;
+  line-height: 1.66;
+  color: var(--text-muted);
+  margin: 9px 0 2px;
+}
+.sboard-movers {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+/* 逐股异动：左侧细陶土轨，像一条 portfolio 时间线；逐条分隔 */
+.smover {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  padding: 10px 0 10px 14px;
+  transition: border-color 0.14s ease;
+}
+.smover + .smover {
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.smover:hover {
+  border-left-color: var(--accent);
+}
+.smover-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.smover-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+.smover-name:hover {
+  color: var(--accent);
+}
+.smover-name .wdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+.smover-mkt {
+  font-size: 0.66rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.5;
+}
+.smover-sub {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.smover-chg {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.smover-chg.up {
+  color: var(--up);
+}
+.smover-chg.down {
+  color: var(--down);
+}
+.smover-chg.flat {
+  color: var(--text-faint);
+}
+.smover-go {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  padding: 1px 9px;
+  cursor: pointer;
+  transition: 0.14s ease;
+}
+.smover-go:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.smover-headline {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 6px 0 0;
+}
+.smover .cited-list {
+  margin-top: 6px;
+}
+/* 板块内其余安静的票（低噪音脚注） */
+.sboard-quiet {
+  margin-top: 14px;
+  padding-top: 11px;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 70%, transparent);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+.sboard-quiet-l {
+  color: var(--text-muted);
+  margin-right: 8px;
+}
+/* 今日整体安静的分区（页脚汇总） */
+.squiet {
+  margin-top: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 18px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface-2) 40%, transparent);
+  font-size: 0.82rem;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+.squiet-l {
+  flex: none;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .know-empty {
   border: 1px dashed var(--border);
   border-radius: var(--radius);

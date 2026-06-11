@@ -1019,6 +1019,287 @@ def generate_report(report_date: str | None = None, role: str = "summarize") -> 
     }
 
 
+# ───────────────────────── 自选分区级日报（按一级分区切片、逐股异动）─────────────────────────
+# 每个一级分区一次结构化 LLM 调用、分区间**并行**（作者「宁愿多次调用 LLM」）；scope 靠
+# news_item_symbols 挂钩——只蒸馏挂到我持有票的当天新闻；每条 mover 的 symbol **必为喂进去的
+# 本分区票**（确定性、零编造）。区别于全局主题日报：这是 portfolio 轴、按自选分区组织。
+_SECTION_PER_STOCK_CAP = 22  # 每只票喂给 LLM 的当日条目上限（控提示词体积）
+_SECTION_MOVERS_CAP = 12  # 每个分区呈现的异动票上限（按重要性截断，其余进「安静」）
+_SECTION_WORKERS = 6  # 分区间并行度（嵌套在 generate_all 之内，纯 I/O 线程）
+
+
+def _day_items_by_symbol(symbols: list[str], day: str | None) -> dict[str, list[dict]]:
+    """某日（作者时区日历日）每个 symbol 挂钩到的新闻条目（news_item_symbols join），时间倒序。
+
+    一次 IN 查询批量取、按 symbol 分桶、每桶封顶。挂钩含确定性 linker（term）∪ 定向（targeted）
+    ∪ LLM 标股（llm）——作者持有的票，挂到它的当天新闻全给。日界按 COALESCE(published,fetched)。
+    """
+    if not symbols:
+        return {}
+    lo, hi = _day_bounds_utc(day)
+    conn = get_conn()
+    try:
+        ph = ",".join("?" * len(symbols))
+        rows = conn.execute(
+            f"SELECT nis.symbol AS _sym, ni.* FROM news_items ni "
+            f"JOIN news_item_symbols nis ON nis.news_id = ni.id "
+            f"WHERE nis.symbol IN ({ph}) "
+            f"AND datetime(COALESCE(ni.published_at, ni.fetched_at)) >= datetime(?) "
+            f"AND datetime(COALESCE(ni.published_at, ni.fetched_at)) < datetime(?) "
+            f"ORDER BY COALESCE(ni.published_at, ni.fetched_at) DESC",
+            [*symbols, lo, hi],
+        ).fetchall()
+    finally:
+        conn.close()
+    out: dict[str, list[dict]] = {}
+    for r in rows:
+        sym = r["_sym"]
+        bucket = out.setdefault(sym, [])
+        if len(bucket) >= _SECTION_PER_STOCK_CAP:
+            continue
+        it = _item_out(r)
+        it.pop("_sym", None)  # 去掉 join 出来的辅助列
+        bucket.append(it)
+    return out
+
+
+def _section_stocks(node: dict) -> list[tuple[str, str, str]]:
+    """一级分区 → [(symbol, 展示名, 二级板块名)]，直属 + 所有子板块、按 symbol 去重（首见保留）。
+
+    sub＝该票挂靠的二级板块名（直属于一级则空）。depth≤2 不变量，孙级理论不存在仍稳妥兜底。
+    """
+    out: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+
+    def take(items: list, sub: str) -> None:
+        for it in items:
+            sym = it["symbol"]
+            if sym in seen:
+                continue
+            seen.add(sym)
+            out.append((sym, search.display_name(sym), sub))
+
+    take(node.get("items", []), "")
+    for ch in node.get("children", []):
+        take(ch.get("items", []), ch["name"])
+        for gch in ch.get("children", []):  # depth≤2 兜底
+            take(gch.get("items", []), ch["name"])
+    return out
+
+
+def _section_digest_block(
+    stocks: list[tuple[str, str, str]], items_by_sym: dict[str, list[dict]]
+) -> tuple[str, dict[int, dict]]:
+    """逐股分组、带全局 [n] 编号的条目块 + 序号→item 回查表（喂分区日报）。
+
+    同一条新闻可挂到分区内多只票 → 共享同一 [n]（按 news id 去重编号），分别列在各自票下。
+    """
+    by_n: dict[int, dict] = {}
+    id_to_n: dict[int, int] = {}
+    lines: list[str] = []
+    n = 0
+    for sym, name, sub in stocks:
+        its = items_by_sym.get(sym) or []
+        if not its:
+            continue
+        tag = f"（{sub}）" if sub else ""
+        lines.append(f"\n## {name} · {sym}{tag}")
+        for it in its:
+            iid = int(it["id"])
+            k = id_to_n.get(iid)
+            if k is None:
+                n += 1
+                k = n
+                id_to_n[iid] = k
+                by_n[k] = it
+            lane = _source_lane_label(str(it.get("source") or ""))
+            title = (it.get("title_zh") or it.get("title") or "").strip()
+            summ = (it.get("summary") or "").strip()
+            tail = f"｜{summ[:160]}" if summ and summ != title else ""
+            lines.append(f"[{k}] [{lane}｜{it.get('source', '')}] {title}{tail}")
+    return "\n".join(lines).strip(), by_n
+
+
+def _assemble_section_report(
+    section_id: int,
+    section_name: str,
+    sort_order: int,
+    stocks: list[tuple[str, str, str]],
+    data: dict,
+    by_n: dict[int, dict],
+) -> dict:
+    """LLM 结构化输出 → 校验 symbol（必为本分区票）、解析引用、算 quiet 与聚合重要性。"""
+    name_by_sym = {s[0]: s[1] for s in stocks}
+    sub_by_sym = {s[0]: s[2] for s in stocks}
+    movers: list[dict] = []
+    used: set[str] = set()
+    for m in data.get("movers") or []:
+        if not isinstance(m, dict):
+            continue
+        sym = str(m.get("symbol") or "").strip()
+        if sym not in name_by_sym or sym in used:  # 零编造：symbol 必为喂进去的本分区票
+            continue
+        used.add(sym)
+        imp = m.get("importance", "med")
+        movers.append(
+            {
+                "symbol": sym,
+                "name": name_by_sym[sym],
+                "market": sym.split(":", 1)[0],
+                "sub": sub_by_sym.get(sym, ""),
+                "importance": imp if imp in _IMP_ORDER else "med",
+                "headline": _strip_inline_refs(str(m.get("headline") or "")).strip()[:200],
+                "points": _cited_points(m.get("points"), by_n, 4),
+            }
+        )
+    movers.sort(key=lambda m: _IMP_ORDER.get(m["importance"], 2))  # 稳定：同级保 LLM 顺序
+    movers = movers[:_SECTION_MOVERS_CAP]
+    mover_syms = {m["symbol"] for m in movers}
+    quiet = [name for sym, name, _sub in stocks if sym not in mover_syms]
+    importance = movers[0]["importance"] if movers else "low"
+    return {
+        "section_id": section_id,
+        "section_name": section_name,
+        "sort_order": sort_order,
+        "pulse": _strip_inline_refs(str(data.get("pulse") or "")).strip()[:300],
+        "importance": importance,
+        "movers": movers,
+        "quiet": quiet,
+        "item_count": len(by_n),
+    }
+
+
+def _save_section_reports(rd: str, reports: list[dict], model: str) -> None:
+    """整日覆盖式落库：先删当天全部分区行（去掉已删/改名分区的陈旧行），再插当前快照。"""
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM news_section_reports WHERE report_date = ?", (rd,))
+        conn.executemany(
+            "INSERT INTO news_section_reports "
+            "(report_date, section_id, section_name, sort_order, body, model, item_count) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    rd,
+                    r["section_id"],
+                    r["section_name"],
+                    r["sort_order"],
+                    json.dumps(
+                        {
+                            "pulse": r["pulse"],
+                            "importance": r["importance"],
+                            "movers": r["movers"],
+                            "quiet": r["quiet"],
+                        },
+                        ensure_ascii=False,
+                    ),
+                    model,
+                    r["item_count"],
+                )
+                for r in reports
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_section_reports(day: str | None = None) -> dict:
+    """某日（默认今天）全部一级分区板块卡。按 有动静→重要性→分区顺序 排好。boards 空＝未生成。"""
+    rd = day or _today()
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM news_section_reports WHERE report_date = ?", (rd,)
+        ).fetchall()
+    finally:
+        conn.close()
+    boards: list[dict] = []
+    model = ""
+    created_at: str | None = None
+    for r in rows:
+        try:
+            body = json.loads(r["body"] or "{}")
+        except (json.JSONDecodeError, TypeError):
+            body = {}
+        model = model or (r["model"] or "")
+        created_at = created_at or r["created_at"]
+        boards.append(
+            {
+                "section_id": r["section_id"],
+                "section_name": r["section_name"],
+                "sort_order": r["sort_order"],
+                "pulse": body.get("pulse") or "",
+                "importance": body.get("importance") or "low",
+                "movers": body.get("movers") or [],
+                "quiet": body.get("quiet") or [],
+                "item_count": r["item_count"],
+            }
+        )
+    # 有动静的分区在前，再按重要性，再按分区顺序——晨读先看到最热的盘子
+    boards.sort(
+        key=lambda b: (0 if b["movers"] else 1, _IMP_ORDER.get(b["importance"], 3), b["sort_order"])
+    )
+    return {"report_date": rd, "boards": boards, "model": model, "created_at": created_at}
+
+
+def generate_section_reports(day: str | None = None, role: str = "summarize") -> dict:
+    """生成**自选分区级日报**：每个一级分区一次结构化 LLM 调用（并行），逐股异动接地到看/研。
+
+    只蒸馏挂到我持有票的当天新闻（news_item_symbols）。落库整日覆盖。无自选 → 清空当天、返回 0。
+    """
+    rd = day or _today()
+    tree = wl.list_tree(None)
+    sections: list[tuple[int, str, int, list[tuple[str, str, str]]]] = []
+    all_syms: set[str] = set()
+    for node in tree:
+        stocks = _section_stocks(node)
+        if not stocks:  # 真正空分区（list_tree 在 market=None 也回传空分区）跳过
+            continue
+        sections.append((node["id"], node["name"], node["sort_order"], stocks))
+        all_syms.update(s[0] for s in stocks)
+    if not sections:
+        _save_section_reports(rd, [], "")  # 无自选：清掉当天陈旧快照
+        return get_section_reports(rd)
+    items_by_sym = _day_items_by_symbol(sorted(all_syms), rd)
+    _, model = gateway.resolve_role(role)
+
+    def build(sec: tuple) -> dict:
+        sid, name, sort_order, stocks = sec
+        sub_items = {s[0]: items_by_sym.get(s[0], []) for s in stocks}
+        block, by_n = _section_digest_block(stocks, sub_items)
+        if not by_n:  # 该分区当天无任何挂钩新闻 → 不调 LLM，整组「安静」
+            return {
+                "section_id": sid,
+                "section_name": name,
+                "sort_order": sort_order,
+                "pulse": "",
+                "importance": "low",
+                "movers": [],
+                "quiet": [s[1] for s in stocks],
+                "item_count": 0,
+            }
+        prompt = (
+            _load_prompt("section_digest")
+            .replace("{{SECTION}}", name)
+            .replace("{{DATE}}", rd)
+            .replace("{{STOCKS}}", block)
+        )
+        data = _complete_json(prompt, role, "movers")  # 解析空/缺 movers 则重试
+        return _assemble_section_report(sid, name, sort_order, stocks, data, by_n)
+
+    reports: list[dict] = []
+    with ThreadPoolExecutor(max_workers=min(_SECTION_WORKERS, len(sections))) as ex:
+        futs = {ex.submit(build, sec): sec for sec in sections}
+        for fut in as_completed(futs):
+            try:
+                reports.append(fut.result())
+            except Exception:  # noqa: BLE001 — 单分区失败不连累其余（§11 优雅降级）
+                log.exception("section report failed: %s", futs[fut][1])
+    _save_section_reports(rd, reports, model)
+    return get_section_reports(rd)
+
+
 # ───────────────────────── 今日投资机会（抽取 + 接地）─────────────────────────
 
 
@@ -1634,6 +1915,8 @@ def generate_all(
         "digest": _digest,
         "clusters": lambda: generate_clusters(None, None, None, 1, role, rd),
         "opportunities": lambda: generate_opportunities(rd, role),
+        # 分区级日报：内部再按一级分区并行；嵌套线程池纯 I/O、安全（作者：尽量并行）
+        "section_reports": lambda: generate_section_reports(rd, role),
     }
     for name, prefix in {**_SOCIAL_LANES, **_SOURCE_LANES}.items():
         tasks[name] = (lambda p: lambda: generate_clusters(None, p, None, 1, role, rd))(prefix)

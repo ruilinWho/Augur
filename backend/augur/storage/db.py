@@ -134,6 +134,22 @@ CREATE TABLE IF NOT EXISTS news_clusters (
     UNIQUE(report_date, theme)
 );
 
+-- 自选分区级日报（M3「知·分区」）：把当天新闻按作者自选**一级分区**切片，每个分区一份
+-- 「板块脉搏 + 逐股异动（importance/headline/分点 + 看/研）」，一天一份/分区（重生成覆盖）。
+-- 区别于 news_reports（全局主题日报）——这是 portfolio 轴、按自选分区组织。body 存结构化 JSON
+-- {pulse, importance, movers[], quiet[]}。scope 数据靠 news_item_symbols 挂钩（零新增标股成本）。
+CREATE TABLE IF NOT EXISTS news_section_reports (
+    report_date  TEXT    NOT NULL,                  -- 'YYYY-MM-DD'，与 news_reports 对齐
+    section_id   INTEGER NOT NULL,                  -- 一级分区 id 快照（不设 FK：日快照）
+    section_name TEXT    NOT NULL DEFAULT '',       -- 分区名快照（避免读时再 join sections）
+    sort_order   INTEGER NOT NULL DEFAULT 0,        -- 分区排序快照（读时稳定排序的次键）
+    body         TEXT    NOT NULL DEFAULT '{}',     -- JSON：{pulse,importance,movers[],quiet[]}
+    model        TEXT    NOT NULL DEFAULT '',
+    item_count   INTEGER NOT NULL DEFAULT 0,        -- 喂给该分区的去重条目数
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (report_date, section_id)
+);
+
 -- 每股专属信源画像（M3「知·个股」）：LLM（最好联网）调研出某股该看哪些源 → 你策展 mark。
 -- 每只股一套、各不相同（官网/IR/官方X/大V/Reddit/财经站）。enabled 由作者拍板。
 CREATE TABLE IF NOT EXISTS stock_sources (
@@ -201,7 +217,7 @@ CREATE TABLE IF NOT EXISTS discovery_candidates (
     last_seen_at  TEXT,                                -- 最近出现日
     evidence      TEXT    NOT NULL DEFAULT '[]',       -- JSON：[{news_id,title,source,url,date}]
     theme         TEXT    NOT NULL DEFAULT '',          -- 主导主题（从证据新闻推断，供主题级屏蔽）
-    reason        TEXT    NOT NULL DEFAULT '',          -- LLM 一句话：为什么值得关注（寻·筛选+理由）
+    reason        TEXT    NOT NULL DEFAULT '',          -- LLM 一句话理由（寻·筛选）
     status        TEXT    NOT NULL DEFAULT 'new',       -- new待看/dismissed忽略/promoted已入自选
     created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))

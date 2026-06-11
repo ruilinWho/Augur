@@ -25,6 +25,7 @@ import { SOURCE_LANES, type SourceLaneId } from './consts'
 import { BlogList, FeedGroups } from './shared'
 import Markdown from '../../components/Markdown'
 import DigestReport from './DigestReport'
+import SectionReportsView from './SectionDigest'
 import OpportunitiesPanel from './OpportunitiesPanel'
 import StockSourcesPanel from './StockSourcesPanel'
 import { IMP, NarrativeBody } from './NarrativeTimeline'
@@ -473,6 +474,7 @@ function InfoView() {
   const infoDate = useNews((s) => s.infoDate)
   const infoSection = useNews((s) => s.infoSection)
   const date = infoDate ?? dayStr()
+  if (infoSection === 'sectors') return <SectionReportsView key={`sectors${date}`} date={date} />
   if (infoSection === 'blogs') return <BlogLaneView key="blogs" />
   if (infoSection in SOURCE_LANES) {
     return <DayScopedNews key={`${infoSection}${date}`} date={date} kind={infoSection as SourceLaneId} />

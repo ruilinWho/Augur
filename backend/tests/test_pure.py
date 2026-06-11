@@ -400,3 +400,49 @@ def test_stock_source_ref_parsing():
     assert stock_sources._subreddit("https://www.reddit.com/r/NVDA_Stock/new/") == "NVDA_Stock"
     assert stock_sources._feed_url("https://example.com/feed.xml") == "https://example.com/feed.xml"
     assert stock_sources._feed_url("https://x.com/nvidia") == ""
+
+
+# ───────────────────────── 分区级日报纯助手 ─────────────────────────
+def test_section_digest_block_dedups_shared_news_across_stocks():
+    # 同一条新闻（id=100）挂到分区内两只票 → 共用同一全局 [n]；只挂一只的另起编号
+    shared = {"id": 100, "source": "Reuters", "title_zh": "英伟达与博通合作", "summary": ""}
+    only_nvda = {"id": 101, "source": "Bloomberg", "title_zh": "英伟达发新卡", "summary": ""}
+    stocks = [("US:NVDA", "英伟达", "GPU"), ("US:AVGO", "博通", "光通信")]
+    items_by_sym = {"US:NVDA": [only_nvda, shared], "US:AVGO": [shared]}
+    block, by_n = news_service._section_digest_block(stocks, items_by_sym)
+    assert set(by_n) == {1, 2}  # 两条不同新闻 → 两个编号
+    shared_n = next(n for n, it in by_n.items() if it["id"] == 100)
+    assert block.count(f"[{shared_n}]") == 2  # 共享编号在两只票分组里各出现一次
+    assert "## 英伟达 · US:NVDA（GPU）" in block
+    assert "## 博通 · US:AVGO（光通信）" in block
+
+
+def test_assemble_section_report_rejects_unknown_symbols_and_sorts():
+    stocks = [("US:NVDA", "英伟达", "GPU"), ("US:AMD", "AMD", "GPU"), ("KR:000660", "SK海力士", "")]
+    by_n = {
+        1: {"id": 1, "source": "Reuters", "url": "https://r.test/1"},
+        2: {"id": 2, "source": "Bloomberg", "url": "https://b.test/2"},
+    }
+    data = {
+        "pulse": "算力链今天很热 [1]",
+        "movers": [
+            {"symbol": "US:AMD", "importance": "med", "headline": "AMD 平平", "points": []},
+            {
+                "symbol": "US:NVDA",
+                "importance": "critical",
+                "headline": "英伟达放量 [2]",
+                "points": [{"text": "需求强劲", "refs": [2]}],
+            },
+            {"symbol": "US:FAKE", "importance": "high", "headline": "编造的票", "points": []},
+        ],
+    }
+    out = news_service._assemble_section_report(7, "半导体", 3, stocks, data, by_n)
+    syms = [m["symbol"] for m in out["movers"]]
+    assert syms == ["US:NVDA", "US:AMD"]  # 编造的 US:FAKE 丢弃；critical 排在 med 前
+    assert out["importance"] == "critical"  # 聚合重要性 = 最热 mover
+    assert out["pulse"] == "算力链今天很热"  # 裸引用被剥掉
+    assert out["quiet"] == ["SK海力士"]  # 无 mover 的票进 quiet（按 stocks 顺序）
+    nvda = out["movers"][0]
+    assert nvda["sub"] == "GPU" and nvda["market"] == "US"
+    assert nvda["headline"] == "英伟达放量"  # 标题里泄漏的 [2] 被剥掉
+    assert nvda["points"][0]["refs"][0]["url"] == "https://b.test/2"  # refs 映射回原始链接

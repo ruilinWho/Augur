@@ -6,9 +6,10 @@ import { create } from 'zustand'
 //   · 资讯 → 二级 infoDate（日期，null=今天）+ 三级 infoSection（总结/决策/各信源 lane…）
 //   · 总览 → 无二级
 export type NewsPrimary = 'info' | 'stocks'
-// 资讯第三层：日的「总结」（综合日报+今日机会）+ 构成它的原始信源 lane
+// 资讯第三层：日的「总结」（综合日报+今日机会）+「分区」（自选分区级日报）+ 原始信源 lane
 export type InfoSection =
   | 'summary'
+  | 'sectors'
   | 'news'
   | 'blogs'
   | 'twitter'

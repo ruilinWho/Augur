@@ -133,6 +133,41 @@ class NewsReport(BaseModel):
     created_at: str | None = None
 
 
+# ───────────────────────── 自选分区级日报（按一级分区切片、逐股异动）─────────────────────────
+class SectionMover(BaseModel):
+    """分区里某只今日有动静的票：重要性 + 一句话发生了什么 + 分点（可点引用）。看/研 可点。"""
+
+    symbol: str  # MARKET:CODE（必为该分区自选股之一，确定性，不让 LLM 编）
+    name: str = ""
+    market: str = ""
+    sub: str = ""  # 所属二级板块名（若挂在二级下），否则空
+    importance: str = "med"  # critical/high/med/low → 非常重要/重要/留意/次要
+    headline: str = ""  # 一句话：这只票今天发生了什么
+    points: list[CitedPoint] = []
+
+
+class SectionBoard(BaseModel):
+    """一个一级分区的当日板块卡：板块脉搏 + 逐股异动 + 安静（无动静）的票。"""
+
+    section_id: int
+    section_name: str = ""
+    sort_order: int = 0
+    pulse: str = ""  # 板块脉搏（1–2 句共同主线；无则空）
+    importance: str = "low"  # 聚合重要性（= 最热 mover），供徽章/排序
+    movers: list[SectionMover] = []
+    quiet: list[str] = []  # 今日无明显动静的票（展示名），低噪音页脚
+    item_count: int = 0
+
+
+class SectionReportsResponse(BaseModel):
+    """某日全部一级分区的板块卡（按 有动静→重要性→分区顺序 排好）。boards 空＝当日未生成。"""
+
+    report_date: str
+    boards: list[SectionBoard] = []
+    model: str = ""
+    created_at: str | None = None
+
+
 class Evidence(BaseModel):
     news_id: int | None = None
     title: str

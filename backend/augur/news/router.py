@@ -17,6 +17,7 @@ from .schemas import (
     OpportunitiesResponse,
     RefreshResult,
     ReportMeta,
+    SectionReportsResponse,
     StockNewsBrief,
     StockSocialHeat,
 )
@@ -267,3 +268,22 @@ async def generate(date: str | None = None) -> dict:
         return await run_in_threadpool(service.generate_report, date)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/section-reports", response_model=SectionReportsResponse)
+async def section_reports(date: str | None = None) -> dict:
+    """某日（默认今天）自选**分区级日报**：每个一级分区一张板块卡（脉搏 + 逐股异动）。
+
+    boards 空＝当天未生成（前端显生成入口）；零成本读已落库，不触发 LLM。
+    """
+    return await run_in_threadpool(service.get_section_reports, date)
+
+
+@router.post("/section-reports/generate", response_model=SectionReportsResponse)
+async def generate_section_reports(date: str | None = None) -> dict:
+    """生成分区级日报：每个一级分区一次结构化 LLM 调用、分区间并行（阻塞 ~30–60s）。落库覆盖。"""
+    try:
+        gateway.check_ready("summarize")
+    except gateway.LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    return await run_in_threadpool(service.generate_section_reports, date)
