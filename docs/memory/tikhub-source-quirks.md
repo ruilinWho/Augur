@@ -13,17 +13,34 @@
 - **数据迁移**（一次性）：删老 twtapi `X·<handle>` 行、`X2·*` → `X·*`。
 - `twtapi.py` **保留**：每股专属信源（`official_x`/`influencer_x`）仍按账号拉、twtapi 失败回退 TikHub。
 
+## 【2026-06-11】微信源已彻底删除（TikHub 服务端长期故障）
+
+逐端点实测确认 TikHub 整个 `wechat_mp/web/*` 组都服务端 400（详见下方「当前测试结果」），作者遂要求
+**把微信相关功能（含前端）全删**。改动：
+- **后端**：`tikhub.py` 删 `fetch_wechat`/`wechat_keywords`/`ping_source` 微信分支/`source_names` 微信
+  条目/`_best_url` 的 sogou 兜底/`social_search_for_stock` 的微信 job；`ingest._ADAPTERS`/`_HEALTH_SOURCE_IDS`
+  删微信；`source_registry` 删 `tikhub_wechat` 源条目 + `_CONFIG_VALUE`；`source_test` 删标签/探活集合；
+  `relevance._select_pending` 去掉 `微信·%` 跳过；`service` 的 `_SOCIAL_PREFIXES`/`_SOCIAL_LANES`/
+  `_PULSE_LANES`/`_platform_counts`/社媒热度 heading 全删微信。
+- **前端**：`consts.ts`（SourceLaneId/INFO_SECTIONS/SOURCE_LANES）、`store.ts`（InfoSection）、
+  `KnowView.tsx`（一键生成社媒列表）删 `wechat`/`微信·`。
+- **资源/测试**：`social_keywords.yaml` 删 `wechat:` 段；`test_pure.py` 删 `assert "微信" in sources`
+  （顺带把残留 `X2·` 测试标签更到 `X·`）。
+- **数据**：删 `微信·%` news_items 行（实测 0 行，端点从没返回过数据）+ 删中文前缀塌缩遗留的孤儿
+  cluster scope `src:_:all@1d`。
+- 想恢复：TikHub 修好其 `wechat_mp/web/*` 后，可参照 git 历史把 `fetch_wechat`+注册表条目加回。
+
 ## Provider 口径
 
 - 统一 key：`TIKHUB_KEY`。五个 Augur 源共用这一份 key，不要拆成多个 secret。
 - 鉴权：TikHub 文档示例使用 Bearer Token，Augur 适配器统一发 `Authorization: Bearer <key>`。
 - 基础域名：默认按 `https://api.tikhub.io` → `https://api.tikhub.dev` 顺序尝试；中国大陆网络不稳时也可在 `.env` 写 `TIKHUB_BASE_URL=https://api.tikhub.dev` 固定使用备用域名。
 - 注册表条目：
-  - `tikhub_twitter` → Twitter 第二源，source prefix `X2·`
+  - `tikhub_twitter` → 推特（唯一推特源），source prefix `X·`
   - `xiaohongshu` → 小红书，source prefix `小红书·`
   - `tikhub_threads` → Threads，source prefix `Threads·`
   - `tikhub_reddit` → Reddit · TikHub，source prefix `Reddit·TikHub·`
-  - `tikhub_wechat` → 微信公众文章，source prefix `微信·公众号·`
+  - ~~`tikhub_wechat` → 微信公众文章~~（**已删除**，TikHub 服务端故障，见顶部章节）
 
 ## 已接端点
 
@@ -32,7 +49,7 @@
 - 小红书笔记搜索：`/api/v1/xiaohongshu/app_v2/search_notes`
 - Threads 搜索：`/api/v1/threads/web/search_top`
 - Reddit 动态搜索：`/api/v1/reddit/app/fetch_dynamic_search`
-- 微信公众文章搜索：`/api/v1/wechat_mp/web/fetch_search_article`
+- ~~微信公众文章搜索：`/api/v1/wechat_mp/web/fetch_search_article`~~（**已删除**，整组服务端 400）
 
 注意：最初猜过 Reddit `web/search_posts`，实际会 404，不要使用。文档线索应走 app dynamic search。
 
@@ -53,12 +70,19 @@
   注意：`Top` 是热门贴（非最新），会混入老贴，但内容相关。**三处都要改**：`fetch_twitter`、
   `social_search_for_stock` 的 jobs、`ping_source` 的测试。`fetch_user_post_tweet`（按账号拉）
   的 `cursor='undefined'` **是 OK 的**（只有 search 端点拒绝它），别一起改。
-- **【仍坏，TikHub 服务端】微信公众文章 `wechat_mp/web/fetch_search_article`**：OpenAPI 里参数
-  只有 keyword/offset/sort_type，我们全按文档传（含默认 `sort_type='_0'`）在两个域名仍全部
-  400“请求失败……不扣费”。这是 **TikHub 端点本身的问题**（错误信息自己让“提交 response JSON
-  给支持”），非 key/参数问题，我们改不了。适配器已优雅跳过（计入 sources_failed、不阻断其余）。
-  TikHub 修了就会自动恢复；或带 request_id 找 TikHub 支持。无可用替代端点（其余 wechat_mp/*
-  是按 biz 取文章列表、wechat_channels/* 是视频号，都不是关键词文章搜索）。
+- **【仍坏，TikHub 服务端，2026-06-11 用真实 key 逐端点实测确认】整个 `wechat_mp/web/*` 组都
+  400**，不只是文章搜索：
+  - `fetch_search_article`（搜文章）、`fetch_search_official_account`（搜公众号）、
+    `fetch_mp_article_list`（按真实 `ghid=gh_a3d35d4c9d3f` 取列表）三个都 400“请求失败……不扣费”，
+    两域名一致，参数与文档**完全吻合**。错误体自带 `request_id`，让“提交 response JSON 给支持”。
+  - 即**非我方参数/接口类型问题**（作者一度怀疑“接口类型不对”——不是），是 TikHub 端故障。
+  - 对照：同 key 打小红书 `search_notes` → 200，证明 key/套餐没问题。`fetch_mp_article_list`
+    用假 `ghid=test` 曾回 200，那只是 TikHub 的“已受理将计费”包装层，不是真数据；真实 ghid 即 400。
+  - 处置：`fetch_wechat` 的 `retries` 由 3 改 **0**（确诊坏了，别每次刷新都白白重试拖慢）；适配器
+    优雅跳过（计入 sources_failed、不阻断其余）。TikHub 修了**自动恢复**（参数仍按文档保留）。
+  - 想催修：带上某个 `request_id` 找 TikHub 支持（Discord）。`wechat_channels/*` 是视频号、非文章，
+    不是替代品。若以后要绕过搜索，唯一活着的思路是“按 ghid 订阅特定公众号 + `fetch_mp_article_list`”，
+    但该端点眼下也 400，且 ghid 难发现（搜公众号端点也坏），暂不值得做。
 - 「看·社媒热度」是即时体验：按平台并发探测、每平台最多 10 条、某个 endpoint 失败不阻断
   其他源。当前真实抓取 NVDA 可得到小红书/Threads/Reddit 各 10 条；Twitter/微信临时失败会被跳过。
 - 本文件不记录 key 明文。key 只应存在于 gitignored `backend/.env` 或 `data/config.local.json`。

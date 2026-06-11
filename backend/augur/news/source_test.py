@@ -26,7 +26,6 @@ _SOURCE_NAMES = {
     "tikhub_reddit": "Reddit · TikHub",
     "xiaohongshu": "小红书",
     "tikhub_threads": "Threads",
-    "tikhub_wechat": "微信公众文章",
 }
 
 
@@ -189,7 +188,6 @@ def test_source(source_id: str) -> dict:
             "xiaohongshu",
             "tikhub_threads",
             "tikhub_reddit",
-            "tikhub_wechat",
         }:
             if not runtime_config.has_secret("TIKHUB_KEY"):
                 return _err(f"{_label(source_id)}：没有配置 TIKHUB_KEY，请先填写后再测试。")

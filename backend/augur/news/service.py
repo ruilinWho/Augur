@@ -6,6 +6,7 @@ I/O（网络在 ingest、磁盘在 storage、LLM 在 gateway）挡在外层，�
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -141,7 +142,7 @@ def refresh() -> dict:
 #    实测 87% 社媒帖被判 relevance=2）；② 新闻/日报/要点反过来排除社媒前缀，免社媒噪音污染；
 # ③ 社媒按**抓取日 fetched_at** 归桶——搜索来的社媒「今天抓到的」归到「今天」才符合直觉
 #    （否则按帖子发布日散落到过去几天，「今天」永远空）。
-_SOCIAL_PREFIXES = ("X·", "小红书·", "Threads·", "Reddit·", "微信·")
+_SOCIAL_PREFIXES = ("X·", "小红书·", "Threads·", "Reddit·")
 
 
 def _date_col(source_prefix: str | None) -> str:
@@ -593,7 +594,7 @@ def _cited_points(raw: object, by_n: dict[int, dict], limit: int, max_refs: int 
 
 
 def _platform_counts(items: list[dict]) -> dict[str, int]:
-    counts = {"推特": 0, "小红书": 0, "Threads": 0, "Reddit": 0, "微信": 0}
+    counts = {"推特": 0, "小红书": 0, "Threads": 0, "Reddit": 0}
     for it in items:
         src = it.get("source") or ""
         if src.startswith("X·"):
@@ -604,8 +605,6 @@ def _platform_counts(items: list[dict]) -> dict[str, int]:
             counts["Threads"] += 1
         elif src.startswith("Reddit·"):
             counts["Reddit"] += 1
-        elif src.startswith("微信·"):
-            counts["微信"] += 1
     return {k: v for k, v in counts.items() if v > 0}
 
 
@@ -657,7 +656,7 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
 
     lines: list[str] = []
     by_n: dict[int, dict] = {}
-    for i, it in enumerate(items[:24], start=1):
+    for i, it in enumerate(items[:40], start=1):
         by_n[i] = it
         day = (it.get("published_at") or "")[:10] or "日期不详"
         src = it.get("source") or ""
@@ -666,7 +665,7 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         lines.append(f"[{i}] ({day}) [{src}] {title}" + (f" - {summary}" if summary else ""))
     name = search.display_name(symbol)
     heading = (
-        f"下面是小红书/推特/Reddit/Threads/微信上关于 {name} / {symbol} 的帖子（每条带编号 `[n]`、"
+        f"下面是小红书/推特/Reddit/Threads 上关于 {name} / {symbol} 的帖子（每条带编号 `[n]`、"
         "日期、平台、内容）。请用大白话告诉我「网上和这只股票投资相关的讨论与情绪」。"
     )
     prompt = f"""{heading}
@@ -675,21 +674,24 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
 资金与持仓、估值、明确的看多/看空理由与情绪。**坚决丢掉**：招聘/求职/培训带货/职场吐槽、
 生活方式、追星八卦、与这家公司投资逻辑无关的闲聊——这些不是投资信号，一条都不要进结论。
 
-怎么写：
-- **说人话**，像转述群里聊这只股票的人，别用"市场情绪""舆论关注"这种空话。
-- 社媒是弱信号、噪音多：别当真，要给出反方和需要观察的点。
-- 每条都标注来自哪几条（`refs` 填编号，必须真实存在），我要能点回原帖。
+怎么写（要有深度，别敷衍）：
+- **说人话、给细节**，像转述群里认真聊这只股票的人：具体到产品/客户/数字/事件，别用"市场情绪"
+  "舆论关注"这种空话。同一论点多人提就说"不少人/多个帖子"，并把最有信息量的理由讲透。
+- **尽量多挖**：把帖子里站得住的多空理由都列出来——bull/bear 各 **2–5 条**、watch **1–4 条**，
+  宁可多给一条有料的，也别只丢三条就交差。每条聚焦一个点，不要把多件事塞进一句。
+- 社媒是弱信号、噪音多：别当真，必须给出反方与需要观察的点；若多空分歧大，sentiment 填"分歧"。
+- 每条都标注来自哪几条（`refs` 填编号，必须真实存在、可多个），我要能点回原帖核对。
 - 不编价格、目标价、成交量。heat 只能填 低/中/高；sentiment 只能填 偏多/中性/偏空/分歧/不明。
 - 如果筛完几乎没有投资相关讨论，summary 如实说「多是无关闲聊，没什么投资信号」，各列可空。
 
 只输出 JSON（不要 Markdown）：
 {{
-  "summary": "一两句大白话：大家在聊这只股票的什么、情绪偏哪边（只说投资相关的）",
+  "summary": "2–3 句大白话：大家在热议这只股票的什么、分歧在哪、情绪偏哪边（只说投资相关的）",
   "heat": "低|中|高",
   "sentiment": "偏多|中性|偏空|分歧|不明",
-  "bull_points": [{{"text": "有人看好什么，具体点", "refs": [2]}}],
-  "bear_points": [{{"text": "有人担心/唱空什么", "refs": [5]}}],
-  "watch": [{{"text": "接下来值得盯的点", "refs": [3]}}]
+  "bull_points": [{{"text": "有人看好什么——具体到理由/数字/事件", "refs": [2, 9]}}],
+  "bear_points": [{{"text": "有人担心或唱空什么——具体点", "refs": [5]}}],
+  "watch": [{{"text": "接下来值得盯的催化或验证点", "refs": [3]}}]
 }}
 
 帖子：
@@ -709,18 +711,18 @@ def stock_social_heat(symbol: str, role: str = "cheap") -> dict:
         "symbol": symbol,
         "configured": True,
         "status": "已生成",
-        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:140]
+        "summary": _strip_inline_refs(str(data.get("summary") or ""))[:240]
         if isinstance(data, dict)
         else "",
         "sentiment": sentiment,
         "heat": heat,
         "bull_points": _cited_points(
-            data.get("bull_points") if isinstance(data, dict) else [], by_n, 3
+            data.get("bull_points") if isinstance(data, dict) else [], by_n, 5
         ),
         "bear_points": _cited_points(
-            data.get("bear_points") if isinstance(data, dict) else [], by_n, 3
+            data.get("bear_points") if isinstance(data, dict) else [], by_n, 5
         ),
-        "watch": _cited_points(data.get("watch") if isinstance(data, dict) else [], by_n, 3),
+        "watch": _cited_points(data.get("watch") if isinstance(data, dict) else [], by_n, 4),
         "source_count": len(items),
         "platforms": counts,
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
@@ -1199,10 +1201,18 @@ _IMP_ORDER = {"critical": 0, "high": 1, "med": 2, "low": 3}
 
 
 def _scope_part(s: str | None) -> str:
-    """scope 只能是稳定短串，避免不同 source lane 共用旧缓存。"""
+    """scope 只能是稳定短串，避免不同 source lane 共用旧缓存。
+
+    坑：全非 ASCII 的前缀（如小红书）经正则清洗会塌缩成同一个 `_`——多个这种前缀会写进同一个
+    scope 互相覆盖（历史上「微信」lane 一度显示的其实是「小红书」要点，微信源后来已删）。对清洗后
+    没有 ASCII 信息的串，退回到原串的短哈希，保证每个中文前缀拿到稳定且唯一的 scope。
+    """
     if not s:
         return "all"
-    return re.sub(r"[^0-9A-Za-z_:-]+", "_", s.strip().rstrip("·"))[:40] or "all"
+    cleaned = re.sub(r"[^0-9A-Za-z_:-]+", "_", s.strip().rstrip("·"))[:40].strip("_")
+    if cleaned:
+        return cleaned
+    return "h" + hashlib.md5(s.strip().rstrip("·").encode("utf-8")).hexdigest()[:8]
 
 
 def _cluster_scope(
@@ -1342,8 +1352,48 @@ _SOCIAL_LANES = {
     "reddit": "Reddit·",
     "xiaohongshu": "小红书·",
     "threads": "Threads·",
-    "wechat": "微信·",
 }
+
+# 「资讯·总结/决策」接入所有信源用：展示名 → source 前缀（与各 lane 一致）。
+_PULSE_LANES = (
+    ("推特", "X·"),
+    ("小红书", "小红书·"),
+    ("Threads", "Threads·"),
+    ("Reddit", "Reddit·"),
+)
+
+
+def social_pulse(date: str | None = None, per_lane: int = 4) -> dict:
+    """各社媒 lane 已生成要点的聚合 → 供「资讯·总结/决策」接入所有信源。
+
+    只**读** generate_all 已落库的社媒 cluster（不触发 LLM、零成本）：每个 lane 取按重要性
+    排在前的若干条，附代表链接（首条成员 url），让综合视图把新闻外的社媒信号也纳进来。
+    某 lane 无要点 → 自动跳过；全空 → lanes 空，前端不占位。
+    """
+    rd = date or _today()
+    lanes: list[dict] = []
+    for label, prefix in _PULSE_LANES:
+        data = get_clusters(None, prefix, None, 1, rd)
+        if not data:
+            continue
+        clusters = data.get("clusters") or []
+        items: list[dict] = []
+        for c in clusters[:per_lane]:
+            members = (c.get("members") or [])[:3]
+            head = members[0] if members else {}
+            items.append(
+                {
+                    "platform": label,
+                    "headline": _strip_inline_refs(c.get("headline") or ""),
+                    "importance": c.get("importance") or "med",
+                    "why": _strip_inline_refs(c.get("why") or ""),
+                    "url": head.get("url") or "",
+                    "source": head.get("source") or label,
+                }
+            )
+        if items:
+            lanes.append({"platform": label, "total": len(clusters), "items": items})
+    return {"report_date": rd, "lanes": lanes, "platform_count": len(lanes)}
 
 
 # ───────────────────────── 全部生成（刷新 + 蒸馏当天全套）─────────────────────────
@@ -1381,7 +1431,7 @@ def generate_all(
 
     # 各生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
     # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。
-    # 社媒 lane（推特/小红书/Reddit/Threads/微信）此前从不预生成 → 要点常年空；这里补齐，
+    # 社媒 lane（推特/小红书/Reddit/Threads）此前从不预生成 → 要点常年空；这里补齐，
     # 无数据的 lane generate_clusters 抛 ValueError 被吞为 'err'，不影响其余（§11 优雅降级）。
     tasks = {
         "digest": _digest,

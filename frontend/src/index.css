@@ -1417,8 +1417,10 @@ body.resizing * {
 .stock-head-actions {
   margin-left: auto;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 .stock-head-actions .tf {
@@ -5006,7 +5008,8 @@ a.opp-ev-item:hover {
 }
 .tpl-pop {
   position: absolute;
-  left: 0;
+  right: 0;
+  left: auto;
   top: calc(100% + 6px);
   min-width: 180px;
   background: var(--surface);
@@ -5526,4 +5529,90 @@ a.opp-ev-item:hover {
 .srn-social-plat b {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* ───────────────────────── 社媒脉搏（资讯·总结/决策 接入所有信源）───────────────────────── */
+.social-pulse {
+  margin-top: 16px;
+}
+.sp-list {
+  display: flex;
+  flex-direction: column;
+}
+.sp-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+}
+.sp-list .sp-row:first-child {
+  border-top: 0;
+}
+.sp-plat-tag {
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  white-space: nowrap;
+}
+.sp-row:hover .sp-plat-tag {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+.sp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.sp-head {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+.sp-row:hover .sp-head {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+.sp-why {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+/* 总结 · 社媒热度（按平台分组）*/
+.social-pulse-sec .sp-lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.sp-lane {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  padding: 12px 14px;
+}
+.sp-lane-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.sp-lane-h .sp-plat-tag {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-lane .sp-row {
+  gap: 8px;
 }

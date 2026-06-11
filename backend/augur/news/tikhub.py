@@ -9,7 +9,6 @@ Configured sources:
 - 小红书: note keyword search, source prefix `小红书·`
 - Threads: top-content keyword search, source prefix `Threads·`
 - Reddit · TikHub: keyword search, source prefix `Reddit·TikHub·`
-- 微信公众文章: article keyword search, source prefix `微信·公众号·`
 """
 
 from __future__ import annotations
@@ -237,10 +236,6 @@ def reddit_keywords() -> list[str]:
     return _keywords("tikhub_reddit", "reddit")
 
 
-def wechat_keywords() -> list[str]:
-    return _keywords("tikhub_wechat", "wechat")
-
-
 def source_names() -> set[str]:
     names: set[str] = set()
     for a in twitter_accounts():
@@ -253,8 +248,6 @@ def source_names() -> set[str]:
         names.add(f"Threads·{q}")
     for q in reddit_keywords():
         names.add(f"Reddit·TikHub·{q}")
-    for q in wechat_keywords():
-        names.add(f"微信·公众号·{q}")
     return names
 
 
@@ -438,8 +431,6 @@ def _best_url(obj: dict, platform: str, item_id: str) -> str:
         return f"https://www.xiaohongshu.com/explore/{quote_plus(item_id)}"
     if platform == "reddit" and url.startswith("/"):
         return f"https://www.reddit.com{url}"
-    if platform == "wechat" and item_id:
-        return f"https://weixin.sogou.com/weixin?type=2&query={quote_plus(item_id)}"
     return ""
 
 
@@ -780,21 +771,6 @@ def fetch_reddit(cutoff: datetime | None = None) -> list[dict]:
     )
 
 
-def fetch_wechat(cutoff: datetime | None = None) -> list[dict]:
-    return _fetch_queries(
-        wechat_keywords(),
-        path="/api/v1/wechat_mp/web/fetch_search_article",
-        base_params={"offset": 0, "sort_type": "_2"},
-        param_name="keyword",
-        source_prefix="微信·公众号·",
-        platform="wechat",
-        lang="zh",
-        category="tech",
-        cutoff=cutoff,
-        retries=3,
-    )
-
-
 def ping_source(source_id: str) -> int:
     """Lightweight source test. Uses a tiny keyword request; raises user-facing errors."""
     cutoff = datetime.now(UTC) - timedelta(days=30)
@@ -861,19 +837,6 @@ def ping_source(source_id: str) -> int:
                 lang="en",
                 category="forum",
                 cutoff=cutoff,
-            )
-        )
-    if source_id == "tikhub_wechat":
-        return len(
-            _fetch_search(
-                "/api/v1/wechat_mp/web/fetch_search_article",
-                params={"keyword": "英伟达", "offset": 0, "sort_type": "_2"},
-                source="微信·公众号·测试",
-                platform="wechat",
-                lang="zh",
-                category="tech",
-                cutoff=cutoff,
-                retries=3,
             )
         )
     raise TikhubError(f"{source_id}：没有接入这个 TikHub 信源")
@@ -1026,22 +989,12 @@ def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) ->
             "category": "forum",
             "retries": 0,
         },
-        {
-            "path": "/api/v1/wechat_mp/web/fetch_search_article",
-            "base_params": {"offset": 0, "sort_type": "_2"},
-            "param_name": "keyword",
-            "source_prefix": "微信·公众号·",
-            "platform": "wechat",
-            "lang": "zh",
-            "category": "tech",
-            "retries": 0,
-        },
     ]
     results: dict[int, list[dict]] = {}
     fatal: TikhubFatal | None = None
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         futures = {
-            pool.submit(_fetch_queries_limited, queries, cutoff=cutoff, limit=10, **job): idx
+            pool.submit(_fetch_queries_limited, queries, cutoff=cutoff, limit=14, **job): idx
             for idx, job in enumerate(jobs)
         }
         for fut in as_completed(futures):
@@ -1065,4 +1018,4 @@ def social_search_for_stock(terms: list[str], cutoff: datetime | None = None) ->
             continue
         seen_urls.add(url)
         deduped.append(it)
-    return deduped[:36]
+    return deduped[:60]

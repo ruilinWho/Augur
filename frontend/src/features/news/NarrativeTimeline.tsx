@@ -8,11 +8,18 @@ export const IMP: Record<string, { label: string; cls: string }> = {
   low: { label: '次要', cls: 'imp-low' },
 }
 
-// 只读叙事正文（当前主线 + 带引用的时间线）——「知·个股」与「看·个股」复用
-export function NarrativeBody({ data }: { data: StockNarrative }) {
+// 只读叙事正文（当前主线 + 带引用的时间线）——「知·个股」与「看·个股」复用。
+// hideSummary：在「看·相关资讯」里 近况 子卡片已有摘要，时间线只留事件，避免两段摘要重复。
+export function NarrativeBody({
+  data,
+  hideSummary = false,
+}: {
+  data: StockNarrative
+  hideSummary?: boolean
+}) {
   return (
     <>
-      {data.summary && <div className="narr-summary">{data.summary}</div>}
+      {!hideSummary && data.summary && <div className="narr-summary">{data.summary}</div>}
       <div className="narr-timeline">
         {data.timeline.map((ev, i) => {
           const imp = IMP[ev.importance] ?? IMP.med

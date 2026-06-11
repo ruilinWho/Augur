@@ -16,10 +16,12 @@ import {
   useRefreshDirected,
   useRefreshNews,
   useSchedule,
+  useSocialPulse,
   useStockNews,
   type ClusterParams,
   type NewsCluster,
   type NewsItem,
+  type SocialPulseItem,
 } from '../../api'
 import Collapse from '../../components/Collapse'
 import { useNews } from './store'
@@ -301,10 +303,10 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         .mutateAsync({ sourcePrefix: 'X·', days: 1, date }) // 推特要点（TikHub）
         .then(() => setTw('done'))
         .catch(() => setTw('err')),
-      // 其余社媒各 lane 要点（小红书/Reddit/Threads/微信）——合并成一个步骤；无数据的 lane
+      // 其余社媒各 lane 要点（小红书/Reddit/Threads）——合并成一个步骤；无数据的 lane
       // 会失败（无条目），只要有一个成功就算 done，全失败才 err。
       Promise.allSettled(
-        ['小红书·', 'Reddit·', 'Threads·', '微信·'].map((sp) =>
+        ['小红书·', 'Reddit·', 'Threads·'].map((sp) =>
           genClusters.mutateAsync({ sourcePrefix: sp, days: 1, date }),
         ),
       ).then((r) => setSocial(r.some((x) => x.status === 'fulfilled') ? 'done' : 'err')),
@@ -346,11 +348,88 @@ function DaySummaryView({ date }: { date: string }) {
       <DigestBlock date={date} showGenerate={false} />
       <MorningBrief date={date} heading={isToday ? '今日要事' : '当日要事'} showGenerate={false} />
       <OpportunitiesPanel date={date} showGenerate={false} />
+      <SocialPulse date={date} variant="section" />
     </div>
   )
 }
 
-// ── 决策工作台：把「机会 / 风险反证 / 催化 / 关联标的」集中到一屏 ──
+// ── 社媒脉搏：把各 lane 已生成的要点聚合到「总结 / 决策」，让综合视图接入所有信源 ──
+const IMP_ORDER: Record<string, number> = { critical: 0, high: 1, med: 2, low: 3 }
+
+function PulseRow({ it, mode }: { it: SocialPulseItem; mode: 'merged' | 'grouped' }) {
+  const imp = IMP[it.importance] ?? IMP.med
+  const inner = (
+    <>
+      {mode === 'merged' ? (
+        <span className="sp-plat-tag">{it.platform}</span>
+      ) : (
+        <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>
+      )}
+      <span className="sp-body">
+        <span className="sp-head">{stripRefs(it.headline)}</span>
+        {mode === 'merged' && it.why && <span className="sp-why">{stripRefs(it.why)}</span>}
+      </span>
+    </>
+  )
+  return it.url ? (
+    <a className="sp-row" href={it.url} target="_blank" rel="noreferrer">
+      {inner}
+    </a>
+  ) : (
+    <div className="sp-row">{inner}</div>
+  )
+}
+
+// variant='panel'：决策——合并全平台、按重要性排序的「社媒信号」面板；
+// variant='section'：总结——按平台分组的「社媒热度」一览。读已生成要点，无则不占位。
+function SocialPulse({ date, variant }: { date: string; variant: 'panel' | 'section' }) {
+  const pulse = useSocialPulse(date)
+  const lanes = pulse.data?.lanes ?? []
+  if (!lanes.length) return null
+
+  if (variant === 'panel') {
+    const merged = lanes
+      .flatMap((l) => l.items)
+      .sort((a, b) => (IMP_ORDER[a.importance] ?? 2) - (IMP_ORDER[b.importance] ?? 2))
+      .slice(0, 8)
+    return (
+      <section className="decision-panel social-pulse">
+        <div className="sec-head">
+          <h3>社媒信号</h3>
+          <span className="feed-count">{lanes.length} 平台</span>
+        </div>
+        <div className="sp-list">
+          {merged.map((it, i) => (
+            <PulseRow key={i} it={it} mode="merged" />
+          ))}
+        </div>
+      </section>
+    )
+  }
+  return (
+    <section className="ovsec social-pulse-sec">
+      <div className="sec-head">
+        <h3>社媒热度</h3>
+        <span className="feed-count">{lanes.length} 平台</span>
+      </div>
+      <div className="sp-lanes">
+        {lanes.map((l) => (
+          <div key={l.platform} className="sp-lane">
+            <div className="sp-lane-h">
+              <span className="sp-plat-tag">{l.platform}</span>
+              <span className="srn-n">{l.total}</span>
+            </div>
+            {l.items.slice(0, 3).map((it, i) => (
+              <PulseRow key={i} it={it} mode="grouped" />
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ── 决策工作台：把「机会 / 风险反证 / 催化 / 关联标的 / 社媒信号」集中到一屏 ──
 function DecisionView({ date }: { date: string }) {
   const clusters = useClusters({ days: 1, date })
   const opps = useOpportunities(date)
@@ -412,6 +491,7 @@ function DecisionView({ date }: { date: string }) {
       {loading ? (
         <div className="report-card faint">加载…</div>
       ) : (
+        <>
         <div className="decision-grid">
           <section className="decision-panel accent">
             <div className="sec-head">
@@ -497,6 +577,8 @@ function DecisionView({ date }: { date: string }) {
             )}
           </section>
         </div>
+        <SocialPulse date={date} variant="panel" />
+        </>
       )}
     </div>
   )

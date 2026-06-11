@@ -163,14 +163,14 @@ def test_tikhub_items_from_nested_payload():
     }
     items = tikhub._items_from_response(
         data,
-        source="X2·搜索·NVDA",
+        source="X·搜索·NVDA",
         platform="twitter",
         lang="en",
         category="markets",
         cutoff=None,
         limit=5,
     )
-    assert items and items[0]["source"] == "X2·搜索·NVDA"
+    assert items and items[0]["source"] == "X·搜索·NVDA"
     assert items[0]["url"] == "https://x.com/analyst/status/1"
     assert "analyst" in items[0]["summary"]
 
@@ -260,7 +260,7 @@ def test_tikhub_reddit_uses_documented_search_params(monkeypatch):
 
 def test_tikhub_stock_social_search_keeps_working_when_one_source_fails(monkeypatch):
     def fake_fetch(queries, *, source_prefix, **kwargs):
-        if source_prefix == "X2·搜索·":
+        if source_prefix == "X·搜索·":
             raise tikhub.TikhubError("TikHub 端点当前失败")
         return [
             {
@@ -277,7 +277,6 @@ def test_tikhub_stock_social_search_keeps_working_when_one_source_fails(monkeypa
     assert "小红书" in sources
     assert "Threads" in sources
     assert "Reddit" in sources
-    assert "微信" in sources
 
 
 def test_source_test_diagnostics_for_tikhub_key():

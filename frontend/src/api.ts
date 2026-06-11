@@ -966,6 +966,35 @@ export function useGenerateClusters() {
   })
 }
 
+// ── 社媒脉搏：聚合各 lane 已生成要点，供「资讯·总结/决策」接入所有信源 ──
+const socialPulseItemSchema = z.object({
+  platform: z.string().default(''),
+  headline: z.string().default(''),
+  importance: z.string().default('med'),
+  why: z.string().default(''),
+  url: z.string().default(''),
+  source: z.string().default(''),
+})
+const socialPulseLaneSchema = z.object({
+  platform: z.string().default(''),
+  total: z.number().default(0),
+  items: z.array(socialPulseItemSchema).default([]),
+})
+const socialPulseSchema = z.object({
+  report_date: z.string().default(''),
+  lanes: z.array(socialPulseLaneSchema).default([]),
+  platform_count: z.number().default(0),
+})
+export type SocialPulseItem = z.infer<typeof socialPulseItemSchema>
+export type SocialPulseLane = z.infer<typeof socialPulseLaneSchema>
+export function useSocialPulse(date: string | null) {
+  return useQuery({
+    queryKey: ['social-pulse', date ?? 'today'],
+    queryFn: async () =>
+      socialPulseSchema.parse(await getJSON(`/news/social-pulse${date ? `?date=${date}` : ''}`)),
+  })
+}
+
 // ── 个股：定向抓取 lane + 标的叙事时间线（知·个股）──
 const narrativeRefSchema = z.object({
   source: z.string().default(''),
