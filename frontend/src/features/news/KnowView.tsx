@@ -298,13 +298,13 @@ function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
         .then(() => setClusters('done'))
         .catch(() => setClusters('err')),
       genClusters
-        .mutateAsync({ sourcePrefix: 'X·', days: 1, date }) // 推特要点
+        .mutateAsync({ sourcePrefix: 'X·', days: 1, date }) // 推特要点（TikHub）
         .then(() => setTw('done'))
         .catch(() => setTw('err')),
-      // 社媒各 lane 要点（推特2/小红书/Reddit/Threads/微信）——合并成一个步骤；无数据的 lane
+      // 其余社媒各 lane 要点（小红书/Reddit/Threads/微信）——合并成一个步骤；无数据的 lane
       // 会失败（无条目），只要有一个成功就算 done，全失败才 err。
       Promise.allSettled(
-        ['X2·', '小红书·', 'Reddit·', 'Threads·', '微信·'].map((sp) =>
+        ['小红书·', 'Reddit·', 'Threads·', '微信·'].map((sp) =>
           genClusters.mutateAsync({ sourcePrefix: sp, days: 1, date }),
         ),
       ).then((r) => setSocial(r.some((x) => x.status === 'fulfilled') ? 'done' : 'err')),

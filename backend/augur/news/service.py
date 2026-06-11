@@ -141,7 +141,7 @@ def refresh() -> dict:
 #    实测 87% 社媒帖被判 relevance=2）；② 新闻/日报/要点反过来排除社媒前缀，免社媒噪音污染；
 # ③ 社媒按**抓取日 fetched_at** 归桶——搜索来的社媒「今天抓到的」归到「今天」才符合直觉
 #    （否则按帖子发布日散落到过去几天，「今天」永远空）。
-_SOCIAL_PREFIXES = ("X·", "X2·", "小红书·", "Threads·", "Reddit·", "微信·")
+_SOCIAL_PREFIXES = ("X·", "小红书·", "Threads·", "Reddit·", "微信·")
 
 
 def _date_col(source_prefix: str | None) -> str:
@@ -593,11 +593,11 @@ def _cited_points(raw: object, by_n: dict[int, dict], limit: int, max_refs: int 
 
 
 def _platform_counts(items: list[dict]) -> dict[str, int]:
-    counts = {"Twitter 第二源": 0, "小红书": 0, "Threads": 0, "Reddit": 0, "微信": 0}
+    counts = {"推特": 0, "小红书": 0, "Threads": 0, "Reddit": 0, "微信": 0}
     for it in items:
         src = it.get("source") or ""
-        if src.startswith("X2·"):
-            counts["Twitter 第二源"] += 1
+        if src.startswith("X·"):
+            counts["推特"] += 1
         elif src.startswith("小红书·"):
             counts["小红书"] += 1
         elif src.startswith("Threads·"):
@@ -1339,7 +1339,6 @@ def generate_clusters(
 # 社媒 lane → source 前缀（与前端 consts.ts SOURCE_LANES 对齐）。要点 scope 按前缀分。
 _SOCIAL_LANES = {
     "twitter": "X·",
-    "twitter2": "X2·",
     "reddit": "Reddit·",
     "xiaohongshu": "小红书·",
     "threads": "Threads·",
@@ -1382,7 +1381,7 @@ def generate_all(
 
     # 各生成彼此独立 → **并发**跑（作者：尽量并行、不担心 token）。各写不同表/scope，
     # SQLite WAL 串行化写。要事＝新闻「全部」要点（同 scope）；每个社媒 lane 单独 scope。
-    # 社媒 lane（X2·/小红书/Reddit/Threads/微信）此前从不预生成 → 要点常年空；这里补齐，
+    # 社媒 lane（推特/小红书/Reddit/Threads/微信）此前从不预生成 → 要点常年空；这里补齐，
     # 无数据的 lane generate_clusters 抛 ValueError 被吞为 'err'，不影响其余（§11 优雅降级）。
     tasks = {
         "digest": _digest,

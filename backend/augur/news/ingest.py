@@ -15,18 +15,18 @@ from datetime import UTC, datetime, timedelta
 import feedparser
 
 from ..storage import get_conn
-from . import classify, cls, eastmoney_news, reddit, sources, tikhub, twtapi
+from . import classify, cls, eastmoney_news, reddit, sources, tikhub
 from . import filter as noise_filter
 from ._http import get as http_get
 
 # 非 RSS 专用适配器：source 名 → 抓取函数(cutoff)。其 source 名在 prune 时要豁免。
-# X(Twitter) 经 twtapi 桥拉官方号推文，产出多个 source 名（X·<handle>），见 twtapi.source_names()。
+# 推特经 TikHub（X·@<handle> / X·搜索·<kw>），见 tikhub.source_names()。twtapi 桥已退役，
+# 其旧 X·<handle> 条目不再豁免 → 下次 ingest 自动被 prune 清掉。
 _ADAPTERS = {
     "财联社": cls.fetch_cls,
     "东方财富": eastmoney_news.fetch_eastmoney,
-    "X(Twitter)": twtapi.fetch_all,
+    "推特": tikhub.fetch_twitter,  # 唯一推特源（TikHub）；twtapi 桥已退役，仅每股专属信源仍用
     "Reddit": reddit.fetch_reddit,
-    "Twitter 第二源": tikhub.fetch_twitter,
     "小红书": tikhub.fetch_xiaohongshu,
     "Threads": tikhub.fetch_threads,
     "Reddit · TikHub": tikhub.fetch_reddit,
@@ -42,9 +42,8 @@ _WS_RE = re.compile(r"\s+")
 _HEALTH_SOURCE_IDS = {
     "财联社": "cls",
     "东方财富": "eastmoney_news",
-    "X(Twitter)": "twtapi",
     "Reddit": "reddit",
-    "Twitter 第二源": "tikhub_twitter",
+    "推特": "tikhub_twitter",
     "小红书": "xiaohongshu",
     "Threads": "tikhub_threads",
     "Reddit · TikHub": "tikhub_reddit",
@@ -202,12 +201,11 @@ def source_health() -> list[dict]:
 def ingest_all() -> dict:
     """并发遍历所有信源 → 落库；返回统计（容忍单源失败）。"""
     feeds = sources.load_feeds()
-    # prune 时豁免专用适配器 source（含 twtapi 的每账号 X·<handle> 名），否则其条目
-    # （不在 feeds.yaml）会被当"已移除源"删掉
+    # prune 时豁免专用适配器 source（含 TikHub 推特/Reddit 的每查询/账号名），否则其条目
+    # （不在 feeds.yaml）会被当"已移除源"删掉。退役的 twtapi X·<handle> 不再豁免 → 被清理
     _prune_removed_sources(
         {f["name"] for f in feeds}
         | set(_ADAPTERS)
-        | twtapi.source_names()
         | reddit.source_names()
         | tikhub.source_names()
     )

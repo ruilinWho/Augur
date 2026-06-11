@@ -6,15 +6,15 @@
 
 候选源可行性调研结论见 ADR-0007/0012。Tushare/必盈/iTick 曾作为候选行情源登记，
 但作者要求从设置页移除；雪球登录 Cookie 抓取已失效、随之退役；Reddit 已用
-public JSON 接入；TikHub 作为共享 paid API provider 接 Twitter 第二源、小红书、Threads、
-Reddit 搜索和微信公众文章搜索。
+public JSON 接入；TikHub 作为共享 paid API provider 接 推特（唯一推特源）、小红书、Threads、
+Reddit 搜索和微信公众文章搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还用。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
 from __future__ import annotations
 
 from .. import runtime_config
-from . import eastmoney_news, reddit, sources, tikhub, twtapi
+from . import eastmoney_news, reddit, sources, tikhub
 
 # access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
 # group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
@@ -82,25 +82,8 @@ SOURCES: list[dict] = [
         "config": [{"field": "keywords", "type": "tags", "label": "检索关键词"}],
     },
     {
-        "id": "twtapi",
-        "name": "X",
-        "group": "news",
-        "access": "paid_api",
-        "key_env": "TWTAPI_KEY",
-        "cred": "key",
-        "key_url": "https://twtapi.io/",
-        "docs_url": "https://twtapi.io/docs/endpoints/user_tweets",
-        "official_url": "https://docs.x.com/x-api/getting-started/getting-access",
-        "payment": "月付·有免费试用",
-        "note": "官方号推文·twtapi 桥",
-        "setup": "Augur 当前填 TWTAPI_KEY；X 官方 key 在 console.x.com，但不是当前适配器凭证。",
-        "best_use": "追踪官方号、大 V、公司号和每股专属 X 账号；后续可扩展 search/mentions。",
-        "boundary": "twtapi 是非官方桥；额度、鉴权或端点变化会以中文诊断暴露。",
-        "config": [{"field": "accounts", "type": "accounts", "label": "关注账户"}],
-    },
-    {
         "id": "tikhub_twitter",
-        "name": "Twitter 第二源",
+        "name": "推特",
         "group": "news",
         "access": "paid_api",
         "key_env": "TIKHUB_KEY",
@@ -114,7 +97,7 @@ SOURCES: list[dict] = [
             "在 TikHub 后台充值并复制 Bearer Token，填入 TIKHUB_KEY；"
             "与小红书/Threads/微信共享。"
         ),
-        "best_use": "作为现有 X(twtapi) 的独立第二通道，追踪账号、关键词、个股大众观点和热度。",
+        "best_use": "唯一推特源：按关键词搜索 + 关注账户，追踪 AI/半导体话题与个股大众观点。",
         "boundary": "TikHub 是第三方桥；只能作为弱信号，必须经 Augur 摘要、去噪与反证合成。",
         "config": [
             {"field": "accounts", "type": "accounts", "label": "关注账户"},
@@ -209,8 +192,9 @@ SOURCES: list[dict] = [
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
 #   覆盖且增隐私外泄；作者已要求从设置页移除。雪球的登录 Cookie 抓取已失效（风控墙
 #   拦内容 JSON），2026-06-05 退役、从设置页与探活注册中移除。TikHub 接入见 ADR-0013。
-#   **Twitter 桥选 twtapi**（而非 TwitterAPI.io）：作者无国际银行卡、付不了
-#   TwitterAPI.io，twtapi 有免费试用+月付套餐，故采 twtapi。已移除太贵源见 ADR-0007。
+#   **推特唯一源＝TikHub**（2026-06-11）：twtapi 桥（旧「推特」/X·）作为全局源已退役、
+#   从注册表与 ingest 移除；TikHub 升为唯一「推特」源（搜索+账号，仍 X· 前缀）。
+#   twtapi.py 仅每股专属信源（按 X 账号拉，twtapi 失败回退 TikHub）还在用。
 
 # 三类显示顺序与中文标签（前端分组用）
 GROUPS: list[dict] = [
@@ -221,7 +205,6 @@ GROUPS: list[dict] = [
 
 # 信源可配置项「生效值」解析器（(source_id, field) → 返回当前生效列表的函数）
 _CONFIG_VALUE = {
-    ("twtapi", "accounts"): twtapi.accounts,
     ("tikhub_twitter", "accounts"): tikhub.twitter_accounts,
     ("tikhub_twitter", "keywords"): tikhub.twitter_keywords,
     ("bloomberg", "channels"): lambda: runtime_config.get_source_config(

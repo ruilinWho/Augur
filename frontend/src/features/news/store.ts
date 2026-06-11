@@ -12,7 +12,6 @@ export type InfoSection =
   | 'decision'
   | 'news'
   | 'twitter'
-  | 'twitter2'
   | 'reddit'
   | 'xiaohongshu'
   | 'threads'

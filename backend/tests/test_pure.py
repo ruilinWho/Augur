@@ -116,16 +116,16 @@ def test_simplify():
 def test_source_test_diagnostics_are_user_facing():
     assert (
         source_test.diagnose_problem(
-            "twtapi", RuntimeError("TwtapiFatal: twtapi 月度调用额度已用完，请升级套餐或更换 key")
+            "tikhub_twitter", RuntimeError("月度调用额度已用完，请升级套餐或更换 key")
         )
-        == "X：月度额度已用完，需要等额度重置、升级套餐或更换 key。"
+        == "推特：月度额度已用完，需要等额度重置、升级套餐或更换 key。"
     )
     assert (
         source_test.diagnose_problem(
-            "twtapi",
+            "tikhub_twitter",
             RuntimeError("RuntimeError: 抱歉，您没有接口(stock_basic)访问权限"),
         )
-        == "X：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
+        == "推特：当前凭证没有这个接口权限，可能需要充值、开通套餐或提高积分。"
     )
 
 
@@ -134,8 +134,8 @@ def test_source_test_diagnostics_for_http_status():
     resp = httpx.Response(401, request=req)
     exc = httpx.HTTPStatusError("unauthorized", request=req, response=resp)
     assert (
-        source_test.diagnose_problem("twtapi", exc)
-        == "X：凭证无效，或当前套餐没有这个接口权限。"
+        source_test.diagnose_problem("tikhub_twitter", exc)
+        == "推特：凭证无效，或当前套餐没有这个接口权限。"
     )
     rss_resp = httpx.Response(403, request=req)
     rss_exc = httpx.HTTPStatusError("forbidden", request=req, response=rss_resp)
@@ -285,14 +285,14 @@ def test_source_test_diagnostics_for_tikhub_key():
         source_test.diagnose_problem(
             "tikhub_twitter", RuntimeError("TikhubFatal: TIKHUB_KEY 无效或无权限（HTTP 401）")
         )
-        == "Twitter 第二源：凭证无效，或当前套餐没有这个接口权限。"
+        == "推特：凭证无效，或当前套餐没有这个接口权限。"
     )
     assert (
         source_test.diagnose_problem(
             "tikhub_twitter",
             RuntimeError("TikhubError: TikHub 端点当前失败（服务端返回 400，未扣费）：请求失败"),
         )
-        == "Twitter 第二源：TikHub 端点当前失败（服务端返回 400，未扣费）：请求失败"
+        == "推特：TikHub 端点当前失败（服务端返回 400，未扣费）：请求失败"
     )
 
 

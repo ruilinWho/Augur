@@ -10,7 +10,6 @@ export const PRIMARIES: { id: NewsPrimary; label: string }[] = [
 export type SourceLaneId =
   | 'news'
   | 'twitter'
-  | 'twitter2'
   | 'reddit'
   | 'xiaohongshu'
   | 'threads'
@@ -22,7 +21,6 @@ export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
   { id: 'decision', label: '决策' },
   { id: 'news', label: '新闻' },
   { id: 'twitter', label: '推特' },
-  { id: 'twitter2', label: '推特2' },
   { id: 'reddit', label: 'Reddit' },
   { id: 'xiaohongshu', label: '小红书' },
   { id: 'threads', label: 'Threads' },
@@ -71,7 +69,6 @@ export const SOURCE_LANES: Record<
 > = {
   news: { label: '新闻', filters: THEMES, live: true },
   twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, live: true },
-  twitter2: { label: '推特2', sourcePrefix: 'X2·', filters: TW_CATS, live: true },
   reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, live: true },
   xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, live: true },
   threads: { label: 'Threads', sourcePrefix: 'Threads·', filters: FORUM_CATS, live: true },

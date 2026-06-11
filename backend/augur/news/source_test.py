@@ -19,8 +19,7 @@ _SOURCE_NAMES = {
     "market_data": "内置行情栈",
     "cls": "财联社",
     "eastmoney_news": "东方财富",
-    "twtapi": "X",
-    "tikhub_twitter": "Twitter 第二源",
+    "tikhub_twitter": "推特",
     "bloomberg": "Bloomberg",
     "feeds_rss": "RSS",
     "reddit": "Reddit",
@@ -172,14 +171,6 @@ def test_source(source_id: str) -> dict:
             from . import eastmoney_news
 
             return _ok(t0, len(eastmoney_news.fetch_eastmoney(_cutoff())), "东财资讯可达")
-
-        if source_id == "twtapi":
-            if not runtime_config.has_secret("TWTAPI_KEY"):
-                return _err("X：没有配置 API key，请先填写后再测试。")
-            from . import twtapi
-
-            twtapi.ping()  # 轻量：只解析一个账号 user_id，不拉全量时间线
-            return _ok(t0, None, "X(twtapi) 可达")
 
         if source_id == "bloomberg":
             return _test_feeds(only_bloomberg=True)
