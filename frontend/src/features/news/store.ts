@@ -21,10 +21,12 @@ interface NewsState {
   stockSym: string | null // 个股：选中标的
   infoDate: string | null // 资讯：选中日期（null=今天）
   infoSection: InfoSection // 资讯：第三层
+  navCollapsed: boolean // 收起 日期/板块/标的 选择栏，让主内容延展
   setPrimary: (p: NewsPrimary) => void
   setStockSym: (s: string) => void
   setInfoDate: (d: string | null) => void
   setInfoSection: (s: InfoSection) => void
+  toggleNav: () => void
 }
 
 export const useNews = create<NewsState>((set) => ({
@@ -32,8 +34,10 @@ export const useNews = create<NewsState>((set) => ({
   stockSym: null,
   infoDate: null,
   infoSection: 'summary',
+  navCollapsed: false,
   setPrimary: (primary) => set({ primary }),
   setStockSym: (stockSym) => set({ stockSym }),
   setInfoDate: (infoDate) => set({ infoDate }),
   setInfoSection: (infoSection) => set({ infoSection }),
+  toggleNav: () => set((s) => ({ navCollapsed: !s.navCollapsed })),
 }))

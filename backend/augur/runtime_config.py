@@ -154,6 +154,55 @@ def get_secret(name: str) -> str:
     return _raw_secret(name)
 
 
+# ───────────────────────── API 配置一键导出/导入（分享给 contributor）─────────────────────────
+def export_api_config() -> dict:
+    """导出全部 API 配置（LLM 连接 + 角色路由 + 数据信源 secret）为可分享 JSON。
+
+    单用户本地工具：**明文**导出（作者明确「只有我自己用」），用于把整套配置发给 contributor
+    一键导入、快速迭代。护栏不变：永不打日志、永不入 git。
+    """
+    data = _read()
+    return {
+        "_augur_config": "api-keys-v1",
+        "llm_connections": data.get("llm_connections") or [],
+        "llm_roles": data.get("llm_roles") or {},
+        "secrets": data.get("secrets") or {},
+    }
+
+
+def import_api_config(payload: dict) -> dict:
+    """从导出 JSON 导入：覆盖 LLM 连接/角色路由、合并数据信源 secret，其余本地设置保留。
+
+    导入后立即把 secret 注入 os.environ（各适配器即时可用）。返回 {connections, secrets} 计数。
+    """
+    if not isinstance(payload, dict):
+        raise ValueError("配置文件格式不对（应为 JSON 对象）")
+    has_any = any(
+        isinstance(payload.get(k), (list, dict))
+        for k in ("llm_connections", "llm_roles", "secrets")
+    )
+    if not has_any:
+        raise ValueError("这个文件里没有可导入的 API 配置（llm_connections / secrets）")
+    with _lock:
+        data = _read()
+        if isinstance(payload.get("llm_connections"), list):
+            data["llm_connections"] = payload["llm_connections"]
+        if isinstance(payload.get("llm_roles"), dict):
+            data["llm_roles"] = payload["llm_roles"]
+        if isinstance(payload.get("secrets"), dict):
+            merged = data.get("secrets") or {}
+            merged.update({k: str(v) for k, v in payload["secrets"].items() if v})
+            data["secrets"] = merged
+        _write(data)
+        for k, v in (data.get("secrets") or {}).items():
+            if v:
+                os.environ[k] = str(v)
+        return {
+            "connections": len(data.get("llm_connections") or []),
+            "secrets": len(data.get("secrets") or {}),
+        }
+
+
 # ───────────────────────── LLM 连接（动态列表）─────────────────────────
 def list_connections() -> list[dict]:
     """脱敏的连接列表（不含明文 key）。"""
@@ -345,6 +394,44 @@ def set_brief_top_n(n: int) -> int:
     """设今日要事显示条数（夹紧到 [1, 50]）。返回落库值。"""
     n = _BRIEF_TOP_DEFAULT if not _is_int(n) else max(1, min(n, 50))
     set_pref("brief_top_n", n)
+    return n
+
+
+# 「社媒热度」(资讯·总结/决策的 social_pulse) 每平台显示条数。默认 4。
+_SOCIAL_PULSE_DEFAULT = 4
+
+
+def get_social_pulse_n() -> int:
+    """读社媒热度每平台条数（默认 4）。非法值回退默认。"""
+    n = get_pref("social_pulse_n")
+    if _is_int(n) and n >= 1:
+        return min(n, 20)
+    return _SOCIAL_PULSE_DEFAULT
+
+
+def set_social_pulse_n(n: int) -> int:
+    """设社媒热度每平台条数（夹紧到 [1, 20]）。返回落库值。"""
+    n = _SOCIAL_PULSE_DEFAULT if not _is_int(n) else max(1, min(n, 20))
+    set_pref("social_pulse_n", n)
+    return n
+
+
+# 「寻」每个候选展示的证据新闻条数。默认 6。
+_DISCOVERY_NEWS_DEFAULT = 6
+
+
+def get_discovery_news_n() -> int:
+    """读寻·每候选证据条数（默认 6）。非法值回退默认。"""
+    n = get_pref("discovery_news_n")
+    if _is_int(n) and n >= 1:
+        return min(n, 30)
+    return _DISCOVERY_NEWS_DEFAULT
+
+
+def set_discovery_news_n(n: int) -> int:
+    """设寻·每候选证据条数（夹紧到 [1, 30]）。返回落库值。"""
+    n = _DISCOVERY_NEWS_DEFAULT if not _is_int(n) else max(1, min(n, 30))
+    set_pref("discovery_news_n", n)
     return n
 
 

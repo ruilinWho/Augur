@@ -512,6 +512,27 @@ button {
   margin-top: 6px;
   line-height: 1.5;
 }
+/* 收起 日期/板块 选择栏的开关（与自选「分区」面板的 ‹/› 同款） */
+.nrail-collapse {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: 0.92rem;
+  line-height: 1;
+  padding: 5px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.nrail-collapse:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.cfg-hint {
+  font-size: 0.76rem;
+  margin-right: auto;
+}
 
 /* 列2 · 二级卡片 */
 .news-sub {
@@ -5127,6 +5148,21 @@ a.opp-ev-item:hover {
   flex-wrap: wrap;
   gap: 8px;
 }
+.disc-prefs-grp {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.disc-prefs-grp + .disc-prefs-grp {
+  margin-top: 10px;
+}
+.disc-prefs-lbl {
+  flex: none;
+  width: 2.4em;
+  padding-top: 5px;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
 .disc-theme-chip {
   display: inline-flex;
   align-items: center;
@@ -5210,6 +5246,18 @@ a.opp-ev-item:hover {
   flex: none;
   align-items: baseline;
 }
+/* 寻 · 近月大涨且放量的关键信号 pill（用涨色，随涨跌色习惯） */
+.cand-hot {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--up, #4a8f5b);
+  background: color-mix(in srgb, var(--up, #4a8f5b) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--up, #4a8f5b) 30%, var(--border));
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .cand-metric {
   font-size: 0.78rem;
   color: var(--text-faint);
@@ -5219,6 +5267,15 @@ a.opp-ev-item:hover {
   font-weight: 600;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+/* 寻 · LLM 一句话「为什么值得关注」——左侧陶土竖条标注「这是理由」，不写啰嗦标签 */
+.cand-reason {
+  margin: 10px 0 2px;
+  padding-left: 11px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  font-size: 0.9rem;
+  line-height: 1.62;
+  color: var(--text);
 }
 .cand-ev {
   margin: 10px 0 12px;
@@ -5587,11 +5644,21 @@ a.opp-ev-item:hover {
   line-height: 1.55;
   color: var(--text-muted);
 }
-/* 总结 · 社媒热度（按平台分组）*/
+/* 总结 · 社媒热度（按平台分组）——flex 让平台卡片伸缩铺满整列宽（auto-fill 会留空轨道、不铺满）*/
 .social-pulse-sec .sp-lanes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 14px;
+}
+.social-pulse-sec .sp-lane {
+  flex: 1 1 240px;
+}
+/* 决策 · 要事/反证/催化 卡片下就近挂的关联标的 chip */
+.cl-syms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
 }
 .sp-lane {
   border: 1px solid var(--border);

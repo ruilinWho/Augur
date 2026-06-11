@@ -37,6 +37,8 @@ const fmtDate = (d: string) => {
   return `${Number(m)}月${Number(day)}日`
 }
 const stripRefs = (s: string) => s.replace(/(?:\s*\[\d{1,5}\])+/g, '').trim()
+const normUrl = (u: string) => (u || '').split('?')[0].replace(/\/+$/, '').toLowerCase()
+type ClusterSym = { symbol: string; name: string; watched: boolean }
 
 // ── 日报块（某天 digest + 生成/重生成）；总览与「日报」视图共用 ──
 function DigestBlock({ date, showGenerate = true }: { date: string | null; showGenerate?: boolean }) {
@@ -44,6 +46,7 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
   const qc = useQueryClient()
   const [gen, setGen] = useState('')
   const [genState, setGenState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [open, setOpen] = useState(true)
 
   const run = async () => {
     setGen('')
@@ -64,29 +67,39 @@ function DigestBlock({ date, showGenerate = true }: { date: string | null; showG
   const streaming = genState === 'loading'
   return (
     <section className="ovsec">
-      <div className="sec-head">
+      <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>{data ? `${fmtDate(data.report_date)} · 趋势日报` : '趋势日报'}</h3>
         {showGenerate && (
-          <button className="btn btn-primary jsm sec-gen" disabled={streaming} onClick={run}>
+          <button
+            className="btn btn-primary jsm sec-gen"
+            disabled={streaming}
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(true)
+              run()
+            }}
+          >
             {streaming ? '生成中…' : data ? '重新生成' : '生成今日日报'}
           </button>
         )}
       </div>
-      {streaming || genState === 'error' ? (
-        <div className={`report-card ${genState === 'error' ? 'err' : ''}`}>
-          {genState === 'error' ? <p>{gen}</p> : <Digest body={gen || '…'} />}
-        </div>
-      ) : data ? (
-        <div className="report-card">
-          <Digest body={data.body} />
-        </div>
-      ) : report.isLoading ? (
-        <div className="report-card faint">加载日报…</div>
-      ) : (
-        <div className="know-empty">
-          <div className="ke-title">暂无日报</div>
-        </div>
-      )}
+      <Collapse open={open}>
+        {streaming || genState === 'error' ? (
+          <div className={`report-card ${genState === 'error' ? 'err' : ''}`}>
+            {genState === 'error' ? <p>{gen}</p> : <Digest body={gen || '…'} />}
+          </div>
+        ) : data ? (
+          <div className="report-card">
+            <Digest body={data.body} />
+          </div>
+        ) : report.isLoading ? (
+          <div className="report-card faint">加载日报…</div>
+        ) : (
+          <div className="know-empty">
+            <div className="ke-title">暂无日报</div>
+          </div>
+        )}
+      </Collapse>
     </section>
   )
 }
@@ -107,33 +120,41 @@ function MorningBrief({
   const gen = useGenerateClusters()
   const topN = useSchedule().data?.brief_top_n ?? 5
   const top = (clusters.data?.clusters ?? []).slice(0, topN)
+  const [open, setOpen] = useState(true)
   return (
     <section className="brief">
-      <div className="sec-head">
+      <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>{heading}</h3>
+        {top.length > 0 && <span className="feed-count">{top.length}</span>}
         {showGenerate && (
           <button
             className="btn btn-primary jsm sec-gen"
             disabled={gen.isPending}
-            onClick={() => gen.mutate(params)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(true)
+              gen.mutate(params)
+            }}
           >
             {gen.isPending ? '生成中…' : top.length ? '刷新' : '生成晨读'}
           </button>
         )}
       </div>
-      {gen.isPending ? (
-        <div className="opp-empty faint">生成中…</div>
-      ) : top.length ? (
-        <ol className="brief-list">
-          {top.map((c, i) => (
-            <BriefCard key={`${c.headline}-${i}`} cluster={c} rank={i + 1} />
-          ))}
-        </ol>
-      ) : clusters.isLoading ? (
-        <div className="report-card faint">加载…</div>
-      ) : (
-        <div className="opp-empty faint">暂无要事</div>
-      )}
+      <Collapse open={open}>
+        {gen.isPending ? (
+          <div className="opp-empty faint">生成中…</div>
+        ) : top.length ? (
+          <ol className="brief-list">
+            {top.map((c, i) => (
+              <BriefCard key={`${c.headline}-${i}`} cluster={c} rank={i + 1} />
+            ))}
+          </ol>
+        ) : clusters.isLoading ? (
+          <div className="report-card faint">加载…</div>
+        ) : (
+          <div className="opp-empty faint">暂无要事</div>
+        )}
+      </Collapse>
     </section>
   )
 }
@@ -385,6 +406,7 @@ function PulseRow({ it, mode }: { it: SocialPulseItem; mode: 'merged' | 'grouped
 function SocialPulse({ date, variant }: { date: string; variant: 'panel' | 'section' }) {
   const pulse = useSocialPulse(date)
   const lanes = pulse.data?.lanes ?? []
+  const [open, setOpen] = useState(true)
   if (!lanes.length) return null
 
   if (variant === 'panel') {
@@ -408,23 +430,25 @@ function SocialPulse({ date, variant }: { date: string; variant: 'panel' | 'sect
   }
   return (
     <section className="ovsec social-pulse-sec">
-      <div className="sec-head">
+      <div className="sec-head" onClick={() => setOpen((o) => !o)} role="button">
         <h3>社媒热度</h3>
         <span className="feed-count">{lanes.length} 平台</span>
       </div>
-      <div className="sp-lanes">
-        {lanes.map((l) => (
-          <div key={l.platform} className="sp-lane">
-            <div className="sp-lane-h">
-              <span className="sp-plat-tag">{l.platform}</span>
-              <span className="srn-n">{l.total}</span>
+      <Collapse open={open}>
+        <div className="sp-lanes">
+          {lanes.map((l) => (
+            <div key={l.platform} className="sp-lane">
+              <div className="sp-lane-h">
+                <span className="sp-plat-tag">{l.platform}</span>
+                <span className="srn-n">{l.total}</span>
+              </div>
+              {l.items.map((it, i) => (
+                <PulseRow key={i} it={it} mode="grouped" />
+              ))}
             </div>
-            {l.items.slice(0, 3).map((it, i) => (
-              <PulseRow key={i} it={it} mode="grouped" />
-            ))}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </Collapse>
     </section>
   )
 }
@@ -447,20 +471,35 @@ function DecisionView({ date }: { date: string }) {
   const catalysts = keyClusters.filter((c) => !risks.includes(c))
   const opportunities = opps.data?.opportunities ?? []
   const highOpps = opportunities.filter((o) => o.confidence === 'high' || o.confidence === 'med')
-  const symbolMap = new Map<string, { symbol: string; name: string; n: number; watched: boolean }>()
-  ;(feed.data ?? []).forEach((it: NewsItem) => {
-    it.symbols.forEach((s) => {
-      const prev = symbolMap.get(s.symbol)
-      symbolMap.set(s.symbol, {
-        symbol: s.symbol,
-        name: s.name || s.symbol.split(':')[1],
-        n: (prev?.n ?? 0) + 1,
-        watched: Boolean(prev?.watched || s.in_watchlist),
-      })
+  // 关联标的不再单列：建 url→挂钩自选股 映射，把标的就近挂到每条要事/反证/催化下面
+  const urlSyms = useMemo(() => {
+    const m = new Map<string, ClusterSym[]>()
+    ;(feed.data ?? []).forEach((it: NewsItem) => {
+      if (!it.url) return
+      m.set(
+        normUrl(it.url),
+        it.symbols.map((s) => ({
+          symbol: s.symbol,
+          name: s.name || s.symbol.split(':')[1],
+          watched: Boolean(s.in_watchlist),
+        })),
+      )
     })
-  })
-  const symbols = [...symbolMap.values()].sort((a, b) => b.n - a.n).slice(0, 18)
-  const sourceCount = new Set((feed.data ?? []).map((it) => it.source)).size
+    return m
+  }, [feed.data])
+  const clusterSyms = (c: NewsCluster): ClusterSym[] => {
+    const seen = new Set<string>()
+    const out: ClusterSym[] = []
+    for (const m of c.members) {
+      for (const s of urlSyms.get(normUrl(m.url)) ?? []) {
+        if (!seen.has(s.symbol)) {
+          seen.add(s.symbol)
+          out.push(s)
+        }
+      }
+    }
+    return out.slice(0, 6)
+  }
   const loading = clusters.isLoading || opps.isLoading || feed.isLoading
 
   return (
@@ -469,24 +508,6 @@ function DecisionView({ date }: { date: string }) {
         <h2>
           决策 <span className="faint">· {fmtDate(date)}</span>
         </h2>
-        <div className="decision-score">
-          <span>
-            <b>{keyClusters.length}</b>
-            要事
-          </span>
-          <span>
-            <b>{highOpps.length}</b>
-            机会
-          </span>
-          <span>
-            <b>{symbols.length}</b>
-            标的
-          </span>
-          <span>
-            <b>{sourceCount}</b>
-            信源
-          </span>
-        </div>
       </div>
       {loading ? (
         <div className="report-card faint">加载…</div>
@@ -533,7 +554,7 @@ function DecisionView({ date }: { date: string }) {
             {risks.length ? (
               <div className="decision-list compact">
                 {risks.slice(0, 7).map((c) => (
-                  <ClusterCard key={c.headline} c={c} />
+                  <ClusterCard key={c.headline} c={c} related={clusterSyms(c)} />
                 ))}
               </div>
             ) : (
@@ -549,7 +570,7 @@ function DecisionView({ date }: { date: string }) {
             {catalysts.length ? (
               <div className="decision-list compact">
                 {catalysts.slice(0, 7).map((c) => (
-                  <ClusterCard key={c.headline} c={c} />
+                  <ClusterCard key={c.headline} c={c} related={clusterSyms(c)} />
                 ))}
               </div>
             ) : (
@@ -557,25 +578,6 @@ function DecisionView({ date }: { date: string }) {
             )}
           </section>
 
-          <section className="decision-panel">
-            <div className="sec-head">
-              <h3>关联标的</h3>
-              <span className="feed-count">{symbols.length}</span>
-            </div>
-            {symbols.length ? (
-              <div className="decision-symbols">
-                {symbols.map((s) => (
-                  <span className={`dsym ${s.watched ? 'watched' : ''}`} key={s.symbol}>
-                    <button onClick={() => select(s.symbol)}>{s.name}</button>
-                    <i>{s.n}</i>
-                    <button onClick={() => research(s.symbol)}>研</button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="opp-empty faint">暂无标的</div>
-            )}
-          </section>
         </div>
         <SocialPulse date={date} variant="panel" />
         </>
@@ -585,8 +587,11 @@ function DecisionView({ date }: { date: string }) {
 }
 
 // ── 新闻 / 推特：时间线 ↔ 要点（去重聚类+重要性排序）+ 时间范围 ──
-function ClusterCard({ c }: { c: NewsCluster }) {
+// related：决策页把挂钩自选股就近挂到这条要事下面（其它处不传 → 不显示）。
+function ClusterCard({ c, related = [] }: { c: NewsCluster; related?: ClusterSym[] }) {
   const [open, setOpen] = useState(false)
+  const select = useUI((s) => s.select)
+  const research = useUI((s) => s.research)
   const imp = IMP[c.importance] ?? IMP.med
   return (
     <article className="cl-card">
@@ -596,6 +601,16 @@ function ClusterCard({ c }: { c: NewsCluster }) {
         {c.members.length > 1 && <span className="cl-n">{c.members.length}</span>}
       </header>
       {c.why && <div className="cl-why">{stripRefs(c.why)}</div>}
+      {related.length > 0 && (
+        <div className="cl-syms">
+          {related.map((s) => (
+            <span className={`dsym ${s.watched ? 'watched' : ''}`} key={s.symbol}>
+              <button onClick={() => select(s.symbol)}>{s.name}</button>
+              <button onClick={() => research(s.symbol)}>研</button>
+            </span>
+          ))}
+        </div>
+      )}
       <Collapse open={open}>
         <div className="cl-members">
           {c.members.map((m, i) => (

@@ -13,7 +13,7 @@ import pandas as pd
 from ..storage import cache
 from . import hk_backfill, search
 from .resolver import get_adapter
-from .symbols import Symbol
+from .symbols import Symbol, parse_symbol
 
 _DEFAULT_HISTORY_DAYS = 365 * 5
 _REFRESH_TTL_SEC = 600  # 同一标的最多每 10 分钟回源补尾，避免狂打数据源（CLAUDE.md §11）
@@ -94,6 +94,31 @@ def _resample(df: pd.DataFrame, interval: str) -> pd.DataFrame:
 def get_ohlcv(sym: Symbol, interval: str = "1d", rng: str = "2y") -> tuple[pd.DataFrame, str, bool]:
     df, source, cached = _fetch_daily(sym)
     return _resample(_apply_range(df, rng), interval), source, cached
+
+
+def momentum(symbol: str) -> dict | None:
+    """近月涨幅 + 放量比（基于缓存日线，缓存优先）。数据不足/失败 → None。
+
+    ret_pct = 最近约 20 个交易日收益%；vol_ratio = 最近 5 日均量 / 之前约 20 日均量。
+    供「寻」标出「近期大涨且放量」的关键信号。失败静默（不拖垮调用方）。
+    """
+    try:
+        sym = parse_symbol(symbol)
+        df, _, _ = get_ohlcv(sym, "1d", "3m")
+    except Exception:  # noqa: BLE001 — 行情失败不该拖垮「寻」
+        return None
+    if df is None or len(df) < 12:
+        return None
+    closes = df["close"].astype(float)
+    vols = df["volume"].astype(float)
+    n = min(20, len(closes) - 1)
+    base_close = float(closes.iloc[-1 - n])
+    ret = (float(closes.iloc[-1]) / base_close - 1.0) * 100.0 if base_close else 0.0
+    recent_v = float(vols.iloc[-5:].mean()) if len(vols) >= 5 else float(vols.iloc[-1])
+    prev = vols.iloc[max(0, len(vols) - n - 5) : max(1, len(vols) - 5)]
+    base_v = float(prev.mean()) if len(prev) else 0.0
+    vol_ratio = (recent_v / base_v) if base_v else 0.0
+    return {"ret_pct": round(ret, 1), "vol_ratio": round(vol_ratio, 1)}
 
 
 def get_quote(sym: Symbol) -> dict | None:

@@ -329,6 +329,25 @@ async def test_everything() -> dict:
     return await run_in_threadpool(_audit_all)
 
 
+# ───────────────────────── API 配置一键导出/导入（分享给 contributor）─────────────────────────
+@router.get("/api-config/export")
+async def export_api_config() -> dict:
+    """导出全部 API 配置（LLM 连接 + 角色 + 数据信源 key）为可分享 JSON。
+
+    本地单用户工具：**明文**导出（作者明确「只有我自己用」），发给 contributor 一键导入快速迭代。
+    """
+    return await run_in_threadpool(runtime_config.export_api_config)
+
+
+@router.post("/api-config/import")
+async def import_api_config(payload: dict) -> dict:
+    """导入 API 配置 JSON：覆盖 LLM 连接/角色、合并数据信源 key，其余本地设置保留。即时生效。"""
+    try:
+        return await run_in_threadpool(runtime_config.import_api_config, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 # ───────────────────────── 数据信源 key ─────────────────────────
 class SecretIn(BaseModel):
     name: str
@@ -373,6 +392,8 @@ class ScheduleIn(BaseModel):
     end_hour: int | None = None
     cluster_input_max: int | None = None  # 要事/机会喂 LLM 的当日条数上限（0=不限）
     brief_top_n: int | None = None  # 今日要事显示条数
+    social_pulse_n: int | None = None  # 社媒热度每平台条数
+    discovery_news_n: int | None = None  # 寻·每候选证据条数
 
 
 def _schedule_snapshot() -> dict:
@@ -380,6 +401,8 @@ def _schedule_snapshot() -> dict:
         **runtime_config.get_auto_refresh(),
         "cluster_input_max": runtime_config.get_cluster_input_max(),
         "brief_top_n": runtime_config.get_brief_top_n(),
+        "social_pulse_n": runtime_config.get_social_pulse_n(),
+        "discovery_news_n": runtime_config.get_discovery_news_n(),
     }
 
 
@@ -393,7 +416,8 @@ async def get_schedule() -> dict:
 async def set_schedule(body: ScheduleIn) -> dict:
     """改「知·生成」配置（即时生效，运行时读取，无需重启）。返回最新完整配置。"""
 
-    _own = {"cluster_input_max", "brief_top_n"}  # 非 auto_refresh 的独立字段
+    # 非 auto_refresh 的独立字段
+    _own = {"cluster_input_max", "brief_top_n", "social_pulse_n", "discovery_news_n"}
 
     def _apply() -> dict:
         patch = {k: v for k, v in body.model_dump().items() if v is not None and k not in _own}
@@ -403,6 +427,10 @@ async def set_schedule(body: ScheduleIn) -> dict:
             runtime_config.set_cluster_input_max(body.cluster_input_max)
         if body.brief_top_n is not None:
             runtime_config.set_brief_top_n(body.brief_top_n)
+        if body.social_pulse_n is not None:
+            runtime_config.set_social_pulse_n(body.social_pulse_n)
+        if body.discovery_news_n is not None:
+            runtime_config.set_discovery_news_n(body.discovery_news_n)
         return _schedule_snapshot()
 
     return await run_in_threadpool(_apply)

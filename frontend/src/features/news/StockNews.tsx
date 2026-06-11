@@ -92,7 +92,6 @@ export default function StockNews({ symbol }: { symbol: string }) {
   const enabledSources = (sources.data ?? []).filter((s) => s.enabled).length
   const hasBrief = Boolean(data?.summary || data?.points.length || data?.risks.length)
   const heatTone = heat?.heat === '高' ? 'high' : heat?.heat === '中' ? 'mid' : 'low'
-  const platformEntries = Object.entries(heat?.platforms ?? {})
   const hasSocial = Boolean(
     heat?.summary || heat?.bull_points.length || heat?.bear_points.length || heat?.watch.length,
   )
@@ -171,15 +170,6 @@ export default function StockNews({ symbol }: { symbol: string }) {
                   <SocialCol label="反方" tone="bear" items={heat?.bear_points ?? []} />
                   <SocialCol label="观察" tone="watch" items={heat?.watch ?? []} />
                 </div>
-                {platformEntries.length ? (
-                  <div className="srn-social-plat">
-                    {platformEntries.map(([name, count]) => (
-                      <span key={name}>
-                        {name} <b>{count}</b>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </>
             ) : (
               <div className="srn-empty faint">{heat?.status || '暂无社媒信号'}</div>
@@ -194,7 +184,7 @@ export default function StockNews({ symbol }: { symbol: string }) {
               right={narr?.item_count ? <span className="srn-n">{narr.item_count} 条</span> : undefined}
             >
               {hasTimeline ? (
-                <NarrativeBody data={narr!} hideSummary />
+                <NarrativeBody data={narr!} hideSummary hideRefs />
               ) : (
                 <div className="fin-empty">融合中…</div>
               )}

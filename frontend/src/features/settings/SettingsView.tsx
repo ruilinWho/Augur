@@ -3,10 +3,13 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useToast } from '../../components/Toast'
 import {
   DndContext,
   KeyboardSensor,
@@ -27,6 +30,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { useUI } from '../../store'
 import GripDots from '../../components/GripDots'
 import {
+  exportApiConfig,
+  importApiConfig,
   useCreateTemplate,
   useDeleteConnection,
   useDeleteTemplate,
@@ -112,10 +117,6 @@ function AppearancePage() {
     leading,
     displayFont,
     convention,
-    panelW,
-    newsSubW,
-    srcNavW,
-    kanColW,
     setTheme,
     setTextBase,
     setLeading,
@@ -144,9 +145,7 @@ function AppearancePage() {
       </Section>
       <Section title="布局">
         <Row label="栏宽">
-          <span className="layout-sizes mono">
-            {panelW} · {newsSubW} · {srcNavW} · {kanColW.join('/')}
-          </span>
+          <span className="faint cfg-hint">拖栏间分隔条调整</span>
           <button className="btn jsm" onClick={resetLayout}>
             恢复默认
           </button>
@@ -242,6 +241,10 @@ function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof u
   const briefList = BRIEF_PRESETS.includes(cur.brief_top_n)
     ? BRIEF_PRESETS
     : [...BRIEF_PRESETS, cur.brief_top_n].sort((a, b) => a - b)
+  const withCur = (presets: number[], v: number) =>
+    presets.includes(v) ? presets : [...presets, v].sort((a, b) => a - b)
+  const pulseList = withCur([3, 4, 5, 6, 8], cur.social_pulse_n)
+  const discList = withCur([4, 6, 8, 10, 15], cur.discovery_news_n)
   return (
     <Section title="生成 · 蒸馏深度">
       <Row label="要事 / 机会 输入上限">
@@ -265,6 +268,32 @@ function GenDepthSection({ cur, set }: { cur: Schedule; set: ReturnType<typeof u
           onChange={(e) => set.mutate({ brief_top_n: +e.target.value })}
         >
           {briefList.map((n) => (
+            <option key={n} value={n}>
+              {n} 条
+            </option>
+          ))}
+        </select>
+      </Row>
+      <Row label="社媒热度 每平台条数">
+        <select
+          className="cfg-input"
+          value={cur.social_pulse_n}
+          onChange={(e) => set.mutate({ social_pulse_n: +e.target.value })}
+        >
+          {pulseList.map((n) => (
+            <option key={n} value={n}>
+              {n} 条
+            </option>
+          ))}
+        </select>
+      </Row>
+      <Row label="寻 每候选证据条数">
+        <select
+          className="cfg-input"
+          value={cur.discovery_news_n}
+          onChange={(e) => set.mutate({ discovery_news_n: +e.target.value })}
+        >
+          {discList.map((n) => (
             <option key={n} value={n}>
               {n} 条
             </option>
@@ -507,6 +536,67 @@ function UsageSection() {
   )
 }
 
+// 一键导出/导入全部 API 配置（LLM 连接 + 信源 key）——分享给 contributor 快速配置。
+function ApiConfigShare() {
+  const toast = useToast((s) => s.push)
+  const qc = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+
+  const doExport = async () => {
+    try {
+      const cfg = await exportApiConfig()
+      const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'augur-api-config.json'
+      a.click()
+      URL.revokeObjectURL(url)
+      toast('已导出 API 配置')
+    } catch {
+      toast('导出失败', 'error')
+    }
+  }
+
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusy(true)
+    try {
+      const payload = JSON.parse(await file.text())
+      const r = await importApiConfig(payload)
+      qc.invalidateQueries()
+      toast(`已导入 ${r.connections} 个连接 · ${r.secrets} 个 key`)
+    } catch (err) {
+      toast(`导入失败：${(err as Error).message}`, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section title="配置分享">
+      <Row label="API 配置" desc="导出/导入全部模型连接与信源 key（明文，发给协作者一键配置）">
+        <button className="btn jsm" onClick={doExport}>
+          导出
+        </button>
+        <button className="btn jsm" onClick={() => fileRef.current?.click()} disabled={busy}>
+          {busy ? '导入中…' : '导入'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={onFile}
+        />
+      </Row>
+    </Section>
+  )
+}
+
 function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[] }) {
   const [adding, setAdding] = useState(false)
   const reorder = useReorderConnections()
@@ -572,6 +662,7 @@ function ModelsPage({ conns, roles }: { conns: Connection[]; roles: RoleTarget[]
           <RoleRow key={r.role} role={r} conns={conns} />
         ))}
       </Section>
+      <ApiConfigShare />
       <UsageSection />
     </>
   )

@@ -1363,13 +1363,15 @@ _PULSE_LANES = (
 )
 
 
-def social_pulse(date: str | None = None, per_lane: int = 4) -> dict:
+def social_pulse(date: str | None = None, per_lane: int | None = None) -> dict:
     """各社媒 lane 已生成要点的聚合 → 供「资讯·总结/决策」接入所有信源。
 
     只**读** generate_all 已落库的社媒 cluster（不触发 LLM、零成本）：每个 lane 取按重要性
-    排在前的若干条，附代表链接（首条成员 url），让综合视图把新闻外的社媒信号也纳进来。
-    某 lane 无要点 → 自动跳过；全空 → lanes 空，前端不占位。
+    排在前的若干条（条数可配，设置·生成「社媒热度 条数」），附代表链接（首条成员 url），让综合
+    视图把新闻外的社媒信号也纳进来。某 lane 无要点 → 自动跳过；全空 → lanes 空，前端不占位。
     """
+    if per_lane is None:
+        per_lane = runtime_config.get_social_pulse_n()
     rd = date or _today()
     lanes: list[dict] = []
     for label, prefix in _PULSE_LANES:

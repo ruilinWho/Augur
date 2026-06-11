@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import {
   useDiscovery,
+  useDiscoveryMarkets,
+  useDiscoverySignals,
   useDiscoveryThemes,
+  useMuteMarket,
   useMuteTheme,
   useRefreshDiscovery,
   useSetCandidateStatus,
   type Candidate,
+  type DiscoverySignal,
 } from '../../api'
 import { useUI } from '../../store'
 import AddToWatchlist from '../watchlist/AddToWatchlist'
@@ -26,7 +30,7 @@ const THEME_LABEL: Record<string, string> = {
 }
 const themeLabel = (t: string) => THEME_LABEL[t] ?? t
 
-function CandidateCard({ c }: { c: Candidate }) {
+function CandidateCard({ c, signal }: { c: Candidate; signal?: DiscoverySignal }) {
   const select = useUI((s) => s.select)
   const research = useUI((s) => s.research)
   const setStatus = useSetCandidateStatus()
@@ -43,6 +47,11 @@ function CandidateCard({ c }: { c: Candidate }) {
           {c.theme && <span className="cand-theme">{themeLabel(c.theme)}</span>}
         </div>
         <div className="cand-metrics">
+          {signal && (
+            <span className="cand-hot" title="近月明显上涨且放量，可能是关键信号">
+              近月 ↑{signal.ret_pct}% · 放量 {signal.vol_ratio}×
+            </span>
+          )}
           <span className="cand-metric">
             <b>{c.mention_count}</b> 次
           </span>
@@ -52,9 +61,11 @@ function CandidateCard({ c }: { c: Candidate }) {
         </div>
       </div>
 
+      {c.reason && <p className="cand-reason">{c.reason}</p>}
+
       {c.evidence.length > 0 && (
         <div className="cand-ev">
-          {c.evidence.slice(0, 4).map((e) => (
+          {c.evidence.map((e) => (
             <a key={e.news_id} className="cand-ev-row" href={e.url} target="_blank" rel="noreferrer">
               <span className="cand-ev-date">{e.date ? e.date.slice(5) : '—'}</span>
               <span className="cand-ev-src">{e.source}</span>
@@ -103,36 +114,58 @@ function CandidateCard({ c }: { c: Candidate }) {
   )
 }
 
-// 「偏好」面板：管理被屏蔽的主题——不想看的整类不再出现，可随时恢复。
+// 「偏好」面板：屏蔽不想看的市场/主题——整类不再出现，可随时恢复。
 function PrefsPanel({ onClose }: { onClose: () => void }) {
   const themes = useDiscoveryThemes()
-  const mute = useMuteTheme()
-  const items = themes.data ?? []
+  const markets = useDiscoveryMarkets()
+  const muteTheme = useMuteTheme()
+  const muteMarket = useMuteMarket()
+  const themeItems = themes.data ?? []
+  const marketItems = markets.data ?? []
   return (
     <div className="disc-prefs">
       <div className="disc-prefs-head">
-        <span>主题偏好 · 点亮=在看，灰=已屏蔽</span>
+        <span>偏好 · 点亮=在看，灰=已屏蔽</span>
         <button className="cand-btn ghost" onClick={onClose}>
           收起
         </button>
       </div>
-      {items.length === 0 ? (
-        <div className="disc-prefs-empty faint">暂无主题</div>
-      ) : (
+      <div className="disc-prefs-grp">
+        <span className="disc-prefs-lbl">市场</span>
         <div className="disc-prefs-chips">
-          {items.map((t) => (
+          {marketItems.map((m) => (
             <button
-              key={t.theme}
-              className={`disc-theme-chip ${t.muted ? 'muted' : ''}`}
-              onClick={() => mute.mutate({ theme: t.theme, muted: !t.muted })}
-              title={t.muted ? '点击恢复' : '点击屏蔽这一类'}
+              key={m.market}
+              className={`disc-theme-chip ${m.muted ? 'muted' : ''}`}
+              onClick={() => muteMarket.mutate({ market: m.market, muted: !m.muted })}
+              title={m.muted ? '点击恢复' : `不再看「${m.label || m.market}」`}
             >
-              {themeLabel(t.theme)}
-              {t.count > 0 && <i>{t.count}</i>}
+              {m.label || m.market}
+              {m.count > 0 && <i>{m.count}</i>}
             </button>
           ))}
         </div>
-      )}
+      </div>
+      <div className="disc-prefs-grp">
+        <span className="disc-prefs-lbl">主题</span>
+        {themeItems.length === 0 ? (
+          <div className="disc-prefs-empty faint">暂无主题</div>
+        ) : (
+          <div className="disc-prefs-chips">
+            {themeItems.map((t) => (
+              <button
+                key={t.theme}
+                className={`disc-theme-chip ${t.muted ? 'muted' : ''}`}
+                onClick={() => muteTheme.mutate({ theme: t.theme, muted: !t.muted })}
+                title={t.muted ? '点击恢复' : '点击屏蔽这一类'}
+              >
+                {themeLabel(t.theme)}
+                {t.count > 0 && <i>{t.count}</i>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -141,6 +174,7 @@ export default function DiscoveryView() {
   const [tab, setTab] = useState<'new' | 'dismissed'>('new')
   const [prefsOpen, setPrefsOpen] = useState(false)
   const list = useDiscovery(tab)
+  const signals = useDiscoverySignals()
   const refresh = useRefreshDiscovery()
   const items = list.data ?? []
   return (
@@ -182,7 +216,7 @@ export default function DiscoveryView() {
       ) : (
         <div className="cand-list">
           {items.map((c) => (
-            <CandidateCard key={c.symbol} c={c} />
+            <CandidateCard key={c.symbol} c={c} signal={signals.data?.[c.symbol]} />
           ))}
         </div>
       )}
