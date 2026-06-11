@@ -44,14 +44,13 @@ def _select_pending(limit: int, offset: int = 0) -> list[tuple[int, str, str, st
         # 永不被选中 → 因「未判=保留」直接泄入信息流，从严过滤对存量尾部失效。最老的即将滑出
         # 可见窗口反而更该先判，几轮 refresh 自然清空积压。
         # offset：让 judge_pending 跳过「队首一直解析失败的毒批」，否则它会永久堵住后面更老的条目。
-        # 社媒前缀（X·/小红书·/Threads·/Reddit·/微信·）跳过判定：社媒 lane 在「知」里
+        # 社媒前缀（X·/小红书·/Threads·/Reddit·）跳过判定：社媒 lane 在「知」里
         # 不套用为新闻从严调的 relevance（用户主动进的 lane 看原貌），判它纯属浪费 cheap token。
         rows = conn.execute(
             "SELECT id, COALESCE(NULLIF(title_zh, ''), title) AS t, source, theme "
             "FROM news_items WHERE relevance = 0 AND lane = 'feed' "
             "AND source NOT LIKE 'X·%' AND source NOT LIKE '小红书·%' "
             "AND source NOT LIKE 'Threads·%' AND source NOT LIKE 'Reddit·%' "
-            "AND source NOT LIKE '微信·%' "
             "ORDER BY COALESCE(published_at, fetched_at) ASC LIMIT ? OFFSET ?",
             (limit, offset),
         ).fetchall()

@@ -15,7 +15,6 @@ export type InfoSection =
   | 'reddit'
   | 'xiaohongshu'
   | 'threads'
-  | 'wechat'
 
 interface NewsState {
   primary: NewsPrimary

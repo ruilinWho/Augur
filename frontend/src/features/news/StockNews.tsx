@@ -186,13 +186,18 @@ export default function StockNews({ symbol }: { symbol: string }) {
             )}
           </SubCard>
 
-          {/* 时间线（自动生成）——放在社媒热度下面 */}
+          {/* 时间线（自动生成）——放在社媒热度下面，默认收起（点标题展开），避免又长又乱 */}
           {(hasTimeline || (!narr && genNar.isPending)) && (
             <SubCard
               title="时间线"
+              defaultOpen={false}
               right={narr?.item_count ? <span className="srn-n">{narr.item_count} 条</span> : undefined}
             >
-              {hasTimeline ? <NarrativeBody data={narr!} /> : <div className="fin-empty">融合中…</div>}
+              {hasTimeline ? (
+                <NarrativeBody data={narr!} hideSummary />
+              ) : (
+                <div className="fin-empty">融合中…</div>
+              )}
             </SubCard>
           )}
         </div>

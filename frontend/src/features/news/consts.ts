@@ -13,7 +13,6 @@ export type SourceLaneId =
   | 'reddit'
   | 'xiaohongshu'
   | 'threads'
-  | 'wechat'
 
 // 资讯第三层：某天的「总结 / 决策」+ 构成它的原始信源。
 export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
@@ -24,7 +23,6 @@ export const INFO_SECTIONS: { id: InfoSection; label: string }[] = [
   { id: 'reddit', label: 'Reddit' },
   { id: 'xiaohongshu', label: '小红书' },
   { id: 'threads', label: 'Threads' },
-  { id: 'wechat', label: '微信' },
 ]
 
 // 新闻二级：主题。key='' = 全部。与后端 classify 主题键一致。
@@ -72,5 +70,4 @@ export const SOURCE_LANES: Record<
   reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, live: true },
   xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, live: true },
   threads: { label: 'Threads', sourcePrefix: 'Threads·', filters: FORUM_CATS, live: true },
-  wechat: { label: '微信', sourcePrefix: '微信·', filters: THEMES, live: true },
 }

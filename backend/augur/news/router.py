@@ -228,6 +228,12 @@ async def clusters(
     return data
 
 
+@router.get("/social-pulse")
+async def social_pulse(date: str | None = None) -> dict:
+    """各社媒 lane 已生成要点的聚合（供「资讯·总结/决策」接入所有信源）。读已落库、零成本。"""
+    return await run_in_threadpool(service.social_pulse, date)
+
+
 @router.post("/clusters/generate", response_model=ClustersResponse)
 async def generate_clusters(
     theme: str | None = None,

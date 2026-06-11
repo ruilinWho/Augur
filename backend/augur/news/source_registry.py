@@ -7,7 +7,8 @@
 候选源可行性调研结论见 ADR-0007/0012。Tushare/必盈/iTick 曾作为候选行情源登记，
 但作者要求从设置页移除；雪球登录 Cookie 抓取已失效、随之退役；Reddit 已用
 public JSON 接入；TikHub 作为共享 paid API provider 接 推特（唯一推特源）、小红书、Threads、
-Reddit 搜索和微信公众文章搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还用。
+Reddit 搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还用。微信公众文章源已删除（TikHub
+`wechat_mp/web/*` 整组服务端长期 400，见 docs/memory/tikhub-source-quirks.md）。
 普通 RSS 源仍在 `feeds.yaml`；这里只登记需 key/token 或需专用适配器、或作分类总览的源。
 """
 
@@ -95,7 +96,7 @@ SOURCES: list[dict] = [
         "note": "TikHub 搜索/账号",
         "setup": (
             "在 TikHub 后台充值并复制 Bearer Token，填入 TIKHUB_KEY；"
-            "与小红书/Threads/微信共享。"
+            "与小红书/Threads 共享。"
         ),
         "best_use": "唯一推特源：按关键词搜索 + 关注账户，追踪 AI/半导体话题与个股大众观点。",
         "boundary": "TikHub 是第三方桥；只能作为弱信号，必须经 Augur 摘要、去噪与反证合成。",
@@ -171,23 +172,6 @@ SOURCES: list[dict] = [
         "boundary": "Threads 覆盖面和金融密度有限，适合作旁证，不单独形成投资动作。",
         "config": [{"field": "keywords", "type": "tags", "label": "个股 / 关键词"}],
     },
-    {
-        "id": "tikhub_wechat",
-        "name": "微信公众文章",
-        "group": "news",
-        "access": "paid_api",
-        "key_env": "TIKHUB_KEY",
-        "cred": "key",
-        "key_url": "https://docs.tikhub.io/",
-        "docs_url": "https://docs.tikhub.io/452620369e0",
-        "official_url": "https://docs.tikhub.io/",
-        "payment": "预付余额",
-        "note": "公众号文章搜索",
-        "setup": "填同一份 TIKHUB_KEY；按关键词拉最新微信公众号文章，接口会做 3 次轻量重试。",
-        "best_use": "补中文产业链长文、券商/自媒体深度文章和国内主题热度。",
-        "boundary": "公众号文章质量分化大，必须经过 Augur 去噪、聚类和来源追踪。",
-        "config": [{"field": "keywords", "type": "tags", "label": "个股 / 关键词"}],
-    },
 ]
 # 调研结论（ADR-0007）：行情类候选（必盈/iTick/Tushare）被 FDR/akshare/yfinance/pykrx 免费
 #   覆盖且增隐私外泄；作者已要求从设置页移除。雪球的登录 Cookie 抓取已失效（风控墙
@@ -215,7 +199,6 @@ _CONFIG_VALUE = {
     ("tikhub_reddit", "keywords"): tikhub.reddit_keywords,
     ("xiaohongshu", "keywords"): tikhub.xiaohongshu_keywords,
     ("tikhub_threads", "keywords"): tikhub.threads_keywords,
-    ("tikhub_wechat", "keywords"): tikhub.wechat_keywords,
 }
 _ACCOUNT_CATS = {
     "ai",

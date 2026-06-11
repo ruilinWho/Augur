@@ -30,7 +30,6 @@ _ADAPTERS = {
     "小红书": tikhub.fetch_xiaohongshu,
     "Threads": tikhub.fetch_threads,
     "Reddit · TikHub": tikhub.fetch_reddit,
-    "微信公众文章": tikhub.fetch_wechat,
 }
 
 _TIMEOUT = 12.0
@@ -47,7 +46,6 @@ _HEALTH_SOURCE_IDS = {
     "小红书": "xiaohongshu",
     "Threads": "tikhub_threads",
     "Reddit · TikHub": "tikhub_reddit",
-    "微信公众文章": "tikhub_wechat",
 }
 
 
