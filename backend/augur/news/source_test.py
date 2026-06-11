@@ -22,7 +22,6 @@ _SOURCE_NAMES = {
     "tikhub_twitter": "推特",
     "bloomberg": "Bloomberg",
     "feeds_rss": "RSS",
-    "reddit": "Reddit",
     "tikhub_reddit": "Reddit · TikHub",
     "xiaohongshu": "小红书",
     "tikhub_threads": "Threads",
@@ -176,12 +175,6 @@ def test_source(source_id: str) -> dict:
 
         if source_id == "feeds_rss":
             return _test_feeds(only_bloomberg=False)
-
-        if source_id == "reddit":
-            from . import reddit
-
-            got = reddit.fetch_reddit(_cutoff())
-            return _ok(t0, len(got), "Reddit public JSON 可达")
 
         if source_id in {
             "tikhub_twitter",

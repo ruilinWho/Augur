@@ -48,8 +48,10 @@
 - Twitter 用户推文：`/api/v1/twitter/web/fetch_user_post_tweet`
 - 小红书笔记搜索：`/api/v1/xiaohongshu/app_v2/search_notes`
 - Threads 搜索：`/api/v1/threads/web/search_top`
-- Reddit 动态搜索：`/api/v1/reddit/app/fetch_dynamic_search`（全局 lane + `tikhub.search_reddit` 每股关键词；
-  **reddit.com 直连已被 IP 封 403，每股 Reddit 现全靠这个**，见 [[api-share-discovery-signals-reddit-block]]）
+- Reddit 动态搜索：`/api/v1/reddit/app/fetch_dynamic_search`（全局 lane + `tikhub.search_reddit` 每股关键词）
+- Reddit 子版 feed：`/api/v1/reddit/app/fetch_subreddit_feed`（`tikhub.fetch_subreddit_feed`，抓**专属子板块**帖子）
+- Reddit 子版补全：`/api/v1/reddit/app/fetch_search_typeahead`（`tikhub.search_subreddit_typeahead`，按词找子版名）
+  - **reddit.com 直连已被 IP 封 403，直连 `reddit.py` 已删，全 Reddit 走 TikHub**，见 [[api-share-discovery-signals-reddit-block]]
 - ~~微信公众文章搜索：`/api/v1/wechat_mp/web/fetch_search_article`~~（**已删除**，整组服务端 400）
 
 注意：最初猜过 Reddit `web/search_posts`，实际会 404，不要使用。文档线索应走 app dynamic search。
