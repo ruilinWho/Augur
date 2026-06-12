@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import type { CitedPoint, NewsItem, RelatedSymbol } from '../../api'
 import { useUI } from '../../store'
-import Markdown from '../../components/Markdown'
 
 // ── 今日要闻按天归类的日期标签 ──
 export function dayLabel(iso: string | null): string {
@@ -29,13 +28,6 @@ export function ago(iso: string | null): string {
   const h = Math.round(mins / 60)
   if (h < 24) return `${h}小时前`
   return `${Math.round(h / 24)}天前`
-}
-
-// 综合日报正文：复用 components/Markdown 这份**单一真相**渲染器（#–#### 标题/有序无序列表/
-// 表格/斜体/代码/裸链接全支持）。此前这里另有一份简化解析，不认 ###/有序列表 → 日报偶发
-// "没渲染出 markdown"；现统一掉。日报正文不带 [n] 编号引用（prompt 用圆括号标来源），故不传 sources。
-export function Digest({ body }: { body: string }) {
-  return <Markdown body={body} />
 }
 
 // ── 带原始链接的要点：文字本身即可点链接（hover 出下划线），多来源附极小上标。资讯/日报/个股共用。──

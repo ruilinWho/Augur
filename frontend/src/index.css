@@ -162,19 +162,6 @@ button {
   color: var(--accent);
   font-weight: 500;
 }
-.app-search {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 7px 14px;
-  color: var(--text-faint);
-  font-size: 0.82rem;
-  min-width: 220px;
-}
 .gear {
   display: flex;
   align-items: center;
@@ -754,9 +741,6 @@ button {
   margin-left: auto;
   align-items: center;
   flex-wrap: wrap;
-}
-.range-seg button {
-  font-size: 0.78rem;
 }
 /* 资讯·新闻/推特：主题/账号过滤 chips（舞台内，替代旧的二级导航）*/
 .tfilter {
@@ -1639,11 +1623,6 @@ body.resizing * {
   color: var(--text-faint);
   margin-top: 3px;
   line-height: 1.5;
-}
-.layout-sizes {
-  color: var(--text-faint);
-  font-size: 0.78rem;
-  white-space: nowrap;
 }
 .set2-row-ctl {
   display: flex;
@@ -2560,24 +2539,6 @@ input:focus:not(:focus-visible) {
   position: relative;
   z-index: 1;
 }
-.app-search {
-  cursor: pointer;
-  justify-content: space-between;
-  transition: border-color 0.16s ease, color 0.16s ease;
-}
-.app-search:hover {
-  border-color: var(--text-faint);
-  color: var(--text-muted);
-}
-.kbd {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-faint);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 1px 5px;
-  background: var(--surface);
-}
 
 /* ───────────────────────── 加载骨架（纸感 shimmer）───────────────────────── */
 .skeleton {
@@ -3128,30 +3089,7 @@ input:focus:not(:focus-visible) {
   background: var(--accent);
 }
 
-/* ───────────────────────── 判断日记（K 线下方·复盘决策）───────────────────────── */
-/* 与 K 线框同宽（充满主舞台），随栏宽拖拽一起回流，对齐美观 */
-.journal {
-  margin-top: 26px;
-  padding-bottom: 40px;
-}
-.journal-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-  cursor: pointer;
-  user-select: none;
-}
-.journal-head h3 {
-  font-family: var(--font-display);
-  transition: color 0.15s ease;
-}
-.journal-head:hover h3 {
-  color: var(--accent);
-}
-.journal-head .btn {
-  margin-left: auto;
-}
+/* ── 综合认知：判断 Editor + 空态 + 行内按钮（StockNews 共用；原独立判断日记已并入）── */
 .btn.jsm {
   padding: 6px 13px;
   font-size: 0.82rem;
@@ -3166,47 +3104,6 @@ input:focus:not(:focus-visible) {
   line-height: 1.7;
   text-align: center;
   background: color-mix(in srgb, var(--surface-2) 50%, transparent);
-}
-.journal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.jentry {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.jentry-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 14px;
-  cursor: pointer;
-}
-.jentry-head:hover {
-  background: var(--surface-2);
-}
-.jdate {
-  font-size: 0.92rem;
-  color: var(--text);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-.jago {
-  font-size: 0.74rem;
-}
-.jactions {
-  margin-left: auto;
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.14s ease;
-}
-.jentry-head:hover .jactions {
-  opacity: 1;
 }
 .jbtn {
   border: 0;
@@ -3225,14 +3122,6 @@ input:focus:not(:focus-visible) {
 }
 .jbtn.jdel:hover {
   color: var(--down);
-}
-.jbody {
-  padding: 2px 16px 15px 16px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  line-height: 1.72;
 }
 .jeditor {
   border: 1px solid var(--accent);
@@ -6305,6 +6194,50 @@ a.opp-ev-item:hover {
   max-height: 8.8em;
   overflow: hidden;
   color: var(--text-muted);
+}
+.cog-insight {
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.62;
+}
+.disc-impact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+.disc-impact.up {
+  color: var(--up);
+  background: color-mix(in srgb, var(--up) 13%, var(--surface-2));
+}
+.disc-impact.down {
+  color: var(--down);
+  background: color-mix(in srgb, var(--down) 13%, var(--surface-2));
+}
+.disc-impact.flat {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.disc-impact.doubt {
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+}
+.disc-impact i {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.7;
+}
+.cog-disc-form {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 .cog-news-refs {
   margin-top: 9px;

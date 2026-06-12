@@ -1,6 +1,6 @@
 """信源清单加载（resources/sources/feeds.yaml + 私有运行时 RSS）。
 
-版本化的输入（CLAUDE.md §3：亲手编写 → resources/）。容忍缺失/残缺条目。
+版本化的输入（AGENTS.md §3：亲手编写 → resources/）。容忍缺失/残缺条目。
 带 token 的私有 RSS URL 不能写进 `resources/`，通过 `data/config.local.json` 注入。
 """
 

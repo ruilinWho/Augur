@@ -1,4 +1,4 @@
-"""每股专属信源画像（CLAUDE.md §1 三支柱融合 · 知·个股）。
+"""每股专属信源画像（AGENTS.md §1 三支柱融合 · 知·个股）。
 
 作者想法「组件化信源」：对某只股，先用 LLM（最好**联网**，如 Qwen/Deep Research）调研「该看哪些
 重要信源」（官网/IR/官方X/大V/Reddit/财经站），存为**待确认候选**，作者逐个
@@ -397,8 +397,9 @@ _GENERIC_SUBS = {
 
 
 def _resolve_subreddit(symbol: str) -> str:
-    """解析该股「专属子板块」：用 TikHub Reddit 自动补全（reddit.com 直连搜索已被 IP 封 403）找候选，
-    取第一个名字含 ticker/公司名、非通用的子版（typeahead 已按相关性排序）。无好结果 → ''。
+    """解析该股「专属子板块」：用 TikHub Reddit 自动补全
+    （reddit.com 直连搜索已被 IP 封 403）找候选，取第一个名字含 ticker/公司名、
+    非通用的子版（typeahead 已按相关性排序）。无好结果 → ''。
     """
     if not runtime_config.has_secret("TIKHUB_KEY"):
         return ""

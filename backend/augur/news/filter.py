@@ -1,4 +1,4 @@
-"""噪音过滤（CLAUDE.md §1「知」/ M3）：滤掉对投资判断无意义的纯盘面/价格波动新闻。
+"""噪音过滤（AGENTS.md §1「知」/ M3）：滤掉对投资判断无意义的纯盘面/价格波动新闻。
 
 作者要求：「涨了/跌了多少」「价格变了多少」「股票行情」这类信息没意义，应筛掉；
 保留会对投资产生影响的实质信息。规则法（零成本、可解释，§6 不必每条调 LLM）：
@@ -11,8 +11,6 @@
 from __future__ import annotations
 
 import re
-
-from ..storage import get_conn
 
 # 硬噪音：出现即滤（纯盘面，无实质）
 _HARD = re.compile(
@@ -60,17 +58,3 @@ def is_noise(title: str) -> bool:
     if _MOVE.search(t) and not _SIGNAL.search(t):
         return True
     return False
-
-
-def purge_noise() -> int:
-    """删除库中已存的噪音条目（规则更新后清理历史；摄取已在源头滤）。返回删除数。"""
-    conn = get_conn()
-    try:
-        rows = conn.execute("SELECT id, title FROM news_items").fetchall()
-        ids = [(r["id"],) for r in rows if is_noise(r["title"])]
-        if ids:
-            conn.executemany("DELETE FROM news_items WHERE id = ?", ids)
-            conn.commit()
-        return len(ids)
-    finally:
-        conn.close()

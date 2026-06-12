@@ -1,4 +1,4 @@
-"""SEC EDGAR——美股「个股级一手」官方文件接入（CLAUDE.md §7「一条龙」起步）。
+"""SEC EDGAR——美股「个股级一手」官方文件接入（AGENTS.md §7「一条龙」起步）。
 
 给定内部符号 `US:TICKER`：ticker→CIK（官方 `company_tickers.json`，缓存 7 天）→
 `data.sec.gov/submissions/CIK##########.json` → 按**高信号表单白名单**过滤 →
@@ -16,7 +16,9 @@ SEC 公平获取：必须带可识别 UA（无则 403，UA 见 config.sec_user_a
 
 from __future__ import annotations
 
+import html
 import json
+import re
 import threading
 import time
 
@@ -30,6 +32,13 @@ _TIMEOUT = 12.0
 _TICKERS_TTL = 7 * 24 * 3600  # ticker→CIK 表缓存 7 天
 _SUB_TTL = 6 * 3600  # 单股 submissions 内存缓存 6h
 _MIN_GAP = 0.15  # 两次 SEC 请求最小间隔（守 ≤10 req/s）
+_CONTENT_TTL = 30 * 24 * 3600  # filing 目录/正文不可变 → 长缓存（进程内）
+_ARCHIVE_DIR = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc}/"
+_content_cache: dict[str, tuple[float, str]] = {}  # doc_url → (ts, cleaned_text)
+_index_cache: dict[str, tuple[float, list[dict]]] = {}  # acc_nodash → (ts, docs)
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+_BLOCK_RE = re.compile(r"(?is)<(script|style|head)[^>]*>.*?</\1>")
 
 # 高信号表单白名单（前缀匹配，含 /A 修订）；Form 4 内部人交易量大噪音高，刻意不收。
 _FORM_PREFIXES = (
@@ -240,8 +249,99 @@ def filings_for(symbol: str, limit: int = 15) -> list[dict]:
                 "url": url,
                 "summary": items_label,
                 "filed_at": date,
+                "accession": acc,
+                "cik": cik_int,
             }
         )
         if len(out) >= limit:
             break
     return out
+
+
+def filing_documents(cik: int, accession: str) -> list[dict]:
+    """某 filing 目录下的全部文档（含 EX-99.1 等附件）。失败 → []。目录不可变，长缓存。"""
+    acc_nodash = accession.replace("-", "")
+    now = time.time()
+    cached = _index_cache.get(acc_nodash)
+    if cached and now - cached[0] < _CONTENT_TTL:
+        return cached[1]
+    url = _ARCHIVE_DIR.format(cik=cik, acc=acc_nodash) + "index.json"
+    try:
+        data = _get(url).json()
+    except (httpx.HTTPError, json.JSONDecodeError):
+        return []
+    items = ((data.get("directory") or {}).get("item")) or []
+    docs = [
+        {"name": str(it.get("name") or ""), "type": str(it.get("type") or "")}
+        for it in items
+        if isinstance(it, dict)
+    ]
+    _index_cache[acc_nodash] = (now, docs)
+    return docs
+
+
+def exhibit_99_url(cik: int, accession: str) -> str | None:
+    """filing 里的 Exhibit 99.1（财报新闻稿正文所在）；优先 99.1，回退任意 EX-99。"""
+    acc_nodash = accession.replace("-", "")
+    base = _ARCHIVE_DIR.format(cik=cik, acc=acc_nodash)
+    htmish = [
+        d
+        for d in filing_documents(cik, accession)
+        if d["name"].lower().endswith((".htm", ".html"))
+    ]
+
+    def score(d: dict) -> int:
+        t = d["type"].upper().replace(" ", "")
+        n = d["name"].lower().replace("-", "").replace("_", "").replace(".", "")
+        if t.startswith("EX-99.1") or "ex991" in n:
+            return 2
+        if t.startswith("EX-99") or "ex99" in n:
+            return 1
+        return 0
+
+    best = max(htmish, key=score, default=None)
+    return base + best["name"] if best and score(best) > 0 else None
+
+
+def fetch_filing_text(url: str, max_chars: int = 4000) -> str:
+    """抓 filing/exhibit HTML → 清洗成纯文本正文（去样板/标签/XBRL）。失败/空 → ""。"""
+    now = time.time()
+    cached = _content_cache.get(url)
+    if cached and now - cached[0] < _CONTENT_TTL:
+        return cached[1]
+    try:
+        raw = _get(url).text
+    except httpx.HTTPError:
+        return ""
+    text = _BLOCK_RE.sub(" ", raw)
+    text = _TAG_RE.sub(" ", text)
+    text = html.unescape(text)
+    text = _WS_RE.sub(" ", text).strip()
+    # 8-K 主文档前部是 XBRL 内联数据 + 固定法律封面；真正内容在 "Item X.XX" 标题之后
+    head = text[:1800].lower()
+    if "current report" in head or "pursuant to section 13" in head:
+        m = re.search(r"Item\s+\d+\.\d+", text)
+        if m and m.start() > 100:
+            text = text[m.start() :]
+    text = text[:max_chars].strip()
+    if text:
+        _content_cache[url] = (now, text)
+    return text
+
+
+def disclosure_body(filing: dict, is_earnings: bool) -> str:
+    """披露正文（喂 LLM）：财报类优先 EX-99.1 新闻稿；非财报 8-K 抓主文档；
+    10-Q/K/20-F 不抓全文（靠 financials）。"""
+    form = str(filing.get("form") or "").upper()
+    cik = filing.get("cik")
+    acc = str(filing.get("accession") or "")
+    main_url = str(filing.get("url") or "")
+    if is_earnings and cik and acc:
+        ex = exhibit_99_url(int(cik), acc)
+        if ex:
+            body = fetch_filing_text(ex)
+            if body:
+                return body
+    if form.startswith(("10-Q", "10-K", "20-F")):
+        return ""
+    return fetch_filing_text(main_url) if main_url else ""

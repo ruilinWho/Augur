@@ -1,4 +1,4 @@
-"""按市场选适配器（CLAUDE.md §7）。韩股 → pykrx；其余 → FDR。"""
+"""按市场选适配器（AGENTS.md §7）。韩股 → pykrx；其余 → FDR。"""
 
 from __future__ import annotations
 

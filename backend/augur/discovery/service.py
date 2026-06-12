@@ -60,7 +60,8 @@ def _fallback(cands: list[dict]) -> dict[str, dict]:
 
 
 def _judge_chunk(chunk: list[dict]) -> dict[str, dict]:
-    """判一个 chunk → {symbol: {worth, reason}}。失败/解析空 → 该 chunk 全 worth=True、reason=''。"""
+    """判一个 chunk → {symbol: {worth, reason}}。
+    失败/解析空 → 该 chunk 全 worth=True、reason=''。"""
     lines = [
         f'{i}. {c["name"]}（{c["symbol"]}）｜近 {c["count"]} 次提及｜证据：'
         + "；".join(e.get("title", "") for e in c["evidence"][:3])
@@ -74,7 +75,8 @@ def _judge_chunk(chunk: list[dict]) -> dict[str, dict]:
         "与公司投资逻辑无关的，不算（worth=false）。拿不准就倾向值得（worth=true）。\n"
         "再给**一句话理由**：用大白话、具体说为什么（不）值得关注，别空话。\n\n"
         "只输出 JSON（键＝编号字符串）：\n"
-        '{"1": {"worth": true, "reason": "具体一句话"}, "2": {"worth": false, "reason": "为什么不值得"}}\n\n'
+        '{"1": {"worth": true, "reason": "具体一句话"}, '
+        '"2": {"worth": false, "reason": "为什么不值得"}}\n\n'
         + "\n".join(lines)
     )
     try:
@@ -560,7 +562,7 @@ def signals(limit: int = 60) -> dict[str, dict]:
     out: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=6) as ex:
         results = list(ex.map(_signal_for, syms))
-    for sym, sig in zip(syms, results):
+    for sym, sig in zip(syms, results, strict=True):
         if sig and sig["ret_pct"] >= _HOT_RET and sig["vol_ratio"] >= _HOT_VOL:
             out[sym] = sig
     return out

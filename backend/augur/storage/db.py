@@ -275,6 +275,22 @@ CREATE TABLE IF NOT EXISTS research_reports (
     model       TEXT    NOT NULL DEFAULT '',
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- 公司披露 Insight 缓存（看·综合认知）：LLM 读披露正文 → 投资影响判断。
+-- filing 正文不可变 → 按 (symbol, disc_key) 永久缓存；刷新只对未缓存披露调 LLM（避免每次重算）。
+CREATE TABLE IF NOT EXISTS disclosure_insights (
+    symbol      TEXT    NOT NULL,                    -- MARKET:CODE
+    disc_key    TEXT    NOT NULL,                    -- filing=accession / transcript=YYYYQn
+    headline    TEXT    NOT NULL DEFAULT '',
+    insight     TEXT    NOT NULL DEFAULT '',
+    impact      TEXT    NOT NULL DEFAULT '中性',      -- 利好/利空/中性/存疑
+    confidence  TEXT    NOT NULL DEFAULT 'low',       -- high/med/low
+    importance  TEXT    NOT NULL DEFAULT 'med',       -- critical/high/med/low
+    hidden      INTEGER NOT NULL DEFAULT 0,           -- 1=程序性无价值，综合认知里隐藏
+    model       TEXT    NOT NULL DEFAULT '',
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, disc_key)
+);
 """
 
 

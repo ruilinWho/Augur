@@ -1,6 +1,6 @@
 """应用配置：从 .env / 环境变量读取。路径解析到仓库根的 data/ resources/。
 
-约定见 CLAUDE.md §6 / ADR-0008。**LLM 连接与角色现由 `runtime_config`（data/config.local.json）
+约定见 AGENTS.md §6 / ADR-0008。**LLM 连接与角色现由 `runtime_config`（data/config.local.json）
 动态管理**——增删连接、角色→连接 指派都在「设置 · 模型」里，gateway 走 runtime_config。
 本文件只管**应用级设置**（port/tz/sec_user_agent）；下方 `role_*` 字段仅作旧 .env→连接 的
 **一次性迁移种子**保留（_seed_from_legacy 读一次），非现行机制。

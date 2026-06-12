@@ -1,4 +1,4 @@
-"""watchlist 域的 Pydantic 模型（API 契约）。两级板块见 CLAUDE.md §8。"""
+"""watchlist 域的 Pydantic 模型（API 契约）。两级板块见 AGENTS.md §8。"""
 
 from __future__ import annotations
 

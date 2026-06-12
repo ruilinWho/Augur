@@ -1,6 +1,6 @@
 """news 域纯逻辑：摄取触发、条目查询、趋势日报生成（LLM summarize 角色）。
 
-I/O（网络在 ingest、磁盘在 storage、LLM 在 gateway）挡在外层，便于测试（CLAUDE.md §5）。
+I/O（网络在 ingest、磁盘在 storage、LLM 在 gateway）挡在外层，便于测试（AGENTS.md §5）。
 日报口径：只基于当日抓到的标题蒸馏，暴露不确定性、标注信源（§11）。一天一份，重生成覆盖。
 """
 
@@ -116,11 +116,204 @@ def _filing_is_earnings(f: dict) -> bool:
     )
 
 
+# ───────────────────── 公司披露 Insight（LLM 读正文 → 投资洞察）─────────────────────
+
+_disclosure_cache: dict[str, tuple[float, dict]] = {}
+_DISCLOSURE_TTL = 1800.0  # stock_disclosures 整体结果缓存 30min（reflection/个股摘要/API 共用）
+_DISC_WORKERS = 6
+_IMPACTS = {"利好", "利空", "中性", "存疑"}
+_INS_CONF = {"high", "med", "low"}
+_INS_IMP = {"critical", "high", "med", "low"}
+
+
+def _disc_key(ev: dict) -> str:
+    """披露唯一缓存键：filing=accession / transcript=period。"""
+    kind = ev.get("kind")
+    if kind == "filing":
+        return f"f:{ev.get('accession') or ev.get('url') or ev.get('id')}"
+    if kind == "transcript":
+        return f"t:{ev.get('period') or ev.get('id')}"
+    return ""
+
+
+def _get_cached_insights(symbol: str, keys: list[str]) -> dict[str, dict]:
+    if not keys:
+        return {}
+    conn = get_conn()
+    try:
+        ph = ",".join("?" * len(keys))
+        rows = conn.execute(
+            "SELECT disc_key, headline, insight, impact, confidence, importance, hidden "
+            f"FROM disclosure_insights WHERE symbol=? AND disc_key IN ({ph})",
+            (symbol, *keys),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        r["disc_key"]: {
+            "headline": r["headline"],
+            "insight": r["insight"],
+            "impact": r["impact"],
+            "confidence": r["confidence"],
+            "importance": r["importance"],
+            "hidden": bool(r["hidden"]),
+        }
+        for r in rows
+    }
+
+
+def _save_insights(symbol: str, rows: list[dict]) -> None:
+    if not rows:
+        return
+    conn = get_conn()
+    try:
+        conn.executemany(
+            "INSERT INTO disclosure_insights "
+            "(symbol, disc_key, headline, insight, impact, confidence, importance, hidden, model) "
+            "VALUES (?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(symbol, disc_key) DO UPDATE SET "
+            "headline=excluded.headline, insight=excluded.insight, impact=excluded.impact, "
+            "confidence=excluded.confidence, importance=excluded.importance, "
+            "hidden=excluded.hidden, model=excluded.model",
+            [
+                (
+                    symbol,
+                    r["disc_key"],
+                    r.get("headline", ""),
+                    r.get("insight", ""),
+                    r.get("impact", "中性"),
+                    r.get("confidence", "low"),
+                    r.get("importance", "med"),
+                    1 if r.get("hidden") else 0,
+                    r.get("model", ""),
+                )
+                for r in rows
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _financials_block(symbol: str) -> str:
+    """最近 1-2 期财务数字（喂 earnings 类披露做交叉校准）。失败/无 → ""。"""
+    try:
+        from ..market import fundamentals
+
+        fin = fundamentals.get_financials(symbol, "quarter", limit=2)
+    except Exception:  # noqa: BLE001
+        return ""
+    out: list[str] = []
+    for p in (fin.get("periods") or [])[:2]:
+        if not isinstance(p, dict):
+            continue
+        kv = [f"{k}={v}" for k, v in p.items() if isinstance(v, (int, float))]
+        if kv:
+            out.append(f"{p.get('period') or ''}: " + ", ".join(kv))
+    return "\n".join(out)
+
+
+def _normalize_insight(data: dict, ev: dict) -> dict:
+    d = data if isinstance(data, dict) else {}
+    impact = str(d.get("impact") or "").strip()
+    conf = str(d.get("confidence") or "").strip()
+    imp = str(d.get("importance") or "").strip()
+    return {
+        "headline": _strip_inline_refs(str(d.get("headline") or ""))[:160]
+        or str(ev.get("title") or ""),
+        "insight": str(d.get("insight") or "").strip()[:400],
+        "impact": impact if impact in _IMPACTS else "中性",
+        "confidence": conf if conf in _INS_CONF else "low",
+        "importance": imp if imp in _INS_IMP else str(ev.get("importance") or "med"),
+        "hidden": bool(d.get("hidden")),
+        "model": "",
+    }
+
+
+def enrich_disclosures(symbol: str, events: list[dict], role: str = "summarize") -> list[dict]:
+    """对披露事件批量生成 LLM insight（headline/insight/impact/confidence/importance/hidden）。
+
+    filing 正文不可变 → 按 disc_key 持久缓存，只对未缓存者并行调 LLM。LLM 未配置 → 原样返回
+    （纯事实层仍可用）。单条失败写保守 insight，不连累其余（§11 优雅降级）。
+    """
+    try:
+        gateway.check_ready(role)
+    except gateway.LLMNotConfigured:
+        return events
+    enrichable = [e for e in events if e.get("kind") in ("filing", "transcript")]
+    if not enrichable:
+        return events
+    key_of = {id(e): _disc_key(e) for e in enrichable}
+    cached = _get_cached_insights(symbol, [k for k in key_of.values() if k])
+    missing = [e for e in enrichable if key_of[id(e)] and key_of[id(e)] not in cached]
+
+    try:
+        name = search.display_name(symbol)
+    except Exception:  # noqa: BLE001
+        name = symbol
+    tpl = _load_prompt("disclosure_insight")
+
+    def gen(ev: dict) -> dict:
+        kind = ev.get("kind")
+        is_earn = _filing_is_earnings(ev) if kind == "filing" else False
+        if kind == "transcript":
+            content = str(ev.get("summary") or "")[:4000]
+        else:
+            content = edgar.disclosure_body(ev, is_earn)
+        prompt = (
+            tpl.replace("{{NAME}}", name)
+            .replace("{{SYMBOL}}", symbol)
+            .replace("{{FORM}}", str(ev.get("form") or kind))
+            .replace("{{LABEL}}", str(ev.get("title") or ""))
+            .replace("{{DATE}}", str(ev.get("date") or ""))
+            .replace("{{CONTENT}}", content or "（无正文，只有类型标签）")
+            .replace("{{FINANCIALS}}", (_financials_block(symbol) if is_earn else "") or "（无）")
+        )
+        return _complete_json(prompt, role, "headline")
+
+    new_rows: list[dict] = []
+    if missing:
+        with ThreadPoolExecutor(max_workers=min(_DISC_WORKERS, len(missing))) as ex:
+            futs = {ex.submit(gen, e): e for e in missing}
+            for fut in as_completed(futs):
+                ev = futs[fut]
+                try:
+                    data = fut.result()
+                except Exception:  # noqa: BLE001 — 单条失败不连累其余
+                    data = {}
+                row = _normalize_insight(data, ev)
+                row["disc_key"] = key_of[id(ev)]
+                cached[row["disc_key"]] = {
+                    k: row[k]
+                    for k in ("headline", "insight", "impact", "confidence", "importance", "hidden")
+                }
+                new_rows.append(row)
+        _save_insights(symbol, new_rows)
+
+    for e in enrichable:
+        ins = cached.get(key_of[id(e)])
+        if not ins:
+            continue
+        e["headline"] = ins["headline"]
+        e["insight"] = ins["insight"]
+        e["impact"] = ins["impact"]
+        e["confidence"] = ins["confidence"]
+        e["hidden"] = ins["hidden"]
+        if ins.get("importance"):
+            e["importance"] = ins["importance"]
+    return events
+
+
 def stock_disclosures(symbol: str, limit: int = 20) -> dict:
     """公司披露层：SEC 财报/8-K + 财报期兜底 + 可选 FMP 电话会 transcript。
 
     这些是「看/研/知」共享的事实源，不等同普通新闻；没有某个外部源时降级为空而非报错。
+    每条披露经 `enrich_disclosures` 补 LLM 投资洞察（headline/insight/impact），程序性无价值的隐藏。
     """
+    now = time.time()
+    hit = _disclosure_cache.get(symbol)
+    if hit and now - hit[0] < _DISCLOSURE_TTL:
+        return hit[1]
     events: list[dict] = []
     filings = edgar.filings_for(symbol, limit=12)
     for i, filing in enumerate(filings, start=1):
@@ -140,6 +333,8 @@ def stock_disclosures(symbol: str, limit: int = 20) -> dict:
                 "period": "",
                 "year": None,
                 "quarter": None,
+                "accession": str(filing.get("accession") or ""),
+                "cik": filing.get("cik"),
             }
         )
 
@@ -196,6 +391,11 @@ def stock_disclosures(symbol: str, limit: int = 20) -> dict:
             }
         )
 
+    try:
+        events = enrich_disclosures(symbol, events)
+    except Exception:  # noqa: BLE001 — insight 失败不影响纯事实层
+        log.exception("enrich_disclosures failed: %s", symbol)
+    events = [e for e in events if not e.get("hidden")]  # 隐藏程序性无价值披露（唯一过滤点）
     events = [e for e in events if e.get("date") or e.get("title")]
     events.sort(
         key=lambda e: (
@@ -204,12 +404,14 @@ def stock_disclosures(symbol: str, limit: int = 20) -> dict:
         ),
         reverse=True,
     )
-    return {
+    result = {
         "symbol": symbol,
         "configured": {"sec": True, "fmp": fmp.configured()},
         "events": events[:limit],
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
     }
+    _disclosure_cache[symbol] = (now, result)
+    return result
 
 
 def _disclosure_news_items(symbol: str, limit: int = 8) -> list[dict]:
@@ -2033,7 +2235,7 @@ def generate_all(
 ) -> dict:
     """「全部生成」：刷新信源（RSS+社媒+自选定向）+ 蒸馏当天各板块要点/机会。
 
-    **单一真相**——供前端「一键刷新并生成」按钮与白天每小时自动调度共用（CLAUDE.md §6/§12）。
+    **单一真相**——供前端「一键刷新并生成」按钮与白天每小时自动调度共用（AGENTS.md §6/§12）。
     每步独立成败、失败不阻断其余（§11 优雅降级）；LLM 未配置 → 只刷新、静默跳过蒸馏。
     返回各步状态供 UI 状态点 / 调度日志展示。
     """

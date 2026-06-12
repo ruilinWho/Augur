@@ -1,6 +1,6 @@
 """运行时可配置项的本地存储：LLM 连接列表 / 角色路由 / 数据信源 key——供「设置」页 UI 改。
 
-护栏（CLAUDE.md §11）：**密钥永不入 git、永不打日志**。存 gitignored `data/config.local.json`
+护栏（AGENTS.md §11）：**密钥永不入 git、永不打日志**。存 gitignored `data/config.local.json`
 （0600）。作者明确要求**本地单用户「设置」UI 直接回显明文 key**（"反正只有我自己用"）——故
 GET 会带明文，仅在 localhost 后端↔前端间流动；硬护栏（不入 git/日志）不变。
 

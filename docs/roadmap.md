@@ -25,8 +25,8 @@ Everything in this section is implemented and in daily use.
 - Quote header focused on current price, change, 52-week position, market cap, P/E, net margin, and freshness.
 - Fundamentals and financial-trend tables, with quarterly and annual views.
 - Stock-bound **综合认知**: personal judgments, company disclosures, major stock events, current related-information context, social heat, and LLM feedback on whether each judgment has been supported, refuted, mixed, or not yet tested.
-- Company-disclosure layer: SEC filings/earnings 8-Ks, yfinance financial-period fallback, and optional FMP earnings-call transcripts are normalized as disclosure events and fed into stock briefs, stock narratives, 综合认知, and chart markers. See [company-disclosure-layer](memory/company-disclosure-layer.md).
-- Chart markers for personal judgments (`判`), earnings/filing disclosures (`财`), and earnings calls (`会`); real disclosure dates take precedence over financial-period fallback dates.
+- Company-disclosure layer: SEC filings/earnings 8-Ks, yfinance financial-period fallback, and optional FMP earnings-call transcripts are normalized as disclosure events, each **enriched by an LLM that reads the actual filing text** (earnings → Exhibit 99.1 press release; non-earnings 8-K → main-document body; 10-Q/10-K → existing financials figures) into an investment **insight** — a concrete headline, a one-line takeaway, and a 利好/利空/中性/存疑 impact with confidence — replacing the old mechanical form labels; purely procedural filings are hidden. Insights are cached per filing and feed stock briefs, narratives, 综合认知, and chart markers. See [company-disclosure-layer](memory/company-disclosure-layer.md).
+- Chart markers for personal judgments (`判`), earnings/filing disclosures (`财`), and earnings calls (`会`), anchored to a single aligned event band at the price-axis bottom (price-based markers, not overlapping candles), with near-duplicate filings merged; real disclosure dates take precedence over financial-period fallback dates.
 
 ### Research (研)
 

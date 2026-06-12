@@ -1,6 +1,6 @@
 """反证雷达服务：立论 CRUD + AI 起草 + 按每日挂钩新闻扫描反证/印证。
 
-纯逻辑挡在 I/O 外（CLAUDE.md §5）。监控 scope 复用 news 的 `news_item_symbols` 挂钩
+纯逻辑挡在 I/O 外（AGENTS.md §5）。监控 scope 复用 news 的 `news_item_symbols` 挂钩
 （与分区日报同口径，零新增标股成本）。判定走 cheap 角色、conservative 宁缺勿滥避免噪音。
 """
 

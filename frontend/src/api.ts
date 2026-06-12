@@ -172,6 +172,10 @@ const reflectionEventSchema = z.object({
   kind: z.string(),
   date: z.string().default(''),
   title: z.string().default(''),
+  headline: z.string().default(''),
+  insight: z.string().default(''),
+  impact: z.string().default(''),
+  confidence: z.string().default(''),
   body: z.string().default(''),
   importance: z.string().default('med'),
   journal_id: z.number().nullable().default(null),
@@ -753,13 +757,6 @@ const newsReadStateSchema = z.object({
   last_read_at: z.string().nullable().default(null),
   fresh_count: z.number().default(0),
 })
-const filingSchema = z.object({
-  form: z.string(),
-  title: z.string(),
-  url: z.string(),
-  summary: z.string().default(''),
-  filed_at: z.string().nullable().default(null),
-})
 const disclosureEventSchema = z.object({
   id: z.string(),
   kind: z.string(),
@@ -773,6 +770,12 @@ const disclosureEventSchema = z.object({
   period: z.string().default(''),
   year: z.number().nullable().default(null),
   quarter: z.number().nullable().default(null),
+  headline: z.string().default(''),
+  insight: z.string().default(''),
+  impact: z.string().default(''),
+  confidence: z.string().default(''),
+  hidden: z.boolean().default(false),
+  accession: z.string().default(''),
 })
 const stockDisclosuresSchema = z.object({
   symbol: z.string(),
@@ -784,7 +787,6 @@ export type NewsItem = z.infer<typeof newsItemSchema>
 export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
 export type NewsReadState = z.infer<typeof newsReadStateSchema>
-export type Filing = z.infer<typeof filingSchema>
 export type DisclosureEvent = z.infer<typeof disclosureEventSchema>
 export type StockDisclosures = z.infer<typeof stockDisclosuresSchema>
 
@@ -808,18 +810,6 @@ export function useNewsFeed(
       if (day) q.set('day', day)
       return z.array(newsItemSchema).parse(await getJSON(`/news/feed?${q.toString()}`))
     },
-    staleTime: 5 * 60_000,
-  })
-}
-
-export function useNewsForSymbol(symbol: string | null) {
-  return useQuery({
-    enabled: !!symbol,
-    queryKey: ['news-for', symbol],
-    queryFn: async () =>
-      z
-        .array(newsItemSchema)
-        .parse(await getJSON(`/news/for?symbol=${encodeURIComponent(symbol!)}&limit=20`)),
     staleTime: 5 * 60_000,
   })
 }
@@ -883,19 +873,6 @@ export function useStockSocialHeat(symbol: string | null) {
       ),
     staleTime: 30 * 60_000,
     retry: 1,
-  })
-}
-
-// 个股官方一手文件（美股 SEC EDGAR 申报）。仅美股启用；其他市场后端返回空表。
-export function useStockOfficial(symbol: string | null) {
-  return useQuery({
-    enabled: !!symbol && symbol.startsWith('US:'),
-    queryKey: ['news-official', symbol],
-    queryFn: async () =>
-      z
-        .array(filingSchema)
-        .parse(await getJSON(`/news/official?symbol=${encodeURIComponent(symbol!)}&limit=15`)),
-    staleTime: 30 * 60_000,
   })
 }
 

@@ -1,4 +1,4 @@
-"""股票代码目录：构建 + 磁盘缓存（CLAUDE.md §7 缓存优先、尊重限流）。
+"""股票代码目录：构建 + 磁盘缓存（AGENTS.md §7 缓存优先、尊重限流）。
 
 各市场列表来源：
   · US / CN / KR → FinanceDataReader（StockListing）

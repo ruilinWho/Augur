@@ -1,4 +1,4 @@
-"""统一 LLM 网关（CLAUDE.md §6）：一切走 litellm，模型来自**可动态增删的连接列表**。
+"""统一 LLM 网关（AGENTS.md §6）：一切走 litellm，模型来自**可动态增删的连接列表**。
 
 每个角色（chat/deep_research/summarize/cheap）指到一个**连接** `{name, base_url, api_key, model}`
 （在「设置 · 模型」里增删/指派，存 runtime_config）。连接一律按 **OpenAI 兼容**调用

@@ -1,4 +1,4 @@
-"""东方财富——免费关键词科技资讯（search-api-web JSONP；CLAUDE.md §1 / ADR-0007）。
+"""东方财富——免费关键词科技资讯（search-api-web JSONP；AGENTS.md §1 / ADR-0007）。
 
 按作者关注的前沿关键词检索、按时间排序，聚合多家媒体的科技报道（与现有东财检索同源）。
 免费、无需 key。失败降级 []。归一化为 news_items 同形条目，复用 classify + 噪音过滤；

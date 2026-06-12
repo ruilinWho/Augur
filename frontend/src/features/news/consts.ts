@@ -67,13 +67,12 @@ export const SOURCE_LANES: Record<
     sourcePrefix?: string
     filters: { key: string; label: string }[]
     filterBy: 'theme' | 'category'
-    live: boolean
   }
 > = {
-  news: { label: '新闻', filters: THEMES, filterBy: 'theme', live: true },
-  blogs: { label: '博客', sourcePrefix: '博客·', filters: THEMES, filterBy: 'theme', live: true },
-  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, filterBy: 'category', live: true },
-  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, filterBy: 'category', live: true },
-  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, filterBy: 'category', live: true },
-  threads: { label: 'Threads', sourcePrefix: 'Threads·', filters: FORUM_CATS, filterBy: 'category', live: true },
+  news: { label: '新闻', filters: THEMES, filterBy: 'theme' },
+  blogs: { label: '博客', sourcePrefix: '博客·', filters: THEMES, filterBy: 'theme' },
+  twitter: { label: '推特', sourcePrefix: 'X·', filters: TW_CATS, filterBy: 'category' },
+  reddit: { label: 'Reddit', sourcePrefix: 'Reddit·', filters: FORUM_CATS, filterBy: 'category' },
+  xiaohongshu: { label: '小红书', sourcePrefix: '小红书·', filters: FORUM_CATS, filterBy: 'category' },
+  threads: { label: 'Threads', sourcePrefix: 'Threads·', filters: FORUM_CATS, filterBy: 'category' },
 }

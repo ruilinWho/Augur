@@ -1,4 +1,4 @@
-"""MarketAdapter 接口：每个数据源一个实现，统一在此接口后（CLAUDE.md §7）。
+"""MarketAdapter 接口：每个数据源一个实现，统一在此接口后（AGENTS.md §7）。
 
 适配器只做"取原始数据并归一化为标准 DataFrame"，不碰缓存、不碰 HTTP 层。
 返回的 DataFrame：DatetimeIndex（名为 date）+ 列 open/high/low/close/volume。

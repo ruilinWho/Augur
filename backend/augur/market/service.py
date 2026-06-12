@@ -1,4 +1,4 @@
-"""行情服务：缓存优先、只抓缺失尾巴、按需重采样/截取区间（CLAUDE.md §7）。
+"""行情服务：缓存优先、只抓缺失尾巴、按需重采样/截取区间（AGENTS.md §7）。
 
 纯逻辑层——HTTP 在 router.py，I/O（数据源/磁盘）在适配器/storage。
 """
@@ -16,7 +16,7 @@ from .resolver import get_adapter
 from .symbols import Symbol, parse_symbol
 
 _DEFAULT_HISTORY_DAYS = 365 * 5
-_REFRESH_TTL_SEC = 600  # 同一标的最多每 10 分钟回源补尾，避免狂打数据源（CLAUDE.md §11）
+_REFRESH_TTL_SEC = 600  # 同一标的最多每 10 分钟回源补尾，避免狂打数据源（AGENTS.md §11）
 # 港股 FDR（雅虎源）若只吐极少几根，多半是**回收代码**历史损坏（如 00100=MiniMax-W）→
 # 回退到东财补全。阈值取小：真新股本就稀疏、回退只在更多时才替换，误触发也无害。
 _HK_THIN_ROWS = 10
@@ -83,6 +83,8 @@ def _apply_range(df: pd.DataFrame, rng: str) -> pd.DataFrame:
 
 
 def _resample(df: pd.DataFrame, interval: str) -> pd.DataFrame:
+    # 周/月重采样：前端 4 个区间只发 interval='1d'，
+    # 本路径仅经 /market/ohlcv?interval=1w|1M 公开 API 可达。
     if df.empty or interval == "1d":
         return df
     rule = _RESAMPLE_RULE.get(interval)

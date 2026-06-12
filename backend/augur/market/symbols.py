@@ -1,4 +1,4 @@
-"""归一化符号 MARKET:CODE（CLAUDE.md §7）。
+"""归一化符号 MARKET:CODE（AGENTS.md §7）。
 
 内部一律用 `US:AAPL`、`HK:00700`、`CN:600519`、`KR:005930`。
 各适配器负责把 Symbol 翻译成数据源的原生格式。

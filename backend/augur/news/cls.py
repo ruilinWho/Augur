@@ -1,4 +1,4 @@
-"""财联社 CLS——中文科技实时源（非官方 API；CLAUDE.md §1「知」/ ADR-0007）。
+"""财联社 CLS——中文科技实时源（非官方 API；AGENTS.md §1「知」/ ADR-0007）。
 
 取**科创电报**（depth/assembled/1111，最贴近作者的前沿科技关注）。该 API 需签名：
 `sign = MD5(SHA1(sorted_querystring))`，参数含 `appName=CailianpressWeb`。

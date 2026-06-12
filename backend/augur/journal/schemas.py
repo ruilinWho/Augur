@@ -41,9 +41,13 @@ class ReflectionAssessment(BaseModel):
 
 class ReflectionEvent(BaseModel):
     id: str
-    kind: str  # journal / news
+    kind: str  # journal / news / disclosure
     date: str
     title: str
+    headline: str = ""  # 披露：LLM 具体标题（前端优先于 title 显示）
+    insight: str = ""  # 披露：1-2 句投资洞察
+    impact: str = ""  # 披露：利好/利空/中性/存疑
+    confidence: str = ""  # 披露：high/med/low
     body: str = ""
     importance: str = "med"
     journal_id: int | None = None

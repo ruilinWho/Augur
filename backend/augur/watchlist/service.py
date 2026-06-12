@@ -1,4 +1,4 @@
-"""自选分区服务：两级板块 + 标的（CLAUDE.md §8）。
+"""自选分区服务：两级板块 + 标的（AGENTS.md §8）。
 
 硬约束：depth ≤ 2 —— 二级板块不能再有子级，在 create/move 时强校验。
 市场（US/HK/CN/KR）是查询过滤器（正交），不是第三层。
@@ -64,7 +64,7 @@ def list_tree(market: str | None = None) -> list[dict]:
             return True
         return any(has_any_stock(ch["id"]) for ch in subs_by_parent.get(sid, []))
 
-    # 分区按"标的所在市场"显示（CLAUDE.md §8）：选了具体市场时，只露出在该市场有标的的分区+该
+    # 分区按"标的所在市场"显示（AGENTS.md §8）：选了具体市场时，只露出在该市场有标的的分区+该
     # 市场的标的；**有标的但本市场无的**分区剪掉（防 大模型 污染韩股）。但**真正的空分区**（任何
     # 市场都没标的）在所有市场都显示——它无市场归属，便于在任何视图里就地创建并填充（作者反馈）。
     def to_out(s: sqlite3.Row) -> dict | None:

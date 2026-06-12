@@ -1,7 +1,7 @@
 """新闻投资相关性过滤（cheap 角色批量判，落 news_items.relevance）。
 
 作者反馈「知」里仍有与投资无关的新闻；规则法 `filter.py` 滤不掉的更隐蔽的，交给**便宜小模型**
-判（CLAUDE.md §6，复用 cheap 角色＝作者授权的出站目的地，不引入新外发面）。批量编号清单 in/out、
+判（AGENTS.md §6，复用 cheap 角色＝作者授权的出站目的地，不引入新外发面）。批量编号清单 in/out、
 落库（每条只判一次：WHERE relevance=0）、失败静默降级（保留=不丢、下轮重试，绝不阻断摄取）。
 relevance：0 未判 / 1 投资相关保留 / 2 无关丢弃。判据见 resources/prompts/news_relevance.md。
 """
@@ -40,12 +40,13 @@ def _strip_fence(s: str) -> str:
 def _select_pending(limit: int, offset: int = 0) -> list[tuple[int, str, str, str]]:
     conn = get_conn()
     try:
-        # ASC（最老未判优先）：单轮插入 >_MAX_PER_RUN 条时，DESC 会让最老一批永远排在末尾
+        # ASC（最老未判优先）：单轮插入很多条时，DESC 会让最老一批永远排在末尾
         # 永不被选中 → 因「未判=保留」直接泄入信息流，从严过滤对存量尾部失效。最老的即将滑出
         # 可见窗口反而更该先判，几轮 refresh 自然清空积压。
         # offset：让 judge_pending 跳过「队首一直解析失败的毒批」，否则它会永久堵住后面更老的条目。
         # 社媒前缀（X·/小红书·/Threads·/Reddit·）跳过判定：社媒 lane 在「知」里
         # 不套用为新闻从严调的 relevance（用户主动进的 lane 看原貌），判它纯属浪费 cheap token。
+        # 下方 NOT LIKE 前缀须与 service._SOCIAL_PREFIXES 保持一致——新增社媒 lane 时勿漏改这处 SQL。
         rows = conn.execute(
             "SELECT id, COALESCE(NULLIF(title_zh, ''), title) AS t, source, theme "
             "FROM news_items WHERE relevance = 0 AND lane = 'feed' "

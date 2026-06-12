@@ -1,4 +1,4 @@
-"""判断日记服务：某标的在某日的决策笔记，供日后复盘（CLAUDE.md §1）。
+"""判断日记服务：某标的在某日的决策笔记，供日后复盘（AGENTS.md §1）。
 
 纯逻辑 + SQLite。日期校验为 'YYYY-MM-DD'。symbol 经 market.parse_symbol 归一化校验。
 """
@@ -253,6 +253,10 @@ def _build_disclosure_events(disclosures: dict, start: int) -> tuple[list[dict],
             "kind": "disclosure",
             "date": date,
             "title": title,
+            "headline": str(ev.get("headline") or ""),
+            "insight": str(ev.get("insight") or ""),
+            "impact": str(ev.get("impact") or ""),
+            "confidence": str(ev.get("confidence") or ""),
             "body": summary[:900] if kind == "transcript" else "",
             "importance": ev.get("importance") or "high",
             "refs": [
@@ -287,11 +291,12 @@ def _news_prompt_block(news_by_n: dict[int, dict]) -> str:
         refs = "；".join(
             f"{r.get('source')}: {r.get('title')}" for r in ev.get("refs") or [] if r.get("title")
         )
+        title = ev.get("headline") or ev.get("title") or ""
         lines.append(
             f"[e{n}] {ev.get('date') or '日期不详'} {ev.get('importance') or 'med'} "
-            f"{ev.get('kind') or 'event'} {ev.get('title') or ''}"
+            f"{ev.get('kind') or 'event'} {title}"
         )
-        body = str(ev.get("body") or "").strip()
+        body = str(ev.get("insight") or ev.get("body") or "").strip()
         if body:
             lines.append(f"    摘要：{body[:700]}")
         if refs:

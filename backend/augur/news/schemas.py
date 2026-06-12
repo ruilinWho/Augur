@@ -88,6 +88,12 @@ class DisclosureEvent(BaseModel):
     period: str = ""
     year: int | None = None
     quarter: int | None = None
+    headline: str = ""  # LLM 具体标题（取代机械 title）
+    insight: str = ""  # 1-2 句投资洞察
+    impact: str = ""  # 利好/利空/中性/存疑（空=未生成）
+    confidence: str = ""  # high/med/low
+    hidden: bool = False  # 程序性无价值（已在 service 过滤；保留供调试）
+    accession: str = ""  # filing 唯一键
 
 
 class StockDisclosures(BaseModel):

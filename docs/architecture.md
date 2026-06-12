@@ -36,7 +36,7 @@ Augur 是一个**本地双进程应用**：Python/FastAPI 后端负责数据、L
 | `journal/` | 绑定个股的判断日记 | K 线 marker 和复盘记录 |
 | `llm/` | litellm 网关 | 角色路由、动态连接、SSE、token 用量落库、可选联网检索 |
 | `research/` | 单股深度研究 + 导入研报 | 确定性数据 gather → 带引用报告；导入 markdown 研报和评论 |
-| `news/` | 信源摄取、翻译、过滤、日报、要点、机会、个股叙事 | RSS/API/X/ticker lane；LLM 输出接地和 JSON 加固 |
+| `news/` | 信源摄取、翻译、过滤、日报、要点、机会、叙事、公司披露 insight | RSS/API/X/ticker lane；LLM 接地与 JSON 加固；披露读 SEC 正文产 insight、按 filing 缓存 |
 | `notes/` | 与个股无关的自由长文笔记 | 置顶、markdown、防抖自动保存 |
 | `settings_router.py` | 设置页 API | LLM 连接、信源 key/配置、测试端点、自动生成计划 |
 | `main.py` | FastAPI app/lifespan | 初始化 DB、预热标的目录、启动/停止调度器、localhost CORS |
@@ -65,7 +65,7 @@ SQLite schema 在 [`backend/augur/storage/db.py`](../backend/augur/storage/db.py
 3. Parquet/TTL 缓存优先，只抓缺口。
 4. 前端 `KLineView` 用 Lightweight Charts v5 渲染蜡笔纸感 K 线。
 
-K 线下方模块包括财报分析与「综合认知」，并支持拖拽重排。「综合认知」合并个人判断、公司披露、重大事件、新闻/社媒背景与 LLM 事实反馈。未自选标的可一键加入自选分区。
+K 线下方模块包括财报分析与「综合认知」，并支持拖拽重排。「综合认知」合并个人判断、公司披露、重大事件、新闻/社媒背景与 LLM 事实反馈；公司披露由 LLM 读 SEC 正文（财报抓 Exhibit 99.1 新闻稿）产出投资 insight（headline + 利好/利空/中性/存疑 + 确定性），程序性披露隐藏。K 线事件 marker（判/财/会）统一钉在价格轴底部对齐带。未自选标的可一键加入自选分区。
 
 ### 研 · Research
 

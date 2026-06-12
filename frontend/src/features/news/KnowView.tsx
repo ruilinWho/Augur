@@ -99,7 +99,7 @@ function dayStr(): string {
 
 // 一键生成：把那天的 日报 + 要事 + 机会 三样并行生成；各步独立成败、带状态点。
 type GenStep = 'idle' | 'run' | 'done' | 'err'
-const stepDot = (s: GenStep) => (s === 'done' ? '✓' : s === 'err' ? '✗' : s === 'run' ? '·' : '·')
+const stepDot = (s: GenStep) => (s === 'done' ? '✓' : s === 'err' ? '✗' : '·')
 
 function DaySummaryHead({ date, isToday }: { date: string; isToday: boolean }) {
   const qc = useQueryClient()
@@ -306,12 +306,6 @@ function DayScopedNews({ date, kind }: { date: string; kind: SourceLaneId }) {
           </button>
         </div>
       </div>
-      {!lane.live ? (
-        <div className="lane-empty">
-          <div className="ke-title">待接入</div>
-        </div>
-      ) : (
-        <>
       <div className="tfilter">
         {opts.map((o) => (
           <button
@@ -346,8 +340,6 @@ function DayScopedNews({ date, kind }: { date: string; kind: SourceLaneId }) {
         <FeedGroups items={items} empty={feed.isLoading ? '加载…' : '暂无内容'} />
       ) : (
         <ClusterList params={clusterParams} />
-      )}
-        </>
       )}
     </div>
   )

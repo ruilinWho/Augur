@@ -1,4 +1,4 @@
-"""基本面（市值/营收/利润/P-E）via yfinance（CLAUDE.md §7）。
+"""基本面（市值/营收/利润/P-E）via yfinance（AGENTS.md §7）。
 
 yfinance 一库覆盖四市场（雅虎财经）。`.info` 较慢且偶发限流 → 内存 TTL 缓存（基本面是慢变量）。
 数字为各自**本币**（USD/HKD/CNY/KRW），单位是「元」级原值，前端再按亿/万亿格式化。

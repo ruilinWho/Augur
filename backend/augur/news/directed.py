@@ -1,4 +1,4 @@
-"""自选股定向抓取 lane（CLAUDE.md §1 三支柱融合的地基）。
+"""自选股定向抓取 lane（AGENTS.md §1 三支柱融合的地基）。
 
 对**每只自选股**按 ticker 直接拉该公司新闻（雅虎逐-ticker API），落库为 `lane='ticker'`
 并**确定性挂钩**到该 symbol（`matched_by='targeted'`——零幻觉，我们本就知道是哪只股）。

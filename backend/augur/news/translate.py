@@ -1,6 +1,6 @@
 """新闻英文/韩文标题 → 中文（cheap 角色批量翻译，缓存到 news_items.title_zh）。
 
-CLAUDE.md §5/§6：复用 LLM 网关 cheap 角色（已在 .env 配置＝作者授权的出站目的地），
+AGENTS.md §5/§6：复用 LLM 网关 cheap 角色（已在 .env 配置＝作者授权的出站目的地），
 不引入 DeepL/Google 等新数据外发面。批量编号清单 in/out、落库缓存（每条只翻一次：
 WHERE title_zh IS NULL）、失败静默降级（前端回退原文），绝不阻断摄取/日报。
 lang='zh' 的条目跳过翻译、直接 title_zh=title。

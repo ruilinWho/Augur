@@ -136,6 +136,22 @@ function EventRefs({ refs }: { refs: ReflectionEvent['refs'] }) {
   )
 }
 
+const discFormLabel = (e: ReflectionEvent) => (e.title || '').split('·')[0].trim().slice(0, 8)
+
+function ImpactBadge({ impact, confidence }: { impact: string; confidence: string }) {
+  if (!impact) return null
+  const tone =
+    impact === '利好' ? 'up' : impact === '利空' ? 'down' : impact === '存疑' ? 'doubt' : 'flat'
+  const conf =
+    confidence === 'high' ? '高' : confidence === 'med' ? '中' : confidence === 'low' ? '低' : ''
+  return (
+    <span className={`disc-impact ${tone}`}>
+      {impact}
+      {conf && <i>· {conf}</i>}
+    </span>
+  )
+}
+
 function TimelineEventCard({
   event,
   onEdit,
@@ -149,6 +165,7 @@ function TimelineEventCard({
   const isJournal = event.kind === 'journal'
   const isDisclosure = event.kind === 'disclosure'
   const label = isJournal ? '判断' : isDisclosure ? '披露' : '事件'
+  const title = isDisclosure ? event.headline || event.title : event.title
   return (
     <motion.article
       className={`cog-event ${isJournal ? 'is-judgment' : isDisclosure ? 'is-disclosure' : 'is-news'}`}
@@ -160,6 +177,7 @@ function TimelineEventCard({
         <span className={`cog-kind ${isJournal ? 'judgment' : isDisclosure ? 'disclosure' : 'news'}`}>
           {label}
         </span>
+        {isDisclosure && <ImpactBadge impact={event.impact} confidence={event.confidence} />}
         {!isJournal && <span className={`cl-imp ${imp.cls}`}>{imp.label}</span>}
         <time className="mono">{event.date}</time>
         {isJournal && <span className="faint">{agoLabel(event.date)}</span>}
@@ -173,8 +191,10 @@ function TimelineEventCard({
             </button>
           </span>
         )}
+        {isDisclosure && event.title && <span className="cog-disc-form">{discFormLabel(event)}</span>}
       </header>
-      <div className="cog-title">{event.title}</div>
+      <div className="cog-title">{title}</div>
+      {isDisclosure && event.insight && <p className="cog-insight">{event.insight}</p>}
       {isJournal && event.body && <div className="cog-body">{event.body}</div>}
       {!isJournal && event.body && <div className="cog-body disclosure-body">{event.body}</div>}
       {!isJournal && <EventRefs refs={event.refs} />}

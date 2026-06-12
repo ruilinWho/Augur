@@ -18,6 +18,21 @@
   - secret：`FMP_API_KEY`
   - 已进入 `source_registry.live_secret_names()`，会随「配置分享」导入/导出同步。
 
+## 披露 Insight 升级（2026-06-12，作者反馈）
+
+作者批评机械标签「重大事件 · 高管/董事变动」「财务报表与附件」是结构标签不是内容——"知道发生了披露但不导向决策；没信息量还不如不要"。改为 LLM 真读披露正文 → 投资洞察。
+
+- **抓取正文**（`edgar.py`，复用 `_get`/`_throttle`，无新依赖；30 天内存缓存）：
+  - earnings 类（8-K item 2.02 / 10-Q / 10-K）→ `exhibit_99_url` 拿 **Exhibit 99.1** 新闻稿原文（营收/EPS/指引）；**8-K 主文档是法律样板，真正数字在 99.1**。
+  - 非财报 8-K（5.02 高管变动等）→ 抓主文档，`fetch_filing_text` 从 "Item X.XX" 处裁掉 XBRL 内联头 + 法律封面（锚 `current report`/`pursuant to section 13`，窗口 1800 字——SEC 字样可能落在 XBRL 头之后）。
+  - 10-Q/10-K 全文不抓（太大 + XBRL），靠已有 `fundamentals.get_financials` 数字。
+  - transcript → 已有 FMP content。
+- **LLM 生成**（`news.service.enrich_disclosures`，`summarize` 角色，prompt `resources/prompts/disclosure_insight.md`）：每条输出 `{headline 具体标题, insight 投资洞察, impact 利好/利空/中性/存疑, confidence, importance, hidden}`；earnings 类附 financials 数字交叉校准防幻觉。
+- **缓存**：filing 内容不可变 → 按 `(symbol, disc_key)`（filing=accession / transcript=period）落新表 `disclosure_insights` 永久缓存，刷新只对未缓存披露并行调 LLM（`ThreadPoolExecutor` 6 并发）；`stock_disclosures` 整体结果再按 symbol 缓存 30min（reflection / 个股摘要 / API 三处共用不重算）。prompt 迭代后手动 `DELETE FROM disclosure_insights WHERE symbol=?` 重算。
+- **隐藏**：LLM 判 `hidden=true`（纯程序性：例行章程修订、被动 5% 持股、空 8.01）的披露在 `stock_disclosures` 输出层剔除（**唯一过滤点**），reflection / 摘要 / API 下游一致。
+- **前端**（`StockNews.tsx` `TimelineEventCard` 披露分支）：主标题 = `headline`，下方 `insight` 句，`ImpactBadge`（利好=`var(--up)` / 利空=`var(--down)` / 中性 / 存疑，**随涨跌色惯例自动翻转，零 convention 判断**）+ 确定性小字；原机械标签降为右上弱化 form badge（`discFormLabel` 取 `·` 前类型）。
+- **坑：两个 response_model 都要加字段。** 个股披露 API 走 `news/schemas.py::DisclosureEvent`，但**综合认知 reflection 走 `journal/schemas.py::ReflectionEvent`**——两个都要加 headline/insight/impact/confidence/hidden，否则 FastAPI response_model 静默剥掉、前端拿不到（实测踩过：只改了 news 的，reflection 端点仍吐机械标签）。前端 zod `reflectionEventSchema` / `disclosureEventSchema` 同理也要加（默认 strip）。
+
 ## 融合点
 
 - **看 · K 线 marker**：
