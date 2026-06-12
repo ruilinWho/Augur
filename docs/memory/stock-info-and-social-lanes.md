@@ -7,6 +7,10 @@
 - 之前「相关资讯」「社媒热度」「叙事时间线」是 3 个割裂板块（叙事一度是独立 KanStack 模块）。作者要「傻瓜式、一眼看全」→ **合并成一个 `StockNews`「相关资讯」板块**：现状一句话 + 要点（带来源）+ 时间线 + 社媒热度，按小标题分区、不再分多卡。`KAN_MODULES` 去掉 `narrative`，删 `StockNarrativeCard.tsx`，时间线用共享 `NarrativeBody`（`NarrativeTimeline.tsx`）就地渲染 + 可生成。
 - **复制 Prompt 抽成共享 `CopyPromptButton`**（`features/research/`），看页头部（`stock-head-actions`）与研页头部都用——看页也能一键复制技能/模板 prompt。
 
+### 2026-06-12 后续：升级为「综合认知」
+
+上述「相关资讯」形态已进一步被「综合认知」取代，详见 [[kan-cognition-timeline]]：旧的「相关资讯」与「判断日记」不再是两个 KanStack 模块，而是在 `StockNews.tsx` 内合成一条综合主线。近况/社媒仍保留为背景，但主循环变成：个人判断 → 后续公司披露/重大事件/价格 → LLM 事实反馈（印证/证伪/混合/尚未检验）。
+
 ## 说人话 + 带引用（像新闻那样可点）
 
 - brief / social / narrative 的 prompt 全部重写：**禁空话套话**（"持续推进/战略布局/市场关注"），要具体、带数字/客户/产品，像跟朋友说话。

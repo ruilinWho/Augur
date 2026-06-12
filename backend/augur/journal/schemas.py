@@ -23,3 +23,40 @@ class JournalCreate(BaseModel):
 class JournalUpdate(BaseModel):
     entry_date: str | None = None
     body: str | None = None
+
+
+class ReflectionRef(BaseModel):
+    source: str = ""
+    title: str = ""
+    url: str = ""
+
+
+class ReflectionAssessment(BaseModel):
+    verdict: str = "尚未检验"  # 印证 / 证伪 / 混合 / 尚未检验
+    confidence: str = "low"  # low / med / high
+    text: str = ""
+    price: str = ""
+    refs: list[ReflectionRef] = []
+
+
+class ReflectionEvent(BaseModel):
+    id: str
+    kind: str  # journal / news
+    date: str
+    title: str
+    body: str = ""
+    importance: str = "med"
+    journal_id: int | None = None
+    refs: list[ReflectionRef] = []
+    assessment: ReflectionAssessment | None = None
+
+
+class ReflectionTimeline(BaseModel):
+    symbol: str
+    name: str = ""
+    summary: str = ""
+    events: list[ReflectionEvent] = []
+    model: str = ""
+    journal_count: int = 0
+    news_count: int = 0
+    created_at: str | None = None

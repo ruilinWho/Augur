@@ -25,6 +25,7 @@ from ..watchlist import service as wl
 from . import (
     directed,
     edgar,
+    fmp,
     grounding,
     ingest,
     linker,
@@ -90,6 +91,156 @@ def _item_out(row) -> dict:
     except (json.JSONDecodeError, TypeError):
         d["topics"] = []
     return d
+
+
+def _quarter_end(label: str) -> str:
+    m = re.match(r"^(\d{4})Q([1-4])$", str(label or ""))
+    if not m:
+        return ""
+    year, q = m.group(1), int(m.group(2))
+    return {
+        1: f"{year}-03-31",
+        2: f"{year}-06-30",
+        3: f"{year}-09-30",
+        4: f"{year}-12-31",
+    }[q]
+
+
+def _filing_is_earnings(f: dict) -> bool:
+    form = str(f.get("form") or "").upper()
+    title = str(f.get("title") or f.get("summary") or "")
+    return (
+        form.startswith("10-Q")
+        or form.startswith("10-K")
+        or ("财报" in title or "经营成果" in title or "EARNINGS" in title.upper())
+    )
+
+
+def stock_disclosures(symbol: str, limit: int = 20) -> dict:
+    """公司披露层：SEC 财报/8-K + 财报期兜底 + 可选 FMP 电话会 transcript。
+
+    这些是「看/研/知」共享的事实源，不等同普通新闻；没有某个外部源时降级为空而非报错。
+    """
+    events: list[dict] = []
+    filings = edgar.filings_for(symbol, limit=12)
+    for i, filing in enumerate(filings, start=1):
+        form = str(filing.get("form") or "")
+        earn = _filing_is_earnings(filing)
+        events.append(
+            {
+                "id": f"filing-{i}",
+                "kind": "filing",
+                "date": str(filing.get("filed_at") or "")[:10],
+                "title": str(filing.get("title") or ""),
+                "source": "SEC EDGAR",
+                "url": str(filing.get("url") or ""),
+                "summary": str(filing.get("summary") or ""),
+                "importance": "critical" if earn else "high",
+                "form": form,
+                "period": "",
+                "year": None,
+                "quarter": None,
+            }
+        )
+
+    # yfinance financials 没有披露日，但非美股/缺 EDGAR 时可给「财」marker 和事实层兜底。
+    try:
+        from ..market import fundamentals
+
+        fin = fundamentals.get_financials(symbol, "quarter", limit=6)
+        known_dates = {e["date"] for e in events if e["kind"] == "filing" and e["date"]}
+        for p in fin.get("periods") or []:
+            label = str(p.get("period") or "")
+            date = _quarter_end(label)
+            if not date or date in known_dates:
+                continue
+            events.append(
+                {
+                    "id": f"financial-{label}",
+                    "kind": "financial_period",
+                    "date": date,
+                    "title": f"{label} 财报期",
+                    "source": "yfinance financials",
+                    "url": "",
+                    "summary": "财务数据期末日兜底；不是正式披露日。",
+                    "importance": "med",
+                    "form": "",
+                    "period": label,
+                    "year": None,
+                    "quarter": None,
+                }
+            )
+    except Exception:  # noqa: BLE001
+        pass
+
+    transcripts = fmp.transcripts_for(symbol, limit=4, include_content=True)
+    for i, t in enumerate(transcripts, start=1):
+        year = int(t.get("year") or 0)
+        quarter = int(t.get("quarter") or 0)
+        title = f"{year} Q{quarter} 电话会纪要" if year and quarter else "电话会纪要"
+        content = str(t.get("content") or "")
+        events.append(
+            {
+                "id": f"transcript-{year}-Q{quarter}-{i}",
+                "kind": "transcript",
+                "date": str(t.get("date") or "")[:10],
+                "title": title,
+                "source": "FMP Transcript",
+                "url": "",
+                "summary": content[:1200],
+                "importance": "critical",
+                "form": "",
+                "period": f"{year}Q{quarter}" if year and quarter else "",
+                "year": year or None,
+                "quarter": quarter or None,
+            }
+        )
+
+    events = [e for e in events if e.get("date") or e.get("title")]
+    events.sort(
+        key=lambda e: (
+            e.get("date") or "",
+            {"transcript": 2, "filing": 1, "financial_period": 0}.get(e.get("kind") or "", 0),
+        ),
+        reverse=True,
+    )
+    return {
+        "symbol": symbol,
+        "configured": {"sec": True, "fmp": fmp.configured()},
+        "events": events[:limit],
+        "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
+    }
+
+
+def _disclosure_news_items(symbol: str, limit: int = 8) -> list[dict]:
+    """披露事件转成 news-like item，让个股摘要/叙事可与新闻同一 prompt 合成。"""
+    out: list[dict] = []
+    nid = -100000
+    for ev in stock_disclosures(symbol, limit=limit).get("events") or []:
+        if ev.get("kind") == "financial_period":
+            continue
+        title = ev.get("title") or ""
+        summary = ev.get("summary") or ""
+        if ev.get("kind") == "transcript" and summary:
+            summary = summary[:900]
+        out.append(
+            {
+                "id": nid,
+                "source": ev.get("source") or "公司披露",
+                "title": title,
+                "url": ev.get("url") or "",
+                "summary": summary,
+                "lang": "zh",
+                "category": "disclosure",
+                "published_at": ev.get("date") or None,
+                "fetched_at": ev.get("date") or None,
+                "theme": "markets",
+                "topics": ["disclosure"],
+                "title_zh": title,
+            }
+        )
+        nid -= 1
+    return out
 
 
 def _today() -> str:
@@ -549,6 +700,12 @@ def news_for_symbol(symbol: str, limit: int = 20) -> list[dict]:
         out.append(it)
     for it in _feed_matches(symbol, limit):
         u = _norm_url(it["url"])
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(it)
+    for it in _disclosure_news_items(symbol, limit=8):
+        u = _norm_url(it["url"]) or f"disclosure:{it.get('published_at')}:{it.get('title')}"
         if u in seen:
             continue
         seen.add(u)
@@ -1596,12 +1753,14 @@ def generate_narrative(symbol: str, role: str = "summarize") -> dict:
     若该股暂无挂钩资讯 → 先触发一次定向抓取再读。仍无 → ValueError。
     """
     items = items_for_symbol(symbol, days=45, limit=80)
+    items = _disclosure_news_items(symbol, limit=10) + items
     if not items:
         try:
             directed.refresh_watchlist([symbol])  # 现抓一次该股
         except Exception:  # noqa: BLE001
             pass
         items = items_for_symbol(symbol, days=45, limit=80)
+        items = _disclosure_news_items(symbol, limit=10) + items
     if not items:
         raise ValueError("该标的暂无可用资讯（试试右上「↻ 抓取最新」或在「看」里确认已自选）")
     # 叙事需要日期建时间线 → 用带日期的条目块（[n] (YYYY-MM-DD) [source] 标题）

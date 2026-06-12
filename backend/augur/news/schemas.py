@@ -73,6 +73,30 @@ class Filing(BaseModel):
     filed_at: str | None = None  # 'YYYY-MM-DD'
 
 
+class DisclosureEvent(BaseModel):
+    """公司披露层事件：财报/SEC/电话会/IR 材料等一手或准一手事实源。"""
+
+    id: str
+    kind: str  # filing / transcript / financial_period
+    date: str = ""  # 披露日；financial_period 兜底为期末日
+    title: str = ""
+    source: str = ""
+    url: str = ""
+    summary: str = ""
+    importance: str = "high"
+    form: str = ""
+    period: str = ""
+    year: int | None = None
+    quarter: int | None = None
+
+
+class StockDisclosures(BaseModel):
+    symbol: str
+    configured: dict[str, bool] = {}
+    events: list[DisclosureEvent] = []
+    generated_at: str | None = None
+
+
 class ReportMeta(BaseModel):
     """日报列表项（不含全文，带摘要预览）。"""
 

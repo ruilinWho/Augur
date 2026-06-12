@@ -5,8 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from starlette.concurrency import run_in_threadpool
 
+from ..llm import gateway
 from . import service
-from .schemas import JournalCreate, JournalEntry, JournalUpdate
+from .schemas import JournalCreate, JournalEntry, JournalUpdate, ReflectionTimeline
 
 router = APIRouter(prefix="/journal", tags=["journal"])
 
@@ -15,6 +16,29 @@ router = APIRouter(prefix="/journal", tags=["journal"])
 async def list_entries(symbol: str) -> list[dict]:
     try:
         return await run_in_threadpool(service.list_entries, symbol)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/reflection", response_model=ReflectionTimeline)
+async def reflection(symbol: str) -> dict:
+    """某股已生成的综合认知；暂无 → 404。"""
+    try:
+        data = await run_in_threadpool(service.get_reflection_timeline, symbol)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if data is None:
+        raise HTTPException(status_code=404, detail="暂无综合认知")
+    return data
+
+
+@router.post("/reflection/generate", response_model=ReflectionTimeline)
+async def reflection_generate(symbol: str) -> dict:
+    """生成/重生成某股综合认知：个人判断 + 重大资讯/披露 + LLM 反馈。"""
+    try:
+        return await run_in_threadpool(service.generate_reflection_timeline, symbol)
+    except gateway.LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

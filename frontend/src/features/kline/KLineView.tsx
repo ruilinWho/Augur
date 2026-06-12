@@ -11,7 +11,7 @@ import {
   type Time,
 } from 'lightweight-charts'
 import { useUI } from '../../store'
-import { useFundamentals, useJournal, useOhlcv, useQuote } from '../../api'
+import { useFinancials, useFundamentals, useJournal, useOhlcv, useQuote, useStockDisclosures } from '../../api'
 import { fmtMoney, fmtPctPlain } from '../../format'
 import { EASE } from '../../theme/motion'
 import AddToWatchlist from '../watchlist/AddToWatchlist'
@@ -19,8 +19,8 @@ import CopyPromptButton from '../research/CopyPromptButton'
 
 // 与 index.css 的 token 镜像（图表是 canvas，直接取色避免读 CSS 变量的时序问题）
 const PALETTE = {
-  light: { green: '#7fa189', red: '#c68c7c', surface: '#fbfaf5', border: '#e4e0d3', faint: '#9a9483', accent: '#d97757' },
-  dark: { green: '#8fb096', red: '#d49b8b', surface: '#282622', border: '#39352f', faint: '#766f63', accent: '#e08a6a' },
+  light: { green: '#7fa189', red: '#c68c7c', surface: '#fbfaf5', border: '#e4e0d3', faint: '#9a9483', accent: '#d97757', disclosure: '#8a7f6b' },
+  dark: { green: '#8fb096', red: '#d49b8b', surface: '#282622', border: '#39352f', faint: '#766f63', accent: '#e08a6a', disclosure: '#a89e8c' },
 }
 
 const TF = [
@@ -36,6 +36,17 @@ const hexA = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).
 // 确定性骨架柱高（无随机，避免每次不同）
 const SKEL_BARS = Array.from({ length: 28 }, (_, i) => 30 + Math.round(28 * (1 + Math.sin(i / 2.3)) + 14 * (1 + Math.cos(i / 1.5))))
 
+function quarterEnd(label: string): string | null {
+  const m = /^(\d{4})Q([1-4])$/.exec(label)
+  if (!m) return null
+  const y = m[1]
+  const q = Number(m[2])
+  if (q === 1) return `${y}-03-31`
+  if (q === 2) return `${y}-06-30`
+  if (q === 3) return `${y}-09-30`
+  return `${y}-12-31`
+}
+
 export default function KLineView() {
   const symbol = useUI((s) => s.selectedSymbol)
   const theme = useUI((s) => s.theme)
@@ -45,6 +56,8 @@ export default function KLineView() {
   const ohlcv = useOhlcv(symbol, tf.interval, tf.range)
   const quote = useQuote(symbol)
   const fund = useFundamentals(symbol)
+  const financials = useFinancials(symbol, 'quarter')
+  const disclosures = useStockDisclosures(symbol)
   // 始终取 1 年用于「52 周位置」（与 tf=1年 同 queryKey 时复用、不重复请求；后端走同一 parquet 缓存）
   const year = useOhlcv(symbol, '1d', '1y')
   const journal = useJournal(symbol)
@@ -119,44 +132,104 @@ export default function KLineView() {
     chartRef.current?.timeScale().fitContent()
   }, [ohlcv.data])
 
-  // 判断日记 marker：把写下判断那天的日期落到 K 线上（研究上下文与价格不再脱节）。
-  // 非交易日的笔记吸附到当日或之前最近的一根；只在当前区间内显示。
+  // 综合认知 marker：个人判断（判）+ 公司披露（财/会）。三类统一钉在价格轴底部一条事件带上，
+  // 不遮挡蜡烛实体；同一财报周期内相近的多份申报/电话会合并，避免挤成一团分不清。
+  // 优先用真实披露日；没有 SEC/FMP 披露事件时，财报 marker 才回退到季度期末近似。
   useEffect(() => {
     const plugin = markersRef.current
     if (!plugin) return
     const candles = ohlcv.data?.candles ?? []
     const entries = journal.data ?? []
-    if (!candles.length || !entries.length) {
+    const fins = financials.data?.periods ?? []
+    const disclosureEvents = disclosures.data?.events ?? []
+    if (!candles.length) {
       plugin.setMarkers([])
       return
     }
     const times = candles.map((c) => c.time)
     const lo = times[0]
+    // 底部锚价：所有事件 marker 钉在数据最低价那条水平线上 → 横向对齐成一条带；
+    // createSeriesMarkers 的 autoScale 默认 true，会自动下扩价格轴让这条带完整可见。
+    const priceFloor = Math.min(...candles.map((c) => c.low))
     const accent = PALETTE[theme].accent
-    const seen = new Set<string>()
-    const markers = entries
-      .map((e) => {
-        const d = e.entry_date
-        if (d < lo) return null // 早于当前区间，不显示
-        // 吸附到 <= 该日期的最近一根（非交易日落到前一交易日）
-        let t = ''
-        for (const ct of times) {
-          if (ct <= d) t = ct
-          else break
+    const disclosure = PALETTE[theme].disclosure
+    const snap = (d: string) => {
+      if (d < lo) return null // 早于当前区间，不显示
+      // 吸附到 <= 该日期的最近一根（非交易日落到前一交易日）
+      let t = ''
+      for (const ct of times) {
+        if (ct <= d) t = ct
+        else break
+      }
+      return t || null
+    }
+    // 相近事件合并：间隔不足 MIN_GAP 个交易日的，只留最早一个（同一财报周期的 10-Q + 8-K 等会并成一条）
+    const idxOf = new Map<string, number>()
+    times.forEach((t, i) => idxOf.set(t, i))
+    const MIN_GAP = 8
+    const dedupeNear = (sorted: string[]) => {
+      const out: string[] = []
+      let last = -Infinity
+      for (const t of sorted) {
+        const i = idxOf.get(t) ?? 0
+        if (i - last >= MIN_GAP) {
+          out.push(t)
+          last = i
         }
-        return t || null
-      })
-      .filter((t): t is string => !!t && !seen.has(t) && (seen.add(t), true))
+      }
+      return out
+    }
+    // 统一造一个钉在底部带、小圆点 + 单字的 marker（judgment/disclosure 只差颜色与文字）
+    const atFloor = (text: string, color: string) => (t: string) => ({
+      time: t as Time,
+      position: 'atPriceBottom' as const,
+      price: priceFloor,
+      color,
+      shape: 'circle' as const,
+      text,
+    })
+    const seenJournal = new Set<string>()
+    const journalMarkers = entries
+      .map((e) => snap(e.entry_date))
+      .filter((t): t is string => !!t && !seenJournal.has(t) && (seenJournal.add(t), true))
       .sort()
-      .map((t) => ({
-        time: t as Time,
-        position: 'belowBar' as const,
-        color: accent,
-        shape: 'circle' as const,
-        text: '记',
-      }))
+      .map(atFloor('判', accent))
+    const seenFinancial = new Set<string>()
+    const disclosureFinancialDates = disclosureEvents
+      .filter((ev) => {
+        const form = ev.form.toUpperCase()
+        return (
+          ev.kind === 'filing' &&
+          (form.startsWith('10-Q') ||
+            form.startsWith('10-K') ||
+            ev.title.includes('财报') ||
+            ev.title.includes('经营成果'))
+        )
+      })
+      .map((ev) => ev.date)
+      .filter(Boolean)
+    const fallbackFinancialDates = disclosureFinancialDates.length
+      ? []
+      : fins.map((p) => quarterEnd(p.period)).filter((d): d is string => Boolean(d))
+    const financialMarkers = dedupeNear(
+      [...disclosureFinancialDates, ...fallbackFinancialDates]
+        .map((d) => snap(d))
+        .filter((t): t is string => !!t && !seenFinancial.has(t) && (seenFinancial.add(t), true))
+        .sort(),
+    ).map(atFloor('财', disclosure))
+    const seenCalls = new Set<string>()
+    const callMarkers = dedupeNear(
+      disclosureEvents
+        .filter((ev) => ev.kind === 'transcript' && ev.date)
+        .map((ev) => snap(ev.date))
+        .filter((t): t is string => !!t && !seenCalls.has(t) && (seenCalls.add(t), true))
+        .sort(),
+    ).map(atFloor('会', disclosure))
+    const markers = [...financialMarkers, ...callMarkers, ...journalMarkers].sort((a, b) =>
+      String(a.time).localeCompare(String(b.time)),
+    )
     plugin.setMarkers(markers)
-  }, [journal.data, ohlcv.data, theme])
+  }, [disclosures.data, financials.data, journal.data, ohlcv.data, theme])
 
   // 52 周位置（始终用 1 年数据）：当前价在一年区间的分位，比当日涨跌更能传达"贵不贵"。
   const wk52 = useMemo(() => {

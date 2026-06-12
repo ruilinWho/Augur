@@ -65,7 +65,7 @@ SQLite schema 在 [`backend/augur/storage/db.py`](../backend/augur/storage/db.py
 3. Parquet/TTL 缓存优先，只抓缺口。
 4. 前端 `KLineView` 用 Lightweight Charts v5 渲染蜡笔纸感 K 线。
 
-K 线下方模块包括财报分析、相关资讯、判断日记，并支持拖拽重排。未自选标的可一键加入自选分区。
+K 线下方模块包括财报分析与「综合认知」，并支持拖拽重排。「综合认知」合并个人判断、公司披露、重大事件、新闻/社媒背景与 LLM 事实反馈。未自选标的可一键加入自选分区。
 
 ### 研 · Research
 

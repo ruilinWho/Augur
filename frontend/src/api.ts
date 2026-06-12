@@ -155,6 +155,39 @@ const journalSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 })
+const reflectionRefSchema = z.object({
+  source: z.string().default(''),
+  title: z.string().default(''),
+  url: z.string().default(''),
+})
+const reflectionAssessmentSchema = z.object({
+  verdict: z.string().default('尚未检验'),
+  confidence: z.string().default('low'),
+  text: z.string().default(''),
+  price: z.string().default(''),
+  refs: z.array(reflectionRefSchema).default([]),
+})
+const reflectionEventSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  date: z.string().default(''),
+  title: z.string().default(''),
+  body: z.string().default(''),
+  importance: z.string().default('med'),
+  journal_id: z.number().nullable().default(null),
+  refs: z.array(reflectionRefSchema).default([]),
+  assessment: reflectionAssessmentSchema.nullable().default(null),
+})
+const reflectionTimelineSchema = z.object({
+  symbol: z.string(),
+  name: z.string().default(''),
+  summary: z.string().default(''),
+  events: z.array(reflectionEventSchema).default([]),
+  model: z.string().default(''),
+  journal_count: z.number().default(0),
+  news_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+})
 const fundamentalsSchema = z.object({
   symbol: z.string(),
   market_cap: z.number().nullable(),
@@ -190,6 +223,9 @@ export type RoleStatus = z.infer<typeof roleSchema>
 export type SearchHit = z.infer<typeof searchHitSchema>
 export type SearchResp = z.infer<typeof searchRespSchema>
 export type JournalEntry = z.infer<typeof journalSchema>
+export type ReflectionTimeline = z.infer<typeof reflectionTimelineSchema>
+export type ReflectionEvent = z.infer<typeof reflectionEventSchema>
+export type ReflectionAssessment = z.infer<typeof reflectionAssessmentSchema>
 export type Fundamentals = z.infer<typeof fundamentalsSchema>
 export type FinancialsTable = z.infer<typeof financialsSchema>
 export type FinPeriod = z.infer<typeof finPeriodSchema>
@@ -612,7 +648,42 @@ export function useJournal(symbol: string | null) {
 
 function useInvalidateJournal() {
   const qc = useQueryClient()
-  return (symbol: string) => qc.invalidateQueries({ queryKey: ['journal', symbol] })
+  return (symbol: string) => {
+    qc.invalidateQueries({ queryKey: ['journal', symbol] })
+    qc.invalidateQueries({ queryKey: ['reflection-timeline', symbol] })
+  }
+}
+
+export function useReflectionTimeline(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['reflection-timeline', symbol],
+    queryFn: async () => {
+      try {
+        return reflectionTimelineSchema.parse(
+          await getJSON(`/journal/reflection?symbol=${encodeURIComponent(symbol!)}`),
+        )
+      } catch (e) {
+        if (e instanceof HttpError && e.status === 404) return null
+        throw e
+      }
+    },
+  })
+}
+
+export function useGenerateReflectionTimeline() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (symbol: string) =>
+      reflectionTimelineSchema.parse(
+        await send(`/journal/reflection/generate?symbol=${encodeURIComponent(symbol)}`, 'POST'),
+      ),
+    onSuccess: (_d, symbol) => {
+      qc.invalidateQueries({ queryKey: ['reflection-timeline', symbol] })
+      qc.invalidateQueries({ queryKey: ['narrative', symbol] })
+      qc.invalidateQueries({ queryKey: ['stock-news', symbol] })
+    },
+  })
 }
 
 export function useCreateJournal() {
@@ -689,11 +760,33 @@ const filingSchema = z.object({
   summary: z.string().default(''),
   filed_at: z.string().nullable().default(null),
 })
+const disclosureEventSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  date: z.string().default(''),
+  title: z.string().default(''),
+  source: z.string().default(''),
+  url: z.string().default(''),
+  summary: z.string().default(''),
+  importance: z.string().default('high'),
+  form: z.string().default(''),
+  period: z.string().default(''),
+  year: z.number().nullable().default(null),
+  quarter: z.number().nullable().default(null),
+})
+const stockDisclosuresSchema = z.object({
+  symbol: z.string(),
+  configured: z.record(z.string(), z.boolean()).default({}),
+  events: z.array(disclosureEventSchema).default([]),
+  generated_at: z.string().nullable().default(null),
+})
 export type NewsItem = z.infer<typeof newsItemSchema>
 export type ReportMeta = z.infer<typeof reportMetaSchema>
 export type RefreshResult = z.infer<typeof refreshResultSchema>
 export type NewsReadState = z.infer<typeof newsReadStateSchema>
 export type Filing = z.infer<typeof filingSchema>
+export type DisclosureEvent = z.infer<typeof disclosureEventSchema>
+export type StockDisclosures = z.infer<typeof stockDisclosuresSchema>
 
 export function useNewsFeed(
   limit = 60,
@@ -802,6 +895,18 @@ export function useStockOfficial(symbol: string | null) {
       z
         .array(filingSchema)
         .parse(await getJSON(`/news/official?symbol=${encodeURIComponent(symbol!)}&limit=15`)),
+    staleTime: 30 * 60_000,
+  })
+}
+
+export function useStockDisclosures(symbol: string | null) {
+  return useQuery({
+    enabled: !!symbol,
+    queryKey: ['stock-disclosures', symbol],
+    queryFn: async () =>
+      stockDisclosuresSchema.parse(
+        await getJSON(`/news/disclosures?symbol=${encodeURIComponent(symbol!)}&limit=24`),
+      ),
     staleTime: 30 * 60_000,
   })
 }
@@ -1237,6 +1342,8 @@ export function useRefreshDirected() {
       qc.invalidateQueries({ queryKey: symbol ? ['stock-news-brief', symbol] : ['stock-news-brief'] })
       qc.invalidateQueries({ queryKey: symbol ? ['stock-social-heat', symbol] : ['stock-social-heat'] })
       qc.invalidateQueries({ queryKey: symbol ? ['news-for', symbol] : ['news-for'] })
+      qc.invalidateQueries({ queryKey: symbol ? ['reflection-timeline', symbol] : ['reflection-timeline'] })
+      qc.invalidateQueries({ queryKey: symbol ? ['stock-disclosures', symbol] : ['stock-disclosures'] })
       qc.invalidateQueries({ queryKey: ['news-read-state'] })
     },
   })

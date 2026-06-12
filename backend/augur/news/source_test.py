@@ -23,6 +23,7 @@ _SOURCE_NAMES = {
     "bloomberg": "Bloomberg",
     "feeds_rss": "RSS",
     "wechat_blogs": "微信公众号 RSS",
+    "fmp_transcripts": "FMP 电话会",
     "tikhub_reddit": "Reddit · TikHub",
     "xiaohongshu": "小红书",
     "tikhub_threads": "Threads",
@@ -193,6 +194,16 @@ def test_source(source_id: str) -> dict:
 
         if source_id == "wechat_blogs":
             return _test_wechat_blogs()
+
+        if source_id == "fmp_transcripts":
+            if not runtime_config.has_secret("FMP_API_KEY"):
+                return _err("FMP 电话会：没有配置 FMP_API_KEY，请先填写后再测试。")
+            from . import fmp
+
+            got = fmp.transcript_dates("US:AAPL", limit=1)
+            if not got:
+                return _err("FMP 电话会：接口可达性未知，这次没有返回 AAPL transcript 日期。")
+            return _ok(t0, len(got), "AAPL 电话会日期可达")
 
         if source_id in {
             "tikhub_twitter",

@@ -10,6 +10,7 @@ from datetime import datetime
 import httpx
 import pytest
 
+from augur.journal import service as journal_service
 from augur.market import search
 from augur.market.fundamentals import _growth, _period_label, _yahoo_symbols
 from augur.market.symbols import cn_exchange, parse_symbol
@@ -117,6 +118,61 @@ def test_parse_json_lenient():
 def test_norm_url():
     assert _norm_url("https://A.com/p/?x=1") == "https://a.com/p"
     assert _norm_url("") == ""
+
+
+def test_reflection_news_events_preserve_refs():
+    events, by_n = journal_service._build_news_events(
+        {
+            "timeline": [
+                {
+                    "date": "2026-06-01",
+                    "title": "英伟达发布新芯片",
+                    "importance": "high",
+                    "refs": [
+                        {
+                            "source": "Reuters",
+                            "title": "Nvidia announces new chip",
+                            "url": "https://example.test/nvda",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    assert events[0]["kind"] == "news"
+    assert events[0]["refs"][0]["source"] == "Reuters"
+    assert by_n[1]["title"] == "英伟达发布新芯片"
+
+
+def test_reflection_disclosure_events_preserve_refs_and_body():
+    events, by_n = journal_service._build_disclosure_events(
+        {
+            "events": [
+                {
+                    "kind": "transcript",
+                    "date": "2026-06-02",
+                    "title": "2026 Q1 电话会纪要",
+                    "source": "FMP Transcript",
+                    "summary": "Management discussed capex and margin pressure.",
+                    "importance": "critical",
+                    "url": "",
+                }
+            ]
+        },
+        3,
+    )
+    assert events[0]["kind"] == "disclosure"
+    assert events[0]["refs"][0]["source"] == "FMP Transcript"
+    assert "capex" in events[0]["body"]
+    assert by_n[3]["title"] == "2026 Q1 电话会纪要"
+
+
+def test_filing_is_earnings():
+    assert news_service._filing_is_earnings({"form": "10-Q", "title": "季报"})
+    assert news_service._filing_is_earnings(
+        {"form": "8-K", "title": "重大事件 · 经营成果与财务状况（财报）"}
+    )
+    assert not news_service._filing_is_earnings({"form": "DEF 14A", "title": "股东大会委托书"})
 
 
 def test_simplify():
@@ -288,6 +344,12 @@ def test_private_blog_rss_feed_loaded_from_runtime_config(monkeypatch):
 
 def test_private_blog_rss_secret_is_exportable_live_secret():
     assert sources.BLOG_RSS_SECRET in source_registry.live_secret_names()
+
+
+def test_fmp_secret_is_exportable_live_secret():
+    from augur.news import fmp
+
+    assert fmp.FMP_SECRET in source_registry.live_secret_names()
 
 
 def test_digest_items_include_all_social_lanes(monkeypatch):

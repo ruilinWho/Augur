@@ -18,6 +18,7 @@ from .schemas import (
     RefreshResult,
     ReportMeta,
     SectionReportsResponse,
+    StockDisclosures,
     StockNewsBrief,
     StockSocialHeat,
 )
@@ -89,6 +90,12 @@ async def social_heat(symbol: str) -> dict:
 async def official(symbol: str, limit: int = 15) -> list[dict]:
     """某标的的官方一手文件（美股＝SEC EDGAR 申报；6h 缓存，失败降级空表）。"""
     return await run_in_threadpool(service.stock_official, symbol, limit)
+
+
+@router.get("/disclosures", response_model=StockDisclosures)
+async def disclosures(symbol: str, limit: int = 20) -> dict:
+    """公司披露层：SEC 财报/8-K + 财报期兜底 + 可选 FMP 电话会 transcript。"""
+    return await run_in_threadpool(service.stock_disclosures, symbol, limit)
 
 
 # ───────── 个股：定向抓取 lane + 标的叙事时间线（知·个股）─────────

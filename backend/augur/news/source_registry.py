@@ -16,7 +16,7 @@ Reddit 搜索。twtapi 桥（旧推特源）已退役，仅每股专属信源还
 from __future__ import annotations
 
 from .. import runtime_config
-from . import eastmoney_news, sources, tikhub
+from . import eastmoney_news, fmp, sources, tikhub
 
 # access：builtin 内置已接 · free_rss 免费RSS已接 · free_api 免费API · paid_api 付费API
 # group：finance 财经（行情/基本面）· news 新闻 · forum 论坛（社媒/社区）
@@ -33,6 +33,25 @@ SOURCES: list[dict] = [
         "setup": "内置可用，无需额外 API key。",
         "best_use": "四市场 K 线、报价与基础财务兜底，优先喂「看」和「研」。",
         "boundary": "免费源偶发限流或缺字段；高阶基本面仍需单独数据源接入。",
+    },
+    {
+        "id": "fmp_transcripts",
+        "name": "FMP 电话会",
+        "group": "finance",
+        "access": "paid_api",
+        "key_env": fmp.FMP_SECRET,
+        "cred": "key",
+        "key_url": "https://site.financialmodelingprep.com/developer/docs",
+        "docs_url": "https://site.financialmodelingprep.com/developer/docs/stable/earning-call-transcript",
+        "official_url": "https://site.financialmodelingprep.com/",
+        "payment": "订阅",
+        "note": "Earnings call transcript",
+        "setup": "在 FMP 获取 API key 后填入；Augur 会把电话会纪要并入「综合认知」。",
+        "best_use": "管理层口径、指引、Q&A 与财报后的关键解释，作为个股事实反馈的准一手材料。",
+        "boundary": (
+            "第三方 transcript 可能缺公司/缺季度/延迟；"
+            "与 SEC/公司 IR 原文冲突时以官方披露为准。"
+        ),
     },
     # ──────────── 新闻 · RSS / 中文 newswire / 官方资讯 ────────────
     {

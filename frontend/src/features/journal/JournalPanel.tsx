@@ -122,7 +122,7 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
   const del = useDeleteJournal(symbol)
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const open = useUI((s) => s.kanModuleOpen.journal)
+  const open = useUI((s) => s.kanModuleOpen.cognition)
   const setModuleOpen = useUI((s) => s.setKanModuleOpen)
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
 
@@ -136,14 +136,14 @@ export default function JournalPanel({ symbol }: { symbol: string }) {
 
   return (
     <section className="journal">
-      <div className="journal-head" onClick={() => setModuleOpen('journal', !open)} role="button">
+      <div className="journal-head" onClick={() => setModuleOpen('cognition', !open)} role="button">
         <h3>判断日记</h3>
         {!adding && (
           <button
             className="btn btn-primary jsm"
             onClick={(e) => {
               e.stopPropagation()
-              setModuleOpen('journal', true)
+              setModuleOpen('cognition', true)
               setAdding(true)
             }}
           >

@@ -8,7 +8,7 @@ Augur is a local-first, decision-grade investment research workbench for a singl
 
 The product is organized around five surfaces:
 
-- **View (看)** — inspect price, fundamentals, financial trends, related information, and decision-journal markers.
+- **View (看)** — inspect price, fundamentals, financial trends, and 综合认知 where personal judgments meet company disclosures, subsequent events, and LLM feedback.
 - **Research (研)** — generate or import single-stock research reports with citations and personal comments.
 - **Know (知)** — ingest, clean, cluster, translate, and summarize daily market information into decision-grade briefs, opportunities, risks, and stock narratives.
 - **Discover (寻)** — surface non-watchlist tickers that recur in the Know stream, with evidence and author triage.
@@ -24,8 +24,9 @@ Everything in this section is implemented and in daily use.
 - Candlestick charts with calm paper-like styling and market-specific up/down color conventions.
 - Quote header focused on current price, change, 52-week position, market cap, P/E, net margin, and freshness.
 - Fundamentals and financial-trend tables, with quarterly and annual views.
-- Stock-bound decision-journal entries and chart markers.
-- AI-summarized "related information" card per stock (news plus social heat).
+- Stock-bound **综合认知**: personal judgments, company disclosures, major stock events, current related-information context, social heat, and LLM feedback on whether each judgment has been supported, refuted, mixed, or not yet tested.
+- Company-disclosure layer: SEC filings/earnings 8-Ks, yfinance financial-period fallback, and optional FMP earnings-call transcripts are normalized as disclosure events and fed into stock briefs, stock narratives, 综合认知, and chart markers. See [company-disclosure-layer](memory/company-disclosure-layer.md).
+- Chart markers for personal judgments (`判`), earnings/filing disclosures (`财`), and earnings calls (`会`); real disclosure dates take precedence over financial-period fallback dates.
 
 ### Research (研)
 

@@ -50,6 +50,19 @@ CREATE TABLE IF NOT EXISTS journal_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_symbol ON journal_entries(symbol, entry_date DESC);
 
+-- 综合认知：把个人判断、公司披露、重大资讯与 LLM 复盘评价合成一条个股事实反馈链。
+-- 这是 journal 的读模型缓存：journal 变更会失效，重新生成时覆盖。
+CREATE TABLE IF NOT EXISTS stock_reflection_timelines (
+    symbol        TEXT    PRIMARY KEY,                  -- MARKET:CODE
+    name          TEXT    NOT NULL DEFAULT '',
+    summary       TEXT    NOT NULL DEFAULT '',
+    events        TEXT    NOT NULL DEFAULT '[]',        -- JSON：journal/news 事件
+    model         TEXT    NOT NULL DEFAULT '',
+    journal_count INTEGER NOT NULL DEFAULT 0,
+    news_count    INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 反证雷达（M3「知」/ §1「决策级·反证条件」）：对某标的的立论（看多/看空/观望）+ 证伪条件，
 -- 系统按每天挂钩新闻判定每条证伪条件是否被「触发反证」或「印证」。区别于 journal（自由判断笔记）：
 -- 这是结构化、可监控的判断。conditions 由作者授权（可 AI 起草）；alerts 由扫描滚动重算覆盖。

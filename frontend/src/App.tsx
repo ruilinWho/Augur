@@ -29,7 +29,6 @@ import Toaster from './components/Toast'
 import WatchlistPanel from './features/watchlist/WatchlistPanel'
 import KLineView from './features/kline/KLineView'
 import FinancialsPanel from './features/analysis/FinancialsPanel'
-import JournalPanel from './features/journal/JournalPanel'
 import SettingsView from './features/settings/SettingsView'
 import NewsNav from './features/news/NewsNav'
 import KnowView from './features/news/KnowView'
@@ -175,8 +174,7 @@ function NewsResizeHandle() {
 // 看·K线下方模块：拖动手柄重排（持久化）。仅手柄可拖，模块内部交互不受影响。
 const KAN_RENDER: Record<string, (symbol: string) => ReactNode> = {
   financials: (s) => <FinancialsPanel symbol={s} />,
-  news: (s) => <StockNews symbol={s} />,
-  journal: (s) => <JournalPanel symbol={s} />,
+  cognition: (s) => <StockNews symbol={s} />,
 }
 
 function SortableModule({ id, symbol }: { id: string; symbol: string }) {

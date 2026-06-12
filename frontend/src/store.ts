@@ -21,12 +21,11 @@ export const DEFAULT_NEWS_SUB_W = 196
 export const DEFAULT_SRC_NAV_W = 184
 export const DEFAULT_KAN_COL_W: [number, number, number] = [156, 150, 248]
 export const DEFAULT_KAN_COL_CLOSED: [boolean, boolean, boolean] = [false, false, false]
-export const KAN_MODULES = ['financials', 'news', 'journal'] as const
+export const KAN_MODULES = ['financials', 'cognition'] as const
 export type KanModuleId = (typeof KAN_MODULES)[number]
 export const DEFAULT_KAN_MODULE_OPEN: Record<KanModuleId, boolean> = {
   financials: true,
-  news: true,
-  journal: true,
+  cognition: true,
 }
 
 interface UIState {
