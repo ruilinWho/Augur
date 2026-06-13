@@ -94,7 +94,7 @@ async def official(symbol: str, limit: int = 15) -> list[dict]:
 
 @router.get("/disclosures", response_model=StockDisclosures)
 async def disclosures(symbol: str, limit: int = 20) -> dict:
-    """公司披露层：SEC 财报/8-K + 财报期兜底 + 可选 FMP 电话会 transcript。"""
+    """公司披露层：SEC 财报/8-K + 财报期兜底。"""
     return await run_in_threadpool(service.stock_disclosures, symbol, limit)
 
 

@@ -375,7 +375,7 @@ function StockNarrative({ symbol }: { symbol: string }) {
           <button className="ncta" onClick={() => select(symbol)} title="在「看」里查看 K 线">
             看
           </button>
-          <button className="ncta" onClick={() => research(symbol)} title="生成深度研究">
+          <button className="ncta" onClick={() => research(symbol)} title="在「研」里复制 Prompt / 导入研报">
             研
           </button>
           <button className="btn jsm" disabled={fetchD.isPending} onClick={() => fetchD.mutate(symbol)}>

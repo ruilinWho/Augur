@@ -272,7 +272,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <Toaster />
       <div className="app-shell">
-        <header className="topbar">
+        <header className="topbar" data-tauri-drag-region>
           <span className="wordmark">
             <span className="dot" /> Augur
           </span>

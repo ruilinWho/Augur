@@ -9,10 +9,10 @@ import json
 import re
 import sqlite3
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 
+from ..config import get_settings
 from ..llm import gateway
 from ..market import search
 from ..market import service as market_service
@@ -24,7 +24,6 @@ class NotFound(ValueError):
     pass
 
 
-_PROMPT_DIR = Path(__file__).resolve().parents[3] / "resources" / "prompts"
 _VERDICTS = {"印证", "证伪", "混合", "尚未检验"}
 _CONFIDENCE = {"low", "med", "high"}
 _IMP_ORDER = {"critical": 0, "high": 1, "med": 2, "low": 3}
@@ -51,7 +50,7 @@ def _out(row: sqlite3.Row) -> dict:
 
 
 def _load_prompt(name: str) -> str:
-    return (_PROMPT_DIR / f"{name}.md").read_text(encoding="utf-8")
+    return (get_settings().resources_dir / "prompts" / f"{name}.md").read_text(encoding="utf-8")
 
 
 def _parse_json_lenient(text: str) -> dict:

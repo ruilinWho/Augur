@@ -11,12 +11,8 @@
 - 统一输出 `DisclosureEvent`：
   - `filing`：SEC EDGAR 高信号官方申报（10-Q/10-K/8-K 等）。
   - `financial_period`：yfinance financials 的季度期末日兜底。它不是正式披露日，只在没有真实披露事件时用于 marker。
-  - `transcript`：FMP earnings call transcript（需要 `FMP_API_KEY`）。
-- 可选源：
-  - `backend/augur/news/fmp.py`
-  - 设置页源 id：`fmp_transcripts`
-  - secret：`FMP_API_KEY`
-  - 已进入 `source_registry.live_secret_names()`，会随「配置分享」导入/导出同步。
+  - `transcript`：电话会纪要披露类型（`DisclosureEvent.kind` 抽象保留）。**FMP 源已于 2026-06-13 移除**（见下），当前无 transcript 源、该类事件为空。
+- ~~可选源 FMP 电话会~~ —— **2026-06-13 移除**：FMP earnings-call transcript 是付费档接口，作者免费 key 返回 `Restricted Endpoint`，且只支持美股。已删 `fmp.py`、`fmp_transcripts` 退注册表、`FMP_API_KEY` 移出 `source_registry.live_secret_names()`（启动 `prune_secrets` 自动清作者残留 key）。`transcript` 作为 `DisclosureEvent.kind` 抽象保留，待接其他源（港股 HKEXnews、A 股巨潮等）。见 [ADR-0018](../decisions/0018-remove-builtin-research-and-fmp.md)。
 
 ## 披露 Insight 升级（2026-06-12，作者反馈）
 

@@ -60,10 +60,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Augur", version="0.1.0", lifespan=lifespan)
 
-# 跨域：放行任意本地端口（Vite 5173 被占自动改 5174、未来 Tauri 外壳）。仍仅限 localhost/
-# 127.0.0.1，不破坏 §11「本地优先且私密」。Tauri 自定义协议待 P2 再补。
+# 跨域：放行任意本地端口（Vite 5173 被占自动改 5174）+ Tauri 打包外壳的 tauri:// 协议
+# （macOS WKWebView origin = tauri://localhost）。仍仅限本地源，不破坏 §11「本地优先且私密」。
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["tauri://localhost", "http://tauri.localhost"],  # Tauri 打包外壳 webview
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_methods=["*"],
     allow_headers=["*"],

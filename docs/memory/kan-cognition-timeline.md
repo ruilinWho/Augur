@@ -20,7 +20,7 @@
 - 生成逻辑在 `journal/service.py`：
   - journal_entries 是作者判断源。
   - 重大事件复用既有 `/news/narrative`（无则尝试生成），避免另造资讯摄取。
-  - 公司披露来自 `news.service.stock_disclosures()`：SEC EDGAR filing、financials period 兜底、可选 FMP 电话会 transcript。
+  - 公司披露来自 `news.service.stock_disclosures()`：SEC EDGAR filing、financials period 兜底（**FMP 电话会 transcript 源已于 2026-06-13 移除，`transcript` 抽象保留待接新源，见 [ADR-0018](../decisions/0018-remove-builtin-research-and-fmp.md)**）。
   - 价格反馈由后端确定性计算：判断日附近收盘 → 最新收盘，不交给 LLM 编。
   - LLM prompt 在 `resources/prompts/stock_reflection_timeline.md`，硬约束只用给定判断、事件、披露、价格反馈，不能引入外部事实；判断前材料不能当作后续反馈。新闻与披露冲突时以披露优先。
 

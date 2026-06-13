@@ -28,7 +28,7 @@
 - `KLineView.tsx` 的 marker 合并三类事件，**统一钉在价格轴底部一条带上**（圆点 + 单字，详见 [[kan-cognition-timeline]]）：
   - `判`：个人判断，来自 `journal_entries.entry_date`，陶土 accent 圆点。
   - `财`：财报/申报，优先来自 `/news/disclosures` 的 SEC filing date；没有披露事件时退回 `useFinancials(symbol, 'quarter')` 的 period 期末日，墨灰圆点。
-  - `会`：电话会，来自 `/news/disclosures` 的 FMP transcript date，墨灰圆点。
+  - `会`：电话会，来自 `/news/disclosures` 的 transcript date，墨灰圆点（**FMP 源已 2026-06-13 移除，当前无 transcript 源、该 marker 暂不出现，见 [ADR-0018](../decisions/0018-remove-builtin-research-and-fmp.md)**）。
   - 旧版财/会标在蜡烛上方、判在下方，作者反馈遮挡蜡烛 + 相近财报「前后两天重合分不清」+ 方块图标不美观；改为底部对齐带（`atPriceBottom`）+ `dedupeNear` 合并相近申报 + `square`→`circle`。
 - `financial_period` 的 `2026Q1` 等 period 仍只是兜底近似，不是正式披露日；真实 filing/transcript date 必须优先。
 

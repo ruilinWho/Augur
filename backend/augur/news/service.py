@@ -25,7 +25,6 @@ from ..watchlist import service as wl
 from . import (
     directed,
     edgar,
-    fmp,
     grounding,
     ingest,
     linker,
@@ -305,7 +304,7 @@ def enrich_disclosures(symbol: str, events: list[dict], role: str = "summarize")
 
 
 def stock_disclosures(symbol: str, limit: int = 20) -> dict:
-    """公司披露层：SEC 财报/8-K + 财报期兜底 + 可选 FMP 电话会 transcript。
+    """公司披露层：SEC 财报/8-K + 财报期兜底。
 
     这些是「看/研/知」共享的事实源，不等同普通新闻；没有某个外部源时降级为空而非报错。
     每条披露经 `enrich_disclosures` 补 LLM 投资洞察（headline/insight/impact），程序性无价值的隐藏。
@@ -368,29 +367,6 @@ def stock_disclosures(symbol: str, limit: int = 20) -> dict:
     except Exception:  # noqa: BLE001
         pass
 
-    transcripts = fmp.transcripts_for(symbol, limit=4, include_content=True)
-    for i, t in enumerate(transcripts, start=1):
-        year = int(t.get("year") or 0)
-        quarter = int(t.get("quarter") or 0)
-        title = f"{year} Q{quarter} 电话会纪要" if year and quarter else "电话会纪要"
-        content = str(t.get("content") or "")
-        events.append(
-            {
-                "id": f"transcript-{year}-Q{quarter}-{i}",
-                "kind": "transcript",
-                "date": str(t.get("date") or "")[:10],
-                "title": title,
-                "source": "FMP Transcript",
-                "url": "",
-                "summary": content[:1200],
-                "importance": "critical",
-                "form": "",
-                "period": f"{year}Q{quarter}" if year and quarter else "",
-                "year": year or None,
-                "quarter": quarter or None,
-            }
-        )
-
     try:
         events = enrich_disclosures(symbol, events)
     except Exception:  # noqa: BLE001 — insight 失败不影响纯事实层
@@ -406,7 +382,7 @@ def stock_disclosures(symbol: str, limit: int = 20) -> dict:
     )
     result = {
         "symbol": symbol,
-        "configured": {"sec": True, "fmp": fmp.configured()},
+        "configured": {"sec": True},
         "events": events[:limit],
         "generated_at": datetime.now(ZoneInfo(get_settings().tz)).isoformat(),
     }

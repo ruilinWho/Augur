@@ -92,7 +92,7 @@ function CandidateCard({ c, signal }: { c: Candidate; signal?: DiscoverySignal }
             <button className="cand-btn" onClick={() => select(c.symbol)} title="在「看」里查看 K 线">
               看
             </button>
-            <button className="cand-btn" onClick={() => research(c.symbol)} title="生成深度研究">
+            <button className="cand-btn" onClick={() => research(c.symbol)} title="在「研」里复制 Prompt / 导入研报">
               研
             </button>
             <div className="cand-actions-r">

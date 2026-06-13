@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS stock_sources (
 CREATE INDEX IF NOT EXISTS idx_stock_sources_symbol ON stock_sources(symbol);
 
 -- 标的叙事时间线（M3「知·个股」）：LLM 把某股定向抓取的新闻融成「当前主线 + 时间线」，
--- 一股一份（重生成覆盖）。区别于 research_reports（深度研究）——这是轻量、增量的「在发生什么」。
+-- 一股一份（重生成覆盖）。区别于「导入研报」——这是轻量、增量的「在发生什么」。
 CREATE TABLE IF NOT EXISTS stock_narratives (
     symbol      TEXT    PRIMARY KEY,            -- MARKET:CODE
     name        TEXT    NOT NULL DEFAULT '',
@@ -223,10 +223,20 @@ CREATE TABLE IF NOT EXISTS imported_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_imported_symbol ON imported_reports(symbol);
 
+-- 「记」笔记文件夹（一级目录）：组织自由长文笔记。一篇笔记归属 ≤1 个文件夹（notes.folder_id）。
+-- 删除文件夹时其下笔记回到「未归类」（ON DELETE SET NULL + service 层显式置空双保险，不删笔记）。
+CREATE TABLE IF NOT EXISTS note_folders (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 「记」（第 4 支柱）：与个股无关的长文笔记（市场随想/方法论/复盘思考），markdown 正文。
 -- 区别于 journal（绑定个股的判断日记）与 imported_reports（绑定个股的他人研报）——这是自由长文。
 CREATE TABLE IF NOT EXISTS notes (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    folder_id   INTEGER REFERENCES note_folders(id) ON DELETE SET NULL,  -- NULL=未归类
     title       TEXT    NOT NULL DEFAULT '',
     body        TEXT    NOT NULL DEFAULT '',       -- markdown 正文
     pinned      INTEGER NOT NULL DEFAULT 0,        -- 0/1 置顶（列表中置顶在前）
@@ -263,17 +273,6 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-);
-
--- 单股深度研究报告（M2「研」）：LLM 综合行情/基本面/财务/新闻/申报 → 带引用的报告，一股一份覆盖
-CREATE TABLE IF NOT EXISTS research_reports (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol      TEXT    NOT NULL UNIQUE,            -- MARKET:CODE（一股一份，重生成覆盖）
-    name        TEXT    NOT NULL DEFAULT '',
-    body        TEXT    NOT NULL DEFAULT '',
-    sources     TEXT    NOT NULL DEFAULT '[]',      -- JSON：引用来源 [{n,title,source,url}]
-    model       TEXT    NOT NULL DEFAULT '',
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- 公司披露 Insight 缓存（看·综合认知）：LLM 读披露正文 → 投资影响判断。
@@ -334,6 +333,8 @@ _MIGRATIONS: list[tuple[str, str, str]] = [
     ("discovery_candidates", "theme", "TEXT NOT NULL DEFAULT ''"),
     # 「寻」候选 LLM 理由（为什么值得关注）——配合 worth 筛选
     ("discovery_candidates", "reason", "TEXT NOT NULL DEFAULT ''"),
+    # 「记」笔记归属文件夹（一级目录）——旧库补列；NULL=未归类，删文件夹时 service 层置空
+    ("notes", "folder_id", "INTEGER"),
 ]
 
 
@@ -346,6 +347,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_news_theme ON news_items(theme)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_news_lane ON news_items(lane)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_nis_symbol ON news_item_symbols(symbol)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id)")
     conn.commit()
 
 

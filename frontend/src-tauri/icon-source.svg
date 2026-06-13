@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3CB371"/>
+      <stop offset="1" stop-color="#1F7A4D"/>
+    </linearGradient>
+  </defs>
+  <rect x="96" y="96" width="832" height="832" rx="188" fill="url(#bg)"/>
+  <!-- 茎：从下方升起，止于双叶交汇处下方 -->
+  <path d="M 512 694 C 503 616 508 542 512 492" fill="none" stroke="#F7F3E8" stroke-width="32" stroke-linecap="round"/>
+  <!-- 双叶：外尖上扬的旋转椭圆（左 +42° / 右 −42°），奶白 -->
+  <ellipse cx="438" cy="452" rx="128" ry="50" fill="#F7F3E8" transform="rotate(42 438 452)"/>
+  <ellipse cx="586" cy="452" rx="128" ry="50" fill="#F7F3E8" transform="rotate(-42 586 452)"/>
+</svg>

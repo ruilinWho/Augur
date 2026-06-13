@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from . import runtime_config
 from .llm import gateway
-from .news import fmp, ingest, source_registry, source_test, sources
+from .news import ingest, source_registry, source_test, sources
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -353,7 +353,6 @@ async def import_api_config(payload: dict) -> dict:
             runtime_config.import_api_config, payload, source_registry.live_secret_names()
         )
         sources.load_feeds.cache_clear()
-        fmp.clear_cache()
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -456,8 +455,6 @@ async def set_secret(body: SecretIn) -> dict:
     runtime_config.set_secret(name, body.value)
     if name == sources.BLOG_RSS_SECRET:
         sources.load_feeds.cache_clear()
-    if name == fmp.FMP_SECRET:
-        fmp.clear_cache()
     return {
         "name": name,
         "configured": runtime_config.has_secret(name),

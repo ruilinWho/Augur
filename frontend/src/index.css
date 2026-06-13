@@ -123,6 +123,15 @@ button {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
+/* Tauri 无边框 Overlay 标题栏：顶栏即标题栏 —— 给左上角原生红绿灯让位，
+   整条设为可拖拽窗口（见 App.tsx 的 data-tauri-drag-region），按钮/标签照常可点。 */
+html.tauri .topbar {
+  padding-left: 88px;
+}
+/* 原生红绿灯已是三个圆点；Tauri 下隐藏品牌强调点，免得四点扎堆把 Augur 挤在窗控旁。 */
+html.tauri .wordmark .dot {
+  display: none;
+}
 .wordmark {
   font-family: var(--font-display);
   font-weight: 600;
@@ -5107,6 +5116,125 @@ a.opp-ev-item:hover {
   font-size: 0.68rem;
   color: var(--text-faint);
   margin-top: 4px;
+}
+
+/* 文件夹（一级目录）+ 拖拽归类 */
+.notes-nav-head {
+  gap: 6px;
+}
+.notes-nav-head .notes-new {
+  flex: 1;
+  width: auto;
+}
+.notes-new.ghost {
+  color: var(--text-faint);
+}
+.notes-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.note-folder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+.note-folder.drop-over {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+.note-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 3px 10px;
+}
+.note-folder-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.note-folder-head.unfiled .note-folder-name {
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.note-folder-count {
+  font-size: 0.64rem;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+.note-folder-acts {
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.note-folder-head:hover .note-folder-acts {
+  opacity: 1;
+}
+.nf-act {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+  transition: 0.14s ease;
+}
+.nf-act:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nf-act.danger:hover {
+  color: var(--crayon-red);
+}
+.note-folder-rename {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+.note-row.dragging {
+  opacity: 0.4;
+}
+.drag-ghost {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .note-edit {

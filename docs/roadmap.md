@@ -25,12 +25,12 @@ Everything in this section is implemented and in daily use.
 - Quote header focused on current price, change, 52-week position, market cap, P/E, net margin, and freshness.
 - Fundamentals and financial-trend tables, with quarterly and annual views.
 - Stock-bound **综合认知**: personal judgments, company disclosures, major stock events, current related-information context, social heat, and LLM feedback on whether each judgment has been supported, refuted, mixed, or not yet tested.
-- Company-disclosure layer: SEC filings/earnings 8-Ks, yfinance financial-period fallback, and optional FMP earnings-call transcripts are normalized as disclosure events, each **enriched by an LLM that reads the actual filing text** (earnings → Exhibit 99.1 press release; non-earnings 8-K → main-document body; 10-Q/10-K → existing financials figures) into an investment **insight** — a concrete headline, a one-line takeaway, and a 利好/利空/中性/存疑 impact with confidence — replacing the old mechanical form labels; purely procedural filings are hidden. Insights are cached per filing and feed stock briefs, narratives, 综合认知, and chart markers. See [company-disclosure-layer](memory/company-disclosure-layer.md).
-- Chart markers for personal judgments (`判`), earnings/filing disclosures (`财`), and earnings calls (`会`), anchored to a single aligned event band at the price-axis bottom (price-based markers, not overlapping candles), with near-duplicate filings merged; real disclosure dates take precedence over financial-period fallback dates.
+- Company-disclosure layer: SEC filings/earnings 8-Ks and yfinance financial-period fallback are normalized as disclosure events, each **enriched by an LLM that reads the actual filing text** (earnings → Exhibit 99.1 press release; non-earnings 8-K → main-document body; 10-Q/10-K → existing financials figures) into an investment **insight** — a concrete headline, a one-line takeaway, and a 利好/利空/中性/存疑 impact with confidence — replacing the old mechanical form labels; purely procedural filings are hidden. Insights are cached per filing and feed stock briefs, narratives, 综合认知, and chart markers. See [company-disclosure-layer](memory/company-disclosure-layer.md).
+- Chart markers for personal judgments (`判`), earnings/filing disclosures (`财`), and earnings calls (`会`), anchored to a single aligned event band at the price-axis bottom (price-based markers, not overlapping candles), with near-duplicate filings merged; real disclosure dates take precedence over financial-period fallback dates. (The earnings-call `会` source FMP was removed on 2026-06-13 — paid endpoint, unavailable on the free tier — leaving the marker abstraction in place for a future transcript source. See [ADR-0018](decisions/0018-remove-builtin-research-and-fmp.md).)
 
 ### Research (研)
 
-- Single-stock report generation from Augur's deterministic local context plus the `deep_research` LLM role: streaming Markdown, saved reports, clickable sources, permanent decision-boundary notice.
+- Research is **import + copy-prompt only** — Augur no longer generates reports itself; the local-gather + `deep_research` streaming path (and stored generated reports) were removed on 2026-06-13. See [ADR-0018](decisions/0018-remove-builtin-research-and-fmp.md).
 - Imported external reports with sorting, editing, and personal comments.
 - Prompt templates with `{STOCK}/{NAME}/{MARKET}/{SYMBOL}` placeholders, filled per stock and copied from both Research and View. See [ADR-0014](decisions/0014-prompt-templates.md).
 - Pluggable Skills (`resources/skills/<slug>/SKILL.md`, drop-a-folder, enable/disable in Settings); ships the supply-chain bottleneck Skill plus a scorecard endpoint. See [ADR-0017](decisions/0017-pluggable-skills.md).
@@ -58,7 +58,7 @@ Everything in this section is implemented and in daily use.
 
 ### Note (记)
 
-- Markdown long-form notes, pinned notes, preview/edit mode, debounced autosave, and shared Markdown rendering across notes, generated reports, and imported research.
+- Markdown long-form notes organized in **one-level folders** (drag-and-drop filing, an unfiled bucket, double-click rename, delete keeps the notes), pinned notes, preview/edit mode, debounced autosave, and shared Markdown rendering across notes and imported research.
 
 ### Settings & Infrastructure
 
@@ -73,7 +73,7 @@ The remaining work, roughly in priority order. Nothing here is shipped; "activel
 
 ### Next (actively shaped)
 
-1. **Official Deep Research jobs** — run OpenAI Deep Research and Gemini Deep Research as asynchronous jobs: store provider job IDs, poll or stream progress, normalize citations, and save the report back into Augur. Keep the existing local-gather path as the fallback engine. See [ADR-0011](decisions/0011-research-deep-research-api-strategy.md).
+1. **Official Deep Research jobs** — run OpenAI Deep Research and Gemini Deep Research as asynchronous jobs: store provider job IDs, poll or stream progress, normalize citations, and save the report back into Augur. (The old local-gather engine was removed on 2026-06-13 — research is import-only until this lands; there is no built-in fallback.) See [ADR-0011](decisions/0011-research-deep-research-api-strategy.md) and [ADR-0018](decisions/0018-remove-builtin-research-and-fmp.md).
 2. **Stronger stock-source verification** — independent probes plus Chinese diagnostics for X handles, Reddit communities, RSS/Atom feeds, company IR/news pages, and region-specific filings, instead of marking a source verified the moment one item is fetched.
 3. **Account-following for Xiaohongshu / Threads** — currently keyword-search only; follow specific accounts once the TikHub user-posts endpoints for those platforms are wired.
 4. **Discover-feeding Skills** — `surface=xun` candidate-generator Skills; multi-step Skill workflows (earnings prep, counter-evidence scan, post-earnings review, industry comparison, new-listing cold start); an in-UI scorecard form.
@@ -86,7 +86,7 @@ The remaining work, roughly in priority order. Nothing here is shipped; "activel
 - **Discover ranking depth** — a second ranking key (independent-source count), unresolved-entity candidates, and opportunity-card cross-feed.
 - **Portfolio-style research view** — read-only exposure and concentration analysis across watchlists, without brokerage integration.
 - **Exports** — Markdown/PDF exports for research reports, notes, and daily snapshots.
-- **Native macOS app** — Tauri shell, Python sidecar, Keychain-backed secrets, and application data under `~/Library/Application Support/Augur/`.
+- **Native macOS app** — ✅ 首版已落地（[ADR-0019](decisions/0019-package-as-macos-app.md)）：Tauri 2 外壳 spawn PyInstaller onedir 独立后端，数据存 `~/Library/Application Support/Augur/`，不签名分发（`首次打开.command` 解 quarantine）。秘钥仍走 `config.local.json` 明文（单用户本地，非 Keychain）。待补：代码签名、体积瘦身（pyarrow 122M）。
 
 ## Known Limitations
 

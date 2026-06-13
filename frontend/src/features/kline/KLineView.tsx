@@ -134,7 +134,7 @@ export default function KLineView() {
 
   // 综合认知 marker：个人判断（判）+ 公司披露（财/会）。三类统一钉在价格轴底部一条事件带上，
   // 不遮挡蜡烛实体；同一财报周期内相近的多份申报/电话会合并，避免挤成一团分不清。
-  // 优先用真实披露日；没有 SEC/FMP 披露事件时，财报 marker 才回退到季度期末近似。
+  // 优先用真实披露日；没有 SEC 披露事件时，财报 marker 才回退到季度期末近似。
   useEffect(() => {
     const plugin = markersRef.current
     if (!plugin) return

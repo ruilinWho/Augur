@@ -5,6 +5,10 @@ import { toastError } from './components/Toast'
 // 变更失败统一弹 toast（自选重命名撞名 409、加股已存在 422…不再静默回滚，§11 暴露不确定性）
 const onMutErr = (e: unknown) => toastError((e as Error).message)
 
+// 打包（Tauri）后前端从 tauri:// 加载、无 vite proxy → 用绝对 base 指向本地后端（.env.production
+// 注入 http://127.0.0.1:8788）；开发期 VITE_API_BASE 不设 = '' 走 vite.config.ts 的 proxy。
+const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+
 // ───────────────────────── HTTP 助手（开发期经 Vite 代理到 :8788）─────────────────────────
 // 携带 HTTP 状态码的错误：让「404=暂无（空态）vs 其它=真错误」靠 status 判定，而非脆弱的中文
 // detail 子串匹配（后端改文案就会让空态突然报红）。
@@ -18,7 +22,7 @@ export class HttpError extends Error {
 }
 
 async function getJSON(url: string): Promise<unknown> {
-  const r = await fetch(url)
+  const r = await fetch(API_BASE + url)
   if (!r.ok) {
     const d = (await r.json().catch(() => ({}))) as { detail?: string }
     throw new HttpError(d.detail ?? `HTTP ${r.status}`, r.status)
@@ -27,7 +31,7 @@ async function getJSON(url: string): Promise<unknown> {
 }
 
 async function send(url: string, method: string, body?: unknown): Promise<unknown> {
-  const r = await fetch(url, {
+  const r = await fetch(API_BASE + url, {
     method,
     headers: body !== undefined ? { 'content-type': 'application/json' } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -300,7 +304,7 @@ export async function streamChat(
   onDelta: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const r = await fetch('/llm/chat', {
+  const r = await fetch(`${API_BASE}/llm/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ messages, role }),
@@ -1425,59 +1429,6 @@ export function useGenerateReport() {
   })
 }
 
-// ───────────────────────── 研 · 单股深度研究 ─────────────────────────
-const researchSourceSchema = z.object({
-  n: z.number(),
-  title: z.string().default(''),
-  source: z.string().default(''),
-  url: z.string().nullable().default(null),
-})
-const researchReportSchema = z.object({
-  symbol: z.string(),
-  name: z.string().default(''),
-  body: z.string(),
-  sources: z.array(researchSourceSchema).default([]),
-  model: z.string().default(''),
-  created_at: z.string().nullable().default(null),
-})
-export type ResearchSource = z.infer<typeof researchSourceSchema>
-export type ResearchReport = z.infer<typeof researchReportSchema>
-
-// 已生成的深度研究报告。404（暂无）→ null 而非抛错。
-export function useResearchReport(symbol: string | null) {
-  return useQuery({
-    enabled: !!symbol,
-    queryKey: ['research', symbol],
-    queryFn: async () => {
-      try {
-        return researchReportSchema.parse(
-          await getJSON(`/research/stock?symbol=${encodeURIComponent(symbol!)}`),
-        )
-      } catch (e) {
-        if (e instanceof HttpError && e.status === 404) return null
-        throw e
-      }
-    },
-  })
-}
-
-// 生成单股深度研究（SSE 流式）；onDelta 增量回调。完成/中断由调用方处理。
-export async function streamResearch(
-  symbol: string,
-  onDelta: (text: string) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const r = await fetch(`/research/stock/generate?symbol=${encodeURIComponent(symbol)}`, {
-    method: 'POST',
-    signal,
-  })
-  if (!r.ok) {
-    const d = (await r.json().catch(() => ({}))) as { detail?: string }
-    throw new Error(d.detail ?? `HTTP ${r.status}`)
-  }
-  await consumeSSE(r, onDelta)
-}
-
 // ───────────────────────── 研 · 导入研报（他人写的 markdown，一股可多份）─────────────────────────
 const importedReportSchema = z.object({
   id: z.number(),
@@ -1562,6 +1513,7 @@ export function useReorderImported() {
 // ───────────────────────── 「记」· 笔记（第 4 支柱）─────────────────────────
 const noteMetaSchema = z.object({
   id: z.number(),
+  folder_id: z.number().nullable().default(null),
   title: z.string().default(''),
   preview: z.string().default(''),
   pinned: z.boolean().default(false),
@@ -1570,6 +1522,7 @@ const noteMetaSchema = z.object({
 })
 const noteSchema = z.object({
   id: z.number(),
+  folder_id: z.number().nullable().default(null),
   title: z.string().default(''),
   body: z.string().default(''),
   pinned: z.boolean().default(false),
@@ -1597,8 +1550,14 @@ export function useNote(id: number | null) {
 export function useCreateNote() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (v: { title?: string; body?: string }) =>
-      noteSchema.parse(await send('/notes', 'POST', { title: v.title ?? '', body: v.body ?? '' })),
+    mutationFn: async (v: { title?: string; body?: string; folderId?: number | null }) =>
+      noteSchema.parse(
+        await send('/notes', 'POST', {
+          title: v.title ?? '',
+          body: v.body ?? '',
+          folder_id: v.folderId ?? null,
+        }),
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
@@ -1622,6 +1581,66 @@ export function useDeleteNote() {
   return useMutation({
     mutationFn: async (id: number) => send(`/notes/${id}`, 'DELETE'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+  })
+}
+
+// 「记」文件夹（一级目录）：一篇笔记归属 ≤1 个文件夹，folder_id=null 即未归类。
+const folderSchema = z.object({
+  id: z.number(),
+  name: z.string().default(''),
+  sort_order: z.number().default(0),
+  note_count: z.number().default(0),
+  created_at: z.string().nullable().default(null),
+})
+export type Folder = z.infer<typeof folderSchema>
+
+export function useFolders() {
+  return useQuery({
+    queryKey: ['note-folders'],
+    queryFn: async () => z.array(folderSchema).parse(await getJSON('/notes/folders')),
+  })
+}
+
+export function useCreateFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { name?: string }) =>
+      folderSchema.parse(await send('/notes/folders', 'POST', { name: v.name ?? '' })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['note-folders'] }),
+  })
+}
+
+export function useRenameFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; name: string }) =>
+      folderSchema.parse(await send(`/notes/folders/${v.id}`, 'PATCH', { name: v.name })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['note-folders'] }),
+  })
+}
+
+export function useDeleteFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => send(`/notes/folders/${id}`, 'DELETE'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['note-folders'] })
+      qc.invalidateQueries({ queryKey: ['notes'] }) // 其下笔记回未归类
+    },
+  })
+}
+
+// 移动笔记归属（folderId=null → 未归类）。独立于 useUpdateNote，显式语义。
+export function useMoveNote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { id: number; folderId: number | null }) =>
+      noteSchema.parse(await send(`/notes/${v.id}/folder`, 'PATCH', { folder_id: v.folderId })),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['notes'] })
+      qc.invalidateQueries({ queryKey: ['note-folders'] }) // note_count 变化
+      qc.setQueryData(['note', data.id], data)
+    },
   })
 }
 

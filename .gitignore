@@ -8,6 +8,8 @@
 .env
 .env.*
 !.env.example
+# frontend/.env.production 非密钥（仅 VITE_API_BASE=http://127.0.0.1:8788），属打包构建配置 → 入库
+!frontend/.env.production
 *.local.toml
 config.local.*
 secrets/
@@ -60,7 +62,10 @@ src-tauri/target/
 src-tauri/gen/
 
 # ── PyInstaller sidecar build artifacts (Phase 2 packaging) ────
+# *.spec 多被当产物忽略，但 augur.spec 是手写的 PyInstaller 构建配方（源文件）→ 例外入库；
+# 真正的产物只有 build/ 与 dist/。
 *.spec
+!backend/augur.spec
 backend/build/
 backend/dist/
 
@@ -85,3 +90,9 @@ Icon?
 # ── 工作区参考素材（作者拖进来给 LLM 看的，非项目资产，别误入库）──
 resources/*.zip
 resources/template.txt
+
+# ── Tauri 应用图标（tauri icon 生成，构建必需）─────────────────
+# 上面 macOS 段的 `Icon?` 在大小写不敏感文件系统会误伤名为 "icons" 的目录，
+# 导致图标被忽略、fresh clone 构建缺图标 → 这里显式放行。
+!frontend/src-tauri/icons/
+!frontend/src-tauri/icons/**
