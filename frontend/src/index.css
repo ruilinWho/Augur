@@ -126,11 +126,48 @@ button {
 /* Tauri 无边框 Overlay 标题栏：顶栏即标题栏 —— 给左上角原生红绿灯让位，
    整条设为可拖拽窗口（见 App.tsx 的 data-tauri-drag-region），按钮/标签照常可点。 */
 html.tauri .topbar {
+  height: 48px;
+  padding-top: 0;
+  padding-bottom: 0;
   padding-left: 88px;
 }
 /* 原生红绿灯已是三个圆点；Tauri 下隐藏品牌强调点，免得四点扎堆把 Augur 挤在窗控旁。 */
 html.tauri .wordmark .dot {
   display: none;
+}
+
+/* 启动加载态（后端就绪前）：品牌奶白底，居中幼苗轻呼吸；无文字。 */
+.backend-gate {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.bg-seed {
+  font-size: 56px;
+  line-height: 1;
+  animation: bg-breathe 1.9s ease-in-out infinite;
+}
+@keyframes bg-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-seed {
+    animation: none;
+    opacity: 0.85;
+  }
 }
 .wordmark {
   font-family: var(--font-display);

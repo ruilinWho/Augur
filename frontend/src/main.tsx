@@ -46,9 +46,8 @@ function BackendGate({ children }: { children: React.ReactNode }) {
   }, [])
   if (!ready)
     return (
-      <div className="backend-gate">
+      <div className="backend-gate" data-tauri-drag-region>
         <div className="bg-seed">🌱</div>
-        <div className="bg-text">启动中…</div>
       </div>
     )
   return <>{children}</>

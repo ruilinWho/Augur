@@ -273,7 +273,7 @@ export default function App() {
       <Toaster />
       <div className="app-shell">
         <header className="topbar" data-tauri-drag-region>
-          <span className="wordmark">
+          <span className="wordmark" data-tauri-drag-region>
             <span className="dot" /> Augur
           </span>
           <nav className="fn-tabs">
